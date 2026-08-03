@@ -12,6 +12,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/app/clients': 'Clientes',
   '/app/projects': 'Proyectos',
   '/app/billing': 'Facturación',
+  '/app/billing/income': 'Ingresos',
+  '/app/billing/expenses': 'Gastos',
   '/app/timer': 'Timer',
   '/app/emails': 'Emails',
   '/app/maintenance': 'Mantenimientos',

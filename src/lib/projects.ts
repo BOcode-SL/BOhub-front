@@ -125,23 +125,51 @@ export async function listProjects(
   })
 }
 
+// ponytail: 60s options cache for billing sheets; upgrade = /projects/options
+let projectOptionsCache: { at: number; data: { id: number; name: string }[] } | null =
+  null
+
+export async function listProjectOptions(
+  signal?: AbortSignal,
+): Promise<{ id: number; name: string }[]> {
+  if (projectOptionsCache && Date.now() - projectOptionsCache.at < 60_000) {
+    return projectOptionsCache.data
+  }
+  const res = await listProjects({ perPage: 50, sort: 'name' }, signal)
+  const data = res.data.map((p) => ({ id: p.id, name: p.name }))
+  projectOptionsCache = { at: Date.now(), data }
+  return data
+}
+
+export function invalidateProjectOptionsCache(): void {
+  projectOptionsCache = null
+}
+
 export async function getProject(id: number): Promise<Project> {
   return request<Project>(`/api/projects/${id}`, { auth: true })
 }
 
 export async function createProject(body: ProjectInput): Promise<Project> {
-  return request<Project>('/api/projects', { method: 'POST', body, auth: true })
+  const created = await request<Project>('/api/projects', {
+    method: 'POST',
+    body,
+    auth: true,
+  })
+  invalidateProjectOptionsCache()
+  return created
 }
 
 export async function updateProject(
   id: number,
   body: Partial<ProjectInput>,
 ): Promise<Project> {
-  return request<Project>(`/api/projects/${id}`, {
+  const updated = await request<Project>(`/api/projects/${id}`, {
     method: 'PUT',
     body,
     auth: true,
   })
+  invalidateProjectOptionsCache()
+  return updated
 }
 
 export async function deleteProject(id: number): Promise<void> {
@@ -149,6 +177,7 @@ export async function deleteProject(id: number): Promise<void> {
     method: 'DELETE',
     auth: true,
   })
+  invalidateProjectOptionsCache()
 }
 
 export function projectErrorMessage(err: unknown): string {

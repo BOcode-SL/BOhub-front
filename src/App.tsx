@@ -7,6 +7,9 @@ import { LoginPage } from '@/pages/LoginPage'
 import { ClientsPage } from '@/pages/clients/ClientsPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ProjectDetailPage } from '@/pages/projects/ProjectDetailPage'
+import { BillingSummaryPage } from '@/pages/billing/BillingSummaryPage'
+import { IncomePage } from '@/pages/billing/IncomePage'
+import { ExpensesPage } from '@/pages/billing/ExpensesPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -25,10 +28,9 @@ export default function App() {
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="projects/:id" element={<ProjectDetailPage />} />
-                <Route
-                  path="billing"
-                  element={<PlaceholderPage title="Facturación" />}
-                />
+                <Route path="billing" element={<BillingSummaryPage />} />
+                <Route path="billing/income" element={<IncomePage />} />
+                <Route path="billing/expenses" element={<ExpensesPage />} />
                 <Route
                   path="timer"
                   element={<PlaceholderPage title="Timer" />}
