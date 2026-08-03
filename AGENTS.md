@@ -58,7 +58,7 @@ src/
 
 Legacy: `/app` → `/dashboard`.
 
-Auth token: `localStorage` key `bohub_token` → `Authorization: Bearer …` via `lib/api.ts`.
+Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + CSRF (`/sanctum/csrf-cookie`, `X-XSRF-TOKEN`) in `lib/api.ts`. No `bohub_token` / Bearer. After API cutover, users must re-login.
 
 ## UI conventions (agents must follow)
 

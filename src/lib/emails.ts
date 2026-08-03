@@ -1,4 +1,4 @@
-import { request, ApiError, apiErrorMessage, getToken } from './api'
+import { request, requestFormData, apiErrorMessage } from './api'
 
 export const MAX_ATTACHMENTS = 10
 export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
@@ -68,10 +68,6 @@ export type PageMeta = {
 }
 
 type Paginated<T> = { data: T[]; meta: PageMeta }
-
-function getBaseUrl(): string {
-  return import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-}
 
 export function detectVariables(...sources: string[]): string[] {
   const found = new Set<string>()
@@ -213,44 +209,7 @@ export async function sendEmail(input: SendEmailInput): Promise<EmailMessage> {
     fd.append('attachments[]', file)
   }
 
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  const token = getToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-
-  let res: Response
-  try {
-    res = await fetch(`${getBaseUrl()}/api/emails/send`, {
-      method: 'POST',
-      headers,
-      body: fd,
-    })
-  } catch {
-    throw new ApiError(
-      'No se pudo conectar con la API. ¿Está el back en marcha?',
-      0,
-    )
-  }
-
-  const data: unknown = await res.json().catch(() => null)
-  if (!res.ok) {
-    let message = `Error ${res.status}`
-    if (data && typeof data === 'object') {
-      if (
-        'message' in data &&
-        typeof (data as { message: unknown }).message === 'string'
-      ) {
-        message = (data as { message: string }).message
-      }
-      if ('errors' in data && data.errors && typeof data.errors === 'object') {
-        const first = Object.values(
-          data.errors as Record<string, string[]>,
-        )[0]
-        if (Array.isArray(first) && first[0]) message = first[0]
-      }
-    }
-    throw new ApiError(message, res.status)
-  }
-  return data as EmailMessage
+  return requestFormData<EmailMessage>('/api/emails/send', fd)
 }
 
 export function emailsErrorMessage(err: unknown): string {

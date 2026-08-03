@@ -9,7 +9,7 @@ BrowserRouter
     Sidebar + Outlet → pages/*
 ```
 
-`AuthProvider` loads `me()` if `bohub_token` exists; 401 clears session.
+`AuthProvider` llama `me()` al montar (sesión cookie); 401 limpia el user en estado.
 
 ## Data fetching pattern
 

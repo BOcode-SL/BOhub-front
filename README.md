@@ -20,7 +20,7 @@ pnpm i && pnpm dev
 
 ## Auth
 
-Token: `localStorage` → `bohub_token`
+Sanctum SPA: cookie de sesión httpOnly + CSRF (`credentials: 'include'`). Sin token en `localStorage`.
 
 | Ruta | Acceso |
 | --- | --- |

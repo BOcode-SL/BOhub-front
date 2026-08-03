@@ -1,5 +1,3 @@
-const TOKEN_KEY = 'bohub_token'
-
 export type AuthUser = {
   id: number
   name: string
@@ -21,46 +19,105 @@ function getBaseUrl(): string {
   return import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+/** One-time cleanup of legacy Bearer token storage. */
+function clearLegacyToken(): void {
+  try {
+    localStorage.removeItem('bohub_token')
+  } catch {
+    /* ignore */
+  }
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token)
+function readXsrfToken(): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
+  if (!match?.[1]) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
 }
 
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
+let csrfPromise: Promise<void> | null = null
+
+/** Hit Sanctum csrf endpoint so session + XSRF-TOKEN cookies exist. */
+export async function ensureCsrf(): Promise<void> {
+  if (!csrfPromise) {
+    csrfPromise = (async () => {
+      const res = await fetch(`${getBaseUrl()}/sanctum/csrf-cookie`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+      if (!res.ok) {
+        throw new ApiError(`CSRF init failed (${res.status})`, res.status)
+      }
+    })().finally(() => {
+      csrfPromise = null
+    })
+  }
+  await csrfPromise
 }
 
 type RequestOptions = {
   method?: string
   body?: unknown
+  /** @deprecated session cookie auth; kept so call sites still compile */
   auth?: boolean
   signal?: AbortSignal
+  /** Internal: already retried after 419 */
+  _retried?: boolean
+}
+
+function buildHeaders(method: string, isJsonBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  }
+  if (isJsonBody) {
+    headers['Content-Type'] = 'application/json'
+  }
+  const xsrf = readXsrfToken()
+  if (xsrf && method !== 'GET' && method !== 'HEAD') {
+    headers['X-XSRF-TOKEN'] = xsrf
+  }
+  return headers
+}
+
+async function parseError(res: Response, data: unknown): Promise<ApiError> {
+  let message = `Error ${res.status}`
+  if (data && typeof data === 'object') {
+    if (
+      'message' in data &&
+      typeof (data as { message: unknown }).message === 'string'
+    ) {
+      message = (data as { message: string }).message
+    }
+    if ('errors' in data && data.errors && typeof data.errors === 'object') {
+      const first = Object.values(data.errors as Record<string, string[]>)[0]
+      if (Array.isArray(first) && first[0]) {
+        message = first[0]
+      }
+    }
+  }
+  return new ApiError(message, res.status)
 }
 
 export async function request<T>(
   path: string,
-  { method = 'GET', body, auth = false, signal }: RequestOptions = {},
+  { method = 'GET', body, signal, _retried }: RequestOptions = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  }
+  clearLegacyToken()
 
-  if (auth) {
-    const token = getToken()
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
-  }
+  const headers = buildHeaders(method, body !== undefined)
 
   let res: Response
   try {
     res = await fetch(`${getBaseUrl()}${path}`, {
       method,
       headers,
+      credentials: 'include',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
@@ -71,61 +128,85 @@ export async function request<T>(
     throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0)
   }
 
+  if (res.status === 419 && !_retried) {
+    await ensureCsrf()
+    return request<T>(path, { method, body, signal, _retried: true })
+  }
+
   const data: unknown = await res.json().catch(() => null)
 
   if (!res.ok) {
-    let message = `Error ${res.status}`
-    if (data && typeof data === 'object') {
-      if (
-        'message' in data &&
-        typeof (data as { message: unknown }).message === 'string'
-      ) {
-        message = (data as { message: string }).message
-      }
-      if (
-        'errors' in data &&
-        data.errors &&
-        typeof data.errors === 'object'
-      ) {
-        const first = Object.values(data.errors as Record<string, string[]>)[0]
-        if (Array.isArray(first) && first[0]) {
-          message = first[0]
-        }
-      }
-    }
-    throw new ApiError(message, res.status)
+    throw await parseError(res, data)
   }
 
+  return data as T
+}
+
+/** Multipart POST with session cookies + CSRF (no Content-Type: let browser set boundary). */
+export async function requestFormData<T>(
+  path: string,
+  formData: FormData,
+  { signal, _retried }: { signal?: AbortSignal; _retried?: boolean } = {},
+): Promise<T> {
+  clearLegacyToken()
+
+  const headers = buildHeaders('POST', false)
+  delete headers['Content-Type']
+
+  let res: Response
+  try {
+    res = await fetch(`${getBaseUrl()}${path}`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: formData,
+      signal,
+    })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0)
+  }
+
+  if (res.status === 419 && !_retried) {
+    await ensureCsrf()
+    return requestFormData<T>(path, formData, { signal, _retried: true })
+  }
+
+  const data: unknown = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw await parseError(res, data)
+  }
   return data as T
 }
 
 export async function login(
   email: string,
   password: string,
-): Promise<{ token: string; user: AuthUser }> {
-  const data = await request<{ token: string; user: AuthUser }>('/api/auth/login', {
+): Promise<{ user: AuthUser }> {
+  await ensureCsrf()
+  return request<{ user: AuthUser }>('/api/auth/login', {
     method: 'POST',
     body: { email, password },
   })
-  setToken(data.token)
-  return data
 }
 
 export async function logout(): Promise<void> {
   try {
-    if (getToken()) {
-      await request<{ ok: boolean }>('/api/auth/logout', {
-        method: 'POST',
-        auth: true,
-      })
+    await request<{ ok: boolean }>('/api/auth/logout', {
+      method: 'POST',
+    })
+  } catch (err) {
+    // ponytail: already logged out / network — still clear client state
+    if (!(err instanceof ApiError && (err.status === 401 || err.status === 419))) {
+      throw err
     }
-  } finally {
-    clearToken()
   }
 }
 
 export async function me(): Promise<AuthUser> {
-  const data = await request<{ user: AuthUser }>('/api/auth/me', { auth: true })
+  const data = await request<{ user: AuthUser }>('/api/auth/me')
   return data.user
 }
 
@@ -135,4 +216,4 @@ export function apiErrorMessage(err: unknown): string {
   return 'Error inesperado'
 }
 
-export { TOKEN_KEY }
+export { getBaseUrl }
