@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/app/billing/expenses': 'Gastos',
   '/app/timer': 'Timer',
   '/app/emails': 'Emails',
+  '/app/emails/messages': 'Mensajes',
   '/app/maintenance': 'Mantenimientos',
 }
 

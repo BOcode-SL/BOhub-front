@@ -13,7 +13,8 @@ import { ExpensesPage } from '@/pages/billing/ExpensesPage'
 import { TimerPage } from '@/pages/timer/TimerPage'
 import { MaintenancePage } from '@/pages/maintenance/MaintenancePage'
 import { HomePage } from '@/pages/home/HomePage'
-import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { EmailsPage } from '@/pages/emails/EmailsPage'
+import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage'
 
 export default function App() {
   return (
@@ -35,10 +36,8 @@ export default function App() {
                 <Route path="billing/income" element={<IncomePage />} />
                 <Route path="billing/expenses" element={<ExpensesPage />} />
                 <Route path="timer" element={<TimerPage />} />
-                <Route
-                  path="emails"
-                  element={<PlaceholderPage title="Emails" />}
-                />
+                <Route path="emails" element={<EmailsPage />} />
+                <Route path="emails/messages" element={<EmailMessagesPage />} />
                 <Route path="maintenance" element={<MaintenancePage />} />
               </Route>
             </Route>
