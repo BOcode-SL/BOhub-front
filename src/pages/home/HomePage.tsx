@@ -28,12 +28,13 @@ export function HomePage() {
   const isMobile = useIsMobile()
   const {
     clientsCount,
-    projects,
+    projectsCount,
     projectsInProgress,
     hoursThisMonthSeconds,
     topProjects,
     statusSlices,
     deadlines,
+    deadlinesCount,
     loading,
     error,
   } = useHomeDashboard()
@@ -51,10 +52,10 @@ export function HomePage() {
 
       <StatsCards
         clientsCount={clientsCount}
-        projectsCount={projects.length}
+        projectsCount={projectsCount}
         projectsInProgress={projectsInProgress}
         hoursThisMonth={formatHoursFromSeconds(hoursThisMonthSeconds)}
-        upcomingDeadlinesCount={deadlines.length}
+        upcomingDeadlinesCount={deadlinesCount}
         isLoading={loading}
       />
 

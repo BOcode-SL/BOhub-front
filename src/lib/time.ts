@@ -54,26 +54,3 @@ export const CHART_FALLBACK_COLORS = [
   '#38bdf8',
   '#fb923c',
 ] as const
-
-/**
- * Paginate until last_page or maxPages.
- * ponytail: ceiling 20×50 = 1000 rows; upgrade = /hours/stats aggregate
- */
-export async function fetchAllPages<T>(
-  load: (
-    page: number,
-  ) => Promise<{ data: T[]; meta: { last_page: number } }>,
-  signal: AbortSignal,
-  maxPages = 20,
-): Promise<T[]> {
-  const out: T[] = []
-  let page = 1
-  for (;;) {
-    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-    const res = await load(page)
-    out.push(...res.data)
-    if (page >= res.meta.last_page || page >= maxPages) break
-    page += 1
-  }
-  return out
-}

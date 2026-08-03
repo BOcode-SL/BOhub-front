@@ -74,16 +74,17 @@ Auth token: `localStorage` key `bohub_token` → `Authorization: Bearer …` via
 
 ## `lib/` API map
 
-| File             | Domain                                           |
-| ---------------- | ------------------------------------------------ |
-| `api.ts`         | `request()`, token, errors                       |
-| `clients.ts`     | clients CRUD                                     |
-| `projects.ts`    | projects + options cache                         |
-| `billing.ts`     | payments, expenses, summary                      |
-| `timer.ts`       | hours, team hours, timers                        |
-| `time.ts`        | month bounds, formatHours, fetchAllPages, colors |
-| `maintenance.ts` | maintenance periods                              |
-| `emails.ts`      | templates, send, messages                        |
+| File             | Domain                               |
+| ---------------- | ------------------------------------ |
+| `api.ts`         | `request()`, token, errors           |
+| `clients.ts`     | clients CRUD                         |
+| `projects.ts`    | projects + options cache             |
+| `billing.ts`     | payments, expenses, summary          |
+| `dashboard.ts`   | home aggregates                      |
+| `timer.ts`       | hours, team hours, timers, analytics |
+| `time.ts`        | month bounds, formatHours, colors    |
+| `maintenance.ts` | maintenance periods                  |
+| `emails.ts`      | templates, send, messages            |
 
 Prefer extending these over new ad-hoc `fetch` calls.
 
@@ -99,7 +100,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 1. Smallest diff; reuse shell + lib helpers.
 2. Don’t add dependencies without need.
 3. Keep TypeScript types next to lib functions.
-4. After UI changes: `pnpm run build`.
+4. After UI changes: `pnpm run build` (`strict` TS).
 5. Ponytail: delete dead code; no drive-by refactors outside task.
 
 ## Deeper docs

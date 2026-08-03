@@ -169,6 +169,38 @@ export async function deleteHour(id: number): Promise<void> {
   await request(`/api/hours/${id}`, { method: 'DELETE', auth: true })
 }
 
+export type HoursAnalyticsProject = {
+  id: number
+  name: string
+  color: string | null
+}
+
+export type HoursAnalyticsBucket = {
+  workedOn: string
+  projectId: number
+  seconds: number
+}
+
+export type HoursAnalyticsResponse = {
+  year: number
+  month: number
+  from: string
+  to: string
+  projects: HoursAnalyticsProject[]
+  buckets: HoursAnalyticsBucket[]
+}
+
+export function getHoursAnalytics(
+  params: { year: number; month: number; projectId?: number },
+  signal?: AbortSignal,
+): Promise<HoursAnalyticsResponse> {
+  const q = new URLSearchParams()
+  q.set('year', String(params.year))
+  q.set('month', String(params.month))
+  if (params.projectId) q.set('project_id', String(params.projectId))
+  return request(`/api/hours/analytics?${q}`, { auth: true, signal })
+}
+
 export function timerErrorMessage(err: unknown): string {
   return apiErrorMessage(err)
 }

@@ -9,10 +9,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Project } from '@/lib/projects'
+import type { HomeDeadline } from '@/lib/dashboard'
 
 type Props = {
-  projects: Project[]
+  projects: HomeDeadline[]
   isLoading?: boolean
 }
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
-import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import {
   ChartContainer,
@@ -16,17 +15,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { listProjects, type Project } from '@/lib/projects'
 import {
   formatDuration,
-  listHours,
-  listTeamHours,
+  getHoursAnalytics,
   timerErrorMessage,
-  type Hour,
+  type HoursAnalyticsBucket,
+  type HoursAnalyticsProject,
 } from '@/lib/timer'
 import {
   CHART_FALLBACK_COLORS,
   daysInMonth,
-  fetchAllPages,
   formatHoursFromSeconds,
-  monthBounds,
   monthLabelEs,
   normalizeHexColor,
 } from '@/lib/time'
@@ -46,28 +43,24 @@ type Props = {
 }
 
 export function TimerAnalytics({ above }: Props) {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
-
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [monthIndex, setMonthIndex] = useState(now.getMonth())
   const [projectFilter, setProjectFilter] = useState<number | ''>('')
-  const [projects, setProjects] = useState<Project[]>([])
-  const [monthHours, setMonthHours] = useState<Hour[]>([])
+  const [projectOptions, setProjectOptions] = useState<Project[]>([])
+  const [projects, setProjects] = useState<HoursAnalyticsProject[]>([])
+  const [buckets, setBuckets] = useState<HoursAnalyticsBucket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // projects once (names + color for stacks)
   useEffect(() => {
     const ac = new AbortController()
     void listProjects({ perPage: 50, sort: 'name' }, ac.signal)
-      .then((res) => setProjects(res.data))
+      .then((res) => setProjectOptions(res.data))
       .catch(() => {})
     return () => ac.abort()
   }, [])
 
-  // ponytail: 1 fetch per month (not per project filter / not timer tick); filter client-side
   useEffect(() => {
     const ac = new AbortController()
     let cancelled = false
@@ -75,20 +68,24 @@ export function TimerAnalytics({ above }: Props) {
       setLoading(true)
       setError(null)
       try {
-        const { from, to } = monthBounds(year, monthIndex)
-        const rows = await fetchAllPages<Hour>(
-          (page) =>
-            isAdmin
-              ? listTeamHours({ page, perPage: 50, from, to }, ac.signal)
-              : listHours({ page, perPage: 50, from, to }, ac.signal),
+        const res = await getHoursAnalytics(
+          {
+            year,
+            month: monthIndex + 1,
+            projectId: projectFilter || undefined,
+          },
           ac.signal,
         )
-        if (!cancelled) setMonthHours(rows)
+        if (!cancelled) {
+          setProjects(res.projects)
+          setBuckets(res.buckets)
+        }
       } catch (err) {
         if (cancelled) return
         if (err instanceof DOMException && err.name === 'AbortError') return
         setError(timerErrorMessage(err))
-        setMonthHours([])
+        setProjects([])
+        setBuckets([])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -98,7 +95,7 @@ export function TimerAnalytics({ above }: Props) {
       cancelled = true
       ac.abort()
     }
-  }, [year, monthIndex, isAdmin])
+  }, [year, monthIndex, projectFilter])
 
   function shiftMonth(delta: number) {
     const d = new Date(Date.UTC(year, monthIndex + delta, 1))
@@ -106,30 +103,20 @@ export function TimerAnalytics({ above }: Props) {
     setMonthIndex(d.getUTCMonth())
   }
 
-  const hours = useMemo(() => {
-    if (!projectFilter) return monthHours
-    return monthHours.filter((h) => h.projectId === projectFilter)
-  }, [monthHours, projectFilter])
-
   const { series, chartData, totalSeconds, activeDays, chartConfig } =
     useMemo(() => {
       const projectMap = new Map(projects.map((p) => [p.id, p]))
-      const nameFromHours = new Map<number, string>()
-      const buckets = new Map<string, number>()
+      const bucketMap = new Map<string, number>()
       const projectIds = new Set<number>()
 
-      // O(n) one pass
-      for (const h of hours) {
-        projectIds.add(h.projectId)
-        if (h.project?.name) nameFromHours.set(h.projectId, h.project.name)
-        const key = `${h.workedOn}|${h.projectId}`
-        buckets.set(key, (buckets.get(key) ?? 0) + h.durationSeconds)
+      for (const b of buckets) {
+        projectIds.add(b.projectId)
+        bucketMap.set(`${b.workedOn}|${b.projectId}`, b.seconds)
       }
 
       const seriesList: SeriesMeta[] = [...projectIds]
         .map((id) => {
-          const name =
-            projectMap.get(id)?.name ?? nameFromHours.get(id) ?? `#${id}`
+          const name = projectMap.get(id)?.name ?? `#${id}`
           return { id, name }
         })
         .sort((a, b) => a.name.localeCompare(b.name))
@@ -153,7 +140,7 @@ export function TimerAnalytics({ above }: Props) {
         }
         let dayTotal = 0
         for (const s of seriesList) {
-          const sec = buckets.get(`${dayKey}|${s.projectId}`) ?? 0
+          const sec = bucketMap.get(`${dayKey}|${s.projectId}`) ?? 0
           row[s.key] = Number((sec / 3600).toFixed(2))
           dayTotal += sec
           total += sec
@@ -174,7 +161,7 @@ export function TimerAnalytics({ above }: Props) {
         activeDays: daysWithHours.size,
         chartConfig: config,
       }
-    }, [hours, projects, year, monthIndex])
+    }, [buckets, projects, year, monthIndex])
 
   const dailyAvg = activeDays > 0 ? Math.round(totalSeconds / activeDays) : 0
   const hasBars = series.length > 0 && totalSeconds > 0
@@ -221,7 +208,7 @@ export function TimerAnalytics({ above }: Props) {
               className={selectClass + ' min-w-48'}
             >
               <option value="">Todos</option>
-              {projects.map((p) => (
+              {projectOptions.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>

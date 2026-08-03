@@ -26,13 +26,13 @@ Pagination: URL `searchParams` where Clients/Projects/Billing already do (prefer
 
 ## Home data
 
-`HomePage` `Promise.all` over existing APIs (projects, clients, hours, billing summary, maintenances).  
-No `/api/home` endpoint.
+`GET /api/dashboard/home` — SQL aggregates (counts, status slices, deadlines, month hours + top projects).  
+`useHomeDashboard` does a single request; no client-side `fetchAllPages`.
 
 ## Timer Analytics
 
 Lazy `import('./TimerAnalytics')` so recharts stays off Mis horas path.  
-Aggregate hours for selected month in client (`lib/time.ts` helpers).
+`GET /api/hours/analytics?year=&month=` returns day×project buckets.
 
 ## Path aliases
 
