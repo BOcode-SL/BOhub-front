@@ -10,6 +10,7 @@ import { ProjectDetailPage } from '@/pages/projects/ProjectDetailPage'
 import { BillingSummaryPage } from '@/pages/billing/BillingSummaryPage'
 import { IncomePage } from '@/pages/billing/IncomePage'
 import { ExpensesPage } from '@/pages/billing/ExpensesPage'
+import { TimerPage } from '@/pages/timer/TimerPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -31,10 +32,7 @@ export default function App() {
                 <Route path="billing" element={<BillingSummaryPage />} />
                 <Route path="billing/income" element={<IncomePage />} />
                 <Route path="billing/expenses" element={<ExpensesPage />} />
-                <Route
-                  path="timer"
-                  element={<PlaceholderPage title="Timer" />}
-                />
+                <Route path="timer" element={<TimerPage />} />
                 <Route
                   path="emails"
                   element={<PlaceholderPage title="Emails" />}
