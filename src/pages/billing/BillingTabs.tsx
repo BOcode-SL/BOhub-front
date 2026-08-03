@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 const tabs = [
-  { to: '/app/billing', end: true, label: 'Resumen' },
-  { to: '/app/billing/income', label: 'Ingresos' },
-  { to: '/app/billing/expenses', label: 'Gastos' },
+  { to: '/dashboard/billing', end: true, label: 'Resumen' },
+  { to: '/dashboard/billing/income', label: 'Ingresos' },
+  { to: '/dashboard/billing/expenses', label: 'Gastos' },
 ] as const
 
 export function BillingTabs() {

@@ -18,13 +18,13 @@ import {
 import { cn } from '@/lib/utils'
 
 const items: { title: string; url: string; icon: LucideIcon; end?: boolean }[] = [
-  { title: 'Inicio', url: '/app', icon: Home, end: true },
-  { title: 'Clientes', url: '/app/clients', icon: Users },
-  { title: 'Proyectos', url: '/app/projects', icon: Folder },
-  { title: 'Facturación', url: '/app/billing', icon: ReceiptEuro },
-  { title: 'Timer', url: '/app/timer', icon: Clock },
-  { title: 'Emails', url: '/app/emails', icon: Mail },
-  { title: 'Mantenimientos', url: '/app/maintenance', icon: Wrench },
+  { title: 'Inicio', url: '/dashboard', icon: Home, end: true },
+  { title: 'Clientes', url: '/dashboard/clients', icon: Users },
+  { title: 'Proyectos', url: '/dashboard/projects', icon: Folder },
+  { title: 'Facturación', url: '/dashboard/billing', icon: ReceiptEuro },
+  { title: 'Timer', url: '/dashboard/timer', icon: Clock },
+  { title: 'Emails', url: '/dashboard/emails', icon: Mail },
+  { title: 'Mantenimientos', url: '/dashboard/maintenance', icon: Wrench },
 ]
 
 export function NavMain() {

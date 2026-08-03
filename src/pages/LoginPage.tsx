@@ -23,7 +23,7 @@ export function LoginPage() {
 
     try {
       await login(email.trim(), password)
-      navigate('/app', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
         setError(

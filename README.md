@@ -25,12 +25,14 @@ Token: `localStorage` → `bohub_token`
 | Ruta | Acceso |
 | --- | --- |
 | `/login` | público |
-| `/app` | Inicio (placeholder) |
-| `/app/clients` | Clientes (CRUD) |
-| `/app/projects` | Proyectos |
-| `/app/billing` | Facturación |
-| `/app/timer` | Timer |
-| `/app/emails` | Emails |
-| `/app/maintenance` | Mantenimientos |
+| `/dashboard` | Inicio (Home) |
+| `/dashboard/clients` | Clientes (CRUD) |
+| `/dashboard/projects` | Proyectos |
+| `/dashboard/billing` | Facturación |
+| `/dashboard/timer` | Timer |
+| `/dashboard/emails` | Emails |
+| `/dashboard/maintenance` | Mantenimientos |
+
+Redirect legacy: `/app` y `/app/*` → `/dashboard/*`.
 
 Logout desde el menú de usuario del sidebar.

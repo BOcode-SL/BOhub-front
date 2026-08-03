@@ -71,7 +71,7 @@ export function UpcomingDeadlines({ projects, isLoading }: Props) {
             variant="ghost"
             size="sm"
             className="shrink-0 cursor-pointer text-xs sm:text-sm"
-            onClick={() => navigate('/app/projects')}
+            onClick={() => navigate('/dashboard/projects')}
           >
             Ver todos
             <ArrowRight className="size-3 sm:size-4" />
@@ -96,7 +96,7 @@ export function UpcomingDeadlines({ projects, isLoading }: Props) {
                   key={project.id}
                   type="button"
                   className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border p-2 text-left transition-colors duration-200 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none sm:p-3"
-                  onClick={() => navigate(`/app/projects/${project.id}`)}
+                  onClick={() => navigate(`/dashboard/projects/${project.id}`)}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-primary sm:size-8">

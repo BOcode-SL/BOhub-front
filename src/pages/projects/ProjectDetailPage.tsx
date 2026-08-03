@@ -94,7 +94,7 @@ export function ProjectDetailPage() {
     setDeleting(true)
     try {
       await deleteProject(projectId)
-      navigate('/app/projects')
+      navigate('/dashboard/projects')
     } catch (err) {
       setError(projectErrorMessage(err))
       setDeleting(false)
@@ -119,7 +119,7 @@ export function ProjectDetailPage() {
         <Button
           variant="outline"
           className="w-fit cursor-pointer"
-          render={<Link to="/app/projects" />}
+          render={<Link to="/dashboard/projects" />}
         >
           <ArrowLeft />
           Volver a proyectos
@@ -138,7 +138,7 @@ export function ProjectDetailPage() {
             variant="ghost"
             size="sm"
             className="mb-2 -ml-2 cursor-pointer"
-            render={<Link to="/app/projects" />}
+            render={<Link to="/dashboard/projects" />}
           >
             <ArrowLeft />
             Proyectos
@@ -194,7 +194,7 @@ export function ProjectDetailPage() {
           value={
             project.client ? (
               <Link
-                to={`/app/clients`}
+                to={`/dashboard/clients`}
                 className="cursor-pointer text-primary transition-colors duration-200 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
               >
                 {project.client.name}

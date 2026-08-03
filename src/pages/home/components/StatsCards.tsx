@@ -49,7 +49,7 @@ export function StatsCards({
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-      <Link to="/app/clients" className={linkCardClass}>
+      <Link to="/dashboard/clients" className={linkCardClass}>
         <Card className="h-full border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clientes</CardTitle>
@@ -64,7 +64,7 @@ export function StatsCards({
         </Card>
       </Link>
 
-      <Link to="/app/projects" className={linkCardClass}>
+      <Link to="/dashboard/projects" className={linkCardClass}>
         <Card className="h-full border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Proyectos</CardTitle>
@@ -81,7 +81,7 @@ export function StatsCards({
         </Card>
       </Link>
 
-      <Link to="/app/timer" className={linkCardClass}>
+      <Link to="/dashboard/timer" className={linkCardClass}>
         <Card className="h-full border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Horas</CardTitle>
@@ -96,7 +96,7 @@ export function StatsCards({
         </Card>
       </Link>
 
-      <Link to="/app/projects" className={linkCardClass}>
+      <Link to="/dashboard/projects" className={linkCardClass}>
         <Card className="h-full border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Vencimientos</CardTitle>

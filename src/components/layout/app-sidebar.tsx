@@ -23,7 +23,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<Link to="/app" />}
+              render={<Link to="/dashboard" />}
               tooltip="BOhub"
               className="cursor-pointer transition-colors duration-200 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary/40"
             >

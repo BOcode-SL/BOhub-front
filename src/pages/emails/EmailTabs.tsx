@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 const tabs = [
-  { to: '/app/emails', end: true, label: 'Plantillas' },
-  { to: '/app/emails/messages', label: 'Mensajes' },
+  { to: '/dashboard/emails', end: true, label: 'Plantillas' },
+  { to: '/dashboard/emails/messages', label: 'Mensajes' },
 ] as const
 
 export function EmailTabs() {

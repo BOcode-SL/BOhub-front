@@ -8,22 +8,22 @@ import {
 } from '@/components/ui/sidebar'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/app': 'Inicio',
-  '/app/clients': 'Clientes',
-  '/app/projects': 'Proyectos',
-  '/app/billing': 'Facturación',
-  '/app/billing/income': 'Ingresos',
-  '/app/billing/expenses': 'Gastos',
-  '/app/timer': 'Timer',
-  '/app/emails': 'Emails',
-  '/app/emails/messages': 'Mensajes',
-  '/app/maintenance': 'Mantenimientos',
+  '/dashboard': 'Inicio',
+  '/dashboard/clients': 'Clientes',
+  '/dashboard/projects': 'Proyectos',
+  '/dashboard/billing': 'Facturación',
+  '/dashboard/billing/income': 'Ingresos',
+  '/dashboard/billing/expenses': 'Gastos',
+  '/dashboard/timer': 'Timer',
+  '/dashboard/emails': 'Emails',
+  '/dashboard/emails/messages': 'Mensajes',
+  '/dashboard/maintenance': 'Mantenimientos',
 }
 
 function currentSection(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
   const match = Object.keys(PAGE_TITLES)
-    .filter((k) => k !== '/app' && pathname.startsWith(k))
+    .filter((k) => k !== '/dashboard' && pathname.startsWith(k))
     .sort((a, b) => b.length - a.length)[0]
   return match ? PAGE_TITLES[match] : 'Inicio'
 }
@@ -31,7 +31,7 @@ function currentSection(pathname: string): string {
 export function AppLayout() {
   const { pathname } = useLocation()
   const section = currentSection(pathname)
-  const atHome = pathname === '/app'
+  const atHome = pathname === '/dashboard'
 
   return (
     <SidebarProvider>
@@ -58,7 +58,7 @@ export function AppLayout() {
                   <span className="text-muted-foreground">BOhub</span>
                 ) : (
                   <Link
-                    to="/app"
+                    to="/dashboard"
                     className="cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                   >
                     BOhub

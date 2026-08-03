@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@/auth/AuthContext'
 import { ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -16,6 +16,13 @@ import { HomePage } from '@/pages/home/HomePage'
 import { EmailsPage } from '@/pages/emails/EmailsPage'
 import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage'
 
+/** Bookmarks: /app and /app/* → /dashboard/* */
+function LegacyAppRedirect() {
+  const { pathname, search, hash } = useLocation()
+  const rest = pathname.replace(/^\/app/, '')
+  return <Navigate to={`/dashboard${rest}${search}${hash}`} replace />
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -27,7 +34,7 @@ export default function App() {
             </Route>
 
             <Route element={<ProtectedRoute />}>
-              <Route path="/app" element={<AppLayout />}>
+              <Route path="/dashboard" element={<AppLayout />}>
                 <Route index element={<HomePage />} />
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
@@ -42,8 +49,10 @@ export default function App() {
               </Route>
             </Route>
 
-            <Route path="/" element={<Navigate to="/app" replace />} />
-            <Route path="*" element={<Navigate to="/app" replace />} />
+            <Route path="/app/*" element={<LegacyAppRedirect />} />
+            <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

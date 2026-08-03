@@ -98,14 +98,14 @@ export function BillingSummaryPage() {
           <Button
             variant="outline"
             className="cursor-pointer"
-            render={<Link to="/app/billing/income" />}
+            render={<Link to="/dashboard/billing/income" />}
           >
             Ingresos
           </Button>
           <Button
             variant="outline"
             className="cursor-pointer"
-            render={<Link to="/app/billing/expenses" />}
+            render={<Link to="/dashboard/billing/expenses" />}
           >
             Gastos
           </Button>

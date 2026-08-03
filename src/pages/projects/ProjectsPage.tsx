@@ -397,7 +397,7 @@ export function ProjectsPage() {
                       aria-hidden
                     />
                     <Link
-                      to={`/app/projects/${project.id}`}
+                      to={`/dashboard/projects/${project.id}`}
                       className="cursor-pointer transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                     >
                       {project.name}
@@ -436,7 +436,7 @@ export function ProjectsPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         className="cursor-pointer"
-                        onClick={() => navigate(`/app/projects/${project.id}`)}
+                        onClick={() => navigate(`/dashboard/projects/${project.id}`)}
                       >
                         <Eye />
                         Ver
