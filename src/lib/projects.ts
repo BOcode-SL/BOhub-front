@@ -1,4 +1,4 @@
-import { request, ApiError } from './api'
+import { request, apiErrorMessage } from './api'
 
 export const PROJECT_TYPES = [
   'web',
@@ -36,7 +36,7 @@ export type Project = {
   status: ProjectStatus
   priority: ProjectPriority
   color: string | null
-  icon: string | null
+  icon?: string | null
   startDate: string | null
   endDate: string | null
   client?: ProjectClient
@@ -152,7 +152,5 @@ export async function deleteProject(id: number): Promise<void> {
 }
 
 export function projectErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message
-  if (err instanceof Error) return err.message
-  return 'Error inesperado'
+  return apiErrorMessage(err)
 }

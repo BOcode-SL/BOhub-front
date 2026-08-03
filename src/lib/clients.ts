@@ -1,4 +1,4 @@
-import { request, ApiError } from './api'
+import { request, apiErrorMessage } from './api'
 
 export type Client = {
   id: number
@@ -73,18 +73,26 @@ export async function getClient(id: number): Promise<Client> {
 }
 
 export async function createClient(body: ClientInput): Promise<Client> {
-  return request<Client>('/api/clients', { method: 'POST', body, auth: true })
+  const created = await request<Client>('/api/clients', {
+    method: 'POST',
+    body,
+    auth: true,
+  })
+  invalidateClientOptionsCache()
+  return created
 }
 
 export async function updateClient(
   id: number,
   body: ClientInput,
 ): Promise<Client> {
-  return request<Client>(`/api/clients/${id}`, {
+  const updated = await request<Client>(`/api/clients/${id}`, {
     method: 'PUT',
     body,
     auth: true,
   })
+  invalidateClientOptionsCache()
+  return updated
 }
 
 export async function deleteClient(id: number): Promise<void> {
@@ -92,10 +100,27 @@ export async function deleteClient(id: number): Promise<void> {
     method: 'DELETE',
     auth: true,
   })
+  invalidateClientOptionsCache()
 }
 
 export function clientErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message
-  if (err instanceof Error) return err.message
-  return 'Error inesperado'
+  return apiErrorMessage(err)
+}
+
+// ponytail: 60s options cache for filters/sheets; upgrade = dedicated /clients/options
+let clientOptionsCache: { at: number; data: Client[] } | null = null
+
+export async function listClientOptions(
+  signal?: AbortSignal,
+): Promise<Pick<Client, 'id' | 'name'>[]> {
+  if (clientOptionsCache && Date.now() - clientOptionsCache.at < 60_000) {
+    return clientOptionsCache.data
+  }
+  const res = await listClients({ perPage: 50, sort: 'name' }, signal)
+  clientOptionsCache = { at: Date.now(), data: res.data }
+  return res.data
+}
+
+export function invalidateClientOptionsCache(): void {
+  clientOptionsCache = null
 }

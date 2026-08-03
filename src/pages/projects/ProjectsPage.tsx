@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { listClients, type Client } from '@/lib/clients'
+import { listClientOptions } from '@/lib/clients'
 import {
   PROJECT_PRIORITY_LABELS,
   PROJECT_STATUSES,
@@ -86,10 +86,11 @@ export function ProjectsPage() {
 
   const [searchInput, setSearchInput] = useState(urlSearch)
   const [projects, setProjects] = useState<Project[]>([])
-  const [clients, setClients] = useState<Client[]>([])
+  const [clients, setClients] = useState<{ id: number; name: string }[]>([])
   const [meta, setMeta] = useState<ProjectsMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add')
   const [editing, setEditing] = useState<Project | null>(null)
@@ -102,8 +103,8 @@ export function ProjectsPage() {
 
   useEffect(() => {
     let cancelled = false
-    void listClients({ perPage: 50, sort: 'name' }).then((res) => {
-      if (!cancelled) setClients(res.data)
+    void listClientOptions().then((rows) => {
+      if (!cancelled) setClients(rows)
     })
     return () => {
       cancelled = true
@@ -129,6 +130,7 @@ export function ProjectsPage() {
     return () => clearTimeout(t)
   }, [searchInput, urlSearch, perPage, setSearchParams])
 
+  // ponytail: one abortable fetch; reloadTick bumps after mutations
   useEffect(() => {
     const ac = new AbortController()
     let cancelled = false
@@ -166,26 +168,10 @@ export function ProjectsPage() {
       cancelled = true
       ac.abort()
     }
-  }, [urlSearch, page, perPage, urlStatus, urlClientId])
+  }, [urlSearch, page, perPage, urlStatus, urlClientId, reloadTick])
 
-  async function reload() {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await listProjects({
-        search: urlSearch || undefined,
-        page,
-        perPage,
-        status: urlStatus || undefined,
-        clientId: urlClientId ? Number(urlClientId) : undefined,
-      })
-      setProjects(res.data)
-      setMeta(res.meta)
-    } catch (err) {
-      setError(projectErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+  function reload() {
+    setReloadTick((n) => n + 1)
   }
 
   function patchParams(patch: Record<string, string | null>) {
@@ -227,7 +213,7 @@ export function ProjectsPage() {
     } else {
       await createProject(data)
     }
-    await reload()
+    reload()
   }
 
   async function handleDelete() {
@@ -236,7 +222,7 @@ export function ProjectsPage() {
     try {
       await deleteProject(deleteTarget.id)
       setDeleteTarget(null)
-      await reload()
+      reload()
     } catch (err) {
       setError(projectErrorMessage(err))
     } finally {
@@ -525,6 +511,7 @@ export function ProjectsPage() {
         onOpenChange={setSheetOpen}
         onSubmit={handleSave}
         defaultClientId={urlClientId ? Number(urlClientId) : undefined}
+        clientOptions={clients}
       />
 
       <Dialog

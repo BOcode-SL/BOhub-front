@@ -11,7 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { listClients, type Client } from '@/lib/clients'
+import { listClientOptions } from '@/lib/clients'
 import {
   PROJECT_PRIORITIES,
   PROJECT_PRIORITY_LABELS,
@@ -59,6 +59,8 @@ function toForm(p: Project): ProjectInput {
   }
 }
 
+type ClientOption = { id: number; name: string }
+
 type ProjectSheetProps = {
   open: boolean
   mode: 'add' | 'edit'
@@ -66,6 +68,8 @@ type ProjectSheetProps = {
   onOpenChange: (open: boolean) => void
   onSubmit: (data: ProjectInput) => Promise<void>
   defaultClientId?: number
+  /** When parent already loaded options, skip fetch */
+  clientOptions?: ClientOption[]
 }
 
 export function ProjectSheet({
@@ -75,18 +79,23 @@ export function ProjectSheet({
   onOpenChange,
   onSubmit,
   defaultClientId,
+  clientOptions: clientOptionsProp,
 }: ProjectSheetProps) {
   const [form, setForm] = useState<ProjectInput>(emptyForm)
-  const [clients, setClients] = useState<Client[]>([])
+  const [clients, setClients] = useState<ClientOption[]>(clientOptionsProp ?? [])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (clientOptionsProp) {
+      setClients(clientOptionsProp)
+      return
+    }
     if (!open) return
     let cancelled = false
-    void listClients({ perPage: 50, sort: 'name' })
-      .then((res) => {
-        if (!cancelled) setClients(res.data)
+    void listClientOptions()
+      .then((rows) => {
+        if (!cancelled) setClients(rows)
       })
       .catch(() => {
         if (!cancelled) setClients([])
@@ -94,7 +103,7 @@ export function ProjectSheet({
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, clientOptionsProp])
 
   useEffect(() => {
     if (!open) return
@@ -109,6 +118,10 @@ export function ProjectSheet({
     }
 
     setForm(toForm(project))
+
+    // list rows omit description/icon — hydrate only when missing
+    if (project.description !== undefined) return
+
     let cancelled = false
     void getProject(project.id)
       .then((full) => {
