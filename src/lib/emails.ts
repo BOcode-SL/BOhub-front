@@ -51,7 +51,7 @@ export type EmailMessage = {
   sentAt?: string | null
   sentBy?: number | null
   errorMessage?: string | null
-  attachments: EmailAttachmentMeta[]
+  attachments?: EmailAttachmentMeta[]
   attachmentCount?: number
   hasAttachmentFiles?: boolean
   createdAt?: string
