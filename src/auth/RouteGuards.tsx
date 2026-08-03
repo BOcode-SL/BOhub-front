@@ -7,7 +7,7 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface text-ink-muted">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Cargando sesión…
       </div>
     )
@@ -25,7 +25,7 @@ export function PublicOnlyRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface text-ink-muted">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Cargando sesión…
       </div>
     )

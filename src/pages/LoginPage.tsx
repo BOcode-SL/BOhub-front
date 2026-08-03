@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import { Eye, EyeOff, LogIn, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ApiError } from '../lib/api'
@@ -11,6 +12,7 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -38,75 +40,102 @@ export function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#E2E8F0_0%,_#F8FAFC_55%,_#F8FAFC_100%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            'linear-gradient(#CBD5E1 1px, transparent 1px), linear-gradient(90deg, #CBD5E1 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-          maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 75%)',
-        }}
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(45deg,var(--primary)_1px,transparent_1px),linear-gradient(-45deg,var(--primary)_1px,transparent_1px)] bg-size-[30px_30px] opacity-[0.03]"
       />
 
-      <section className="relative w-full max-w-md">
-        <div className="mb-10 text-center">
-          <p className="text-sm font-medium tracking-[0.18em] text-cta uppercase">
-            Bocode
-          </p>
-          <h1 className="mt-3 text-5xl font-semibold tracking-tight text-ink sm:text-6xl">
-            BOhub
-          </h1>
-          <p className="mt-3 text-base text-ink-muted">
-            Acceso interno al hub de proyectos.
-          </p>
-        </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 size-96 rounded-full bg-primary opacity-5 mix-blend-screen blur-3xl motion-safe:animate-pulse" />
+        <div
+          className="absolute right-1/4 bottom-1/4 size-96 rounded-full bg-primary opacity-5 mix-blend-screen blur-3xl motion-safe:animate-pulse"
+          style={{ animationDelay: '2s' }}
+        />
+      </div>
+
+      <section className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-primary/10 bg-card/80 shadow-2xl backdrop-blur-xl">
+        <div
+          aria-hidden
+          className="absolute top-0 right-0 left-0 h-px bg-linear-to-r from-transparent via-primary/20 to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent"
+        />
+
+        <header className="relative space-y-6 pt-10 pb-2 text-center">
+          <div className="relative mx-auto flex size-20 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-xl">
+            <Zap className="relative z-10 size-10 text-primary-foreground" strokeWidth={2.5} />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-primary">BOhub</h1>
+            <p className="text-sm font-medium text-muted-foreground">by BOcode</p>
+          </div>
+        </header>
 
         <form
           onSubmit={onSubmit}
-          className="flex flex-col gap-5 border border-line bg-white p-6 sm:p-8"
+          className="relative space-y-6 px-6 pt-6 pb-8 sm:px-8"
           noValidate
         >
-          <div className="flex flex-col gap-2">
-            <label htmlFor={emailId} className="text-sm font-medium text-ink">
-              Email
-            </label>
-            <input
-              id={emailId}
-              name="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-line bg-surface px-3 py-2.5 text-ink outline-none transition-colors duration-200 placeholder:text-slate-400 focus:border-cta focus:ring-2 focus:ring-cta/30"
-              placeholder="tu@bocode.es"
-            />
-          </div>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label
+                htmlFor={emailId}
+                className="text-sm font-semibold tracking-wide text-primary"
+              >
+                Correo electrónico
+              </label>
+              <input
+                id={emailId}
+                name="email"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="h-12 w-full rounded-md border border-border bg-background/50 px-3 text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor={passwordId} className="text-sm font-medium text-ink">
-              Contraseña
-            </label>
-            <input
-              id={passwordId}
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-line bg-surface px-3 py-2.5 text-ink outline-none transition-colors duration-200 placeholder:text-slate-400 focus:border-cta focus:ring-2 focus:ring-cta/30"
-            />
+            <div className="space-y-2">
+              <label
+                htmlFor={passwordId}
+                className="text-sm font-semibold tracking-wide text-primary"
+              >
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id={passwordId}
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-12 w-full rounded-md border border-border bg-background/50 px-3 pr-12 text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute top-1/2 right-3 z-10 -translate-y-1/2 cursor-pointer text-muted-foreground transition-colors duration-200 hover:text-primary"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
           </div>
 
           {error && (
-            <p role="alert" className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+            >
               {error}
             </p>
           )}
@@ -114,9 +143,19 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="cursor-pointer bg-cta px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-cta-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="group relative w-full cursor-pointer overflow-hidden rounded-xl bg-primary py-3 font-semibold text-primary-foreground shadow-xl shadow-primary/20 transition-all duration-300 hover:bg-primary-hover hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
           >
-            {submitting ? 'Entrando…' : 'Entrar'}
+            {submitting ? (
+              <span className="relative z-10 flex items-center justify-center">
+                <span className="mr-3 size-5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                Iniciando sesión...
+              </span>
+            ) : (
+              <span className="relative z-10 flex items-center justify-center">
+                Iniciar sesión
+                <LogIn className="ml-2 size-4" strokeWidth={2.5} />
+              </span>
+            )}
           </button>
         </form>
       </section>
