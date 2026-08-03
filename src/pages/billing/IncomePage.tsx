@@ -184,7 +184,7 @@ export function IncomePage() {
             Ingresos
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Facturas emitidas (ledger). Odoo = campos manuales.
+            Facturas emitidas (ledger). Metadata de factura externa + PDF stub.
           </p>
         </div>
         <Button

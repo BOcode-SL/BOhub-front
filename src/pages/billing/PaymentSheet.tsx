@@ -42,7 +42,7 @@ const empty: PaymentInput = {
   paymentDate: '',
   reference: '',
   notes: '',
-  externalSystem: 'odoo_online',
+  externalSystem: '',
   externalInvoiceId: '',
   invoiceNumber: '',
   externalUrl: '',
@@ -63,7 +63,7 @@ function toForm(p: Payment): PaymentInput {
     paymentDate: p.paymentDate ?? '',
     reference: p.reference ?? '',
     notes: p.notes ?? '',
-    externalSystem: p.externalSystem ?? 'odoo_online',
+    externalSystem: p.externalSystem ?? '',
     externalInvoiceId: p.externalInvoiceId ?? '',
     invoiceNumber: p.invoiceNumber ?? '',
     externalUrl: p.externalUrl ?? '',
@@ -153,7 +153,7 @@ export function PaymentSheet({
         paymentDate: form.paymentDate?.toString().trim() || null,
         reference: form.reference?.toString().trim() || null,
         notes: form.notes?.toString().trim() || null,
-        externalSystem: form.externalSystem?.toString().trim() || 'odoo_online',
+        externalSystem: form.externalSystem?.toString().trim() || null,
         externalInvoiceId: form.externalInvoiceId?.toString().trim() || null,
         invoiceNumber: form.invoiceNumber?.toString().trim() || null,
         externalUrl: form.externalUrl?.toString().trim() || null,
@@ -177,7 +177,8 @@ export function PaymentSheet({
             {mode === 'add' ? 'Añadir ingreso' : 'Editar ingreso'}
           </SheetTitle>
           <SheetDescription>
-            Registro ledger. La factura legal se emite en Odoo.
+            Registro ledger. Emite la factura en tu app de facturación y
+            registra aquí nº, enlace y PDF.
           </SheetDescription>
         </SheetHeader>
 
@@ -322,8 +323,18 @@ export function PaymentSheet({
 
           <fieldset className="grid gap-3 rounded-lg border border-border p-3">
             <legend className="px-1 text-sm font-medium text-foreground">
-              Odoo / Verifactu (manual)
+              Factura externa
             </legend>
+            <div className="grid gap-2">
+              <Label htmlFor="pay-ext-system">Sistema (opcional)</Label>
+              <Input
+                id="pay-ext-system"
+                value={form.externalSystem ?? ''}
+                onChange={(e) => setField('externalSystem', e.target.value)}
+                className="bg-card"
+                placeholder="p. ej. manual"
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="pay-inv-num">Nº factura</Label>
               <Input
@@ -334,7 +345,7 @@ export function PaymentSheet({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="pay-ext-id">ID Odoo</Label>
+              <Label htmlFor="pay-ext-id">ID externo</Label>
               <Input
                 id="pay-ext-id"
                 value={form.externalInvoiceId ?? ''}
@@ -343,7 +354,7 @@ export function PaymentSheet({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="pay-ext-url">Deep link Odoo</Label>
+              <Label htmlFor="pay-ext-url">URL factura externa</Label>
               <Input
                 id="pay-ext-url"
                 value={form.externalUrl ?? ''}

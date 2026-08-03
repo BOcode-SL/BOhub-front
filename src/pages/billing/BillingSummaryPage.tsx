@@ -90,8 +90,8 @@ export function BillingSummaryPage() {
             Facturación
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ledger interno. Emisor legal = Odoo (registro manual). Periodo:{' '}
-            {periodLabel}.
+            Ledger interno. Registra facturas creadas en tu app de facturación.
+            Periodo: {periodLabel}.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
