@@ -1,12 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+
+/* ui-ux-pro-max: Flat Design + navy/blue SaaS palette for BOhub */
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #020617;
+  --color-ink-muted: #334155;
+  --color-surface: #f8fafc;
+  --color-line: #e2e8f0;
+  --color-cta: #0369a1;
+  --color-cta-hover: #075985;
+  --color-primary: #0f172a;
+}
 
 :root {
   color-scheme: light;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1a1a;
-  background: #f6f4ef;
+  color: var(--color-ink);
+  background: var(--color-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {
