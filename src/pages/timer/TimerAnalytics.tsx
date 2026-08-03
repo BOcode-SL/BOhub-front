@@ -27,65 +27,18 @@ import {
   timerErrorMessage,
   type Hour,
 } from '@/lib/timer'
-import { formatHoursFromSeconds } from '@/hooks/useHomeDashboard'
+import {
+  CHART_FALLBACK_COLORS,
+  daysInMonth,
+  fetchAllPages,
+  formatHoursFromSeconds,
+  monthBounds,
+  monthLabelEs,
+  normalizeHexColor,
+} from '@/lib/time'
 
 const selectClass =
   'h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
-
-const FALLBACK_COLORS = [
-  '#ccff00',
-  '#60a5fa',
-  '#fbbf24',
-  '#a78bfa',
-  '#34d399',
-  '#f472b6',
-  '#38bdf8',
-  '#fb923c',
-]
-
-function monthBounds(year: number, monthIndex: number) {
-  const from = new Date(Date.UTC(year, monthIndex, 1)).toISOString().slice(0, 10)
-  const to = new Date(Date.UTC(year, monthIndex + 1, 0))
-    .toISOString()
-    .slice(0, 10)
-  return { from, to }
-}
-
-function daysInMonth(year: number, monthIndex: number) {
-  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
-}
-
-function monthLabel(year: number, monthIndex: number) {
-  return new Date(Date.UTC(year, monthIndex, 1)).toLocaleDateString('es-ES', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
-async function fetchAllHours(
-  isAdmin: boolean,
-  from: string,
-  to: string,
-  projectId: number | undefined,
-  signal: AbortSignal,
-): Promise<Hour[]> {
-  const out: Hour[] = []
-  let page = 1
-  for (;;) {
-    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-    const res = isAdmin
-      ? await listTeamHours(
-          { page, perPage: 50, from, to, projectId },
-          signal,
-        )
-      : await listHours({ page, perPage: 50, from, to, projectId }, signal)
-    out.push(...res.data)
-    if (page >= res.meta.last_page) break
-    page += 1
-  }
-  return out
-}
 
 type SeriesMeta = {
   key: string
@@ -103,10 +56,11 @@ export function TimerAnalytics() {
   const [monthIndex, setMonthIndex] = useState(now.getMonth())
   const [projectFilter, setProjectFilter] = useState<number | ''>('')
   const [projects, setProjects] = useState<Project[]>([])
-  const [hours, setHours] = useState<Hour[]>([])
+  const [monthHours, setMonthHours] = useState<Hour[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // projects once (names + color for stacks)
   useEffect(() => {
     const ac = new AbortController()
     void listProjects({ perPage: 50, sort: 'name' }, ac.signal)
@@ -115,6 +69,7 @@ export function TimerAnalytics() {
     return () => ac.abort()
   }, [])
 
+  // ponytail: 1 fetch per month (not per project filter / not timer tick); filter client-side
   useEffect(() => {
     const ac = new AbortController()
     let cancelled = false
@@ -123,19 +78,19 @@ export function TimerAnalytics() {
       setError(null)
       try {
         const { from, to } = monthBounds(year, monthIndex)
-        const rows = await fetchAllHours(
-          isAdmin,
-          from,
-          to,
-          projectFilter || undefined,
+        const rows = await fetchAllPages<Hour>(
+          (page) =>
+            isAdmin
+              ? listTeamHours({ page, perPage: 50, from, to }, ac.signal)
+              : listHours({ page, perPage: 50, from, to }, ac.signal),
           ac.signal,
         )
-        if (!cancelled) setHours(rows)
+        if (!cancelled) setMonthHours(rows)
       } catch (err) {
         if (cancelled) return
         if (err instanceof DOMException && err.name === 'AbortError') return
         setError(timerErrorMessage(err))
-        setHours([])
+        setMonthHours([])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -145,7 +100,7 @@ export function TimerAnalytics() {
       cancelled = true
       ac.abort()
     }
-  }, [year, monthIndex, projectFilter, isAdmin])
+  }, [year, monthIndex, isAdmin])
 
   function shiftMonth(delta: number) {
     const d = new Date(Date.UTC(year, monthIndex + delta, 1))
@@ -153,36 +108,37 @@ export function TimerAnalytics() {
     setMonthIndex(d.getUTCMonth())
   }
 
+  const hours = useMemo(() => {
+    if (!projectFilter) return monthHours
+    return monthHours.filter((h) => h.projectId === projectFilter)
+  }, [monthHours, projectFilter])
+
   const { series, chartData, totalSeconds, activeDays, chartConfig } =
     useMemo(() => {
       const projectMap = new Map(projects.map((p) => [p.id, p]))
-      const buckets = new Map<string, number>() // `${day}|${projectId}` → seconds
+      const nameFromHours = new Map<number, string>()
+      const buckets = new Map<string, number>()
       const projectIds = new Set<number>()
 
+      // O(n) one pass
       for (const h of hours) {
         projectIds.add(h.projectId)
+        if (h.project?.name) nameFromHours.set(h.projectId, h.project.name)
         const key = `${h.workedOn}|${h.projectId}`
         buckets.set(key, (buckets.get(key) ?? 0) + h.durationSeconds)
       }
 
       const seriesList: SeriesMeta[] = [...projectIds]
-        .sort((a, b) => {
-          const na = projectMap.get(a)?.name ?? hours.find((h) => h.projectId === a)?.project?.name ?? `#${a}`
-          const nb = projectMap.get(b)?.name ?? hours.find((h) => h.projectId === b)?.project?.name ?? `#${b}`
-          return na.localeCompare(nb)
-        })
-        .map((id, i) => {
-          const p = projectMap.get(id)
+        .map((id) => {
           const name =
-            p?.name ??
-            hours.find((h) => h.projectId === id)?.project?.name ??
-            `#${id}`
+            projectMap.get(id)?.name ?? nameFromHours.get(id) ?? `#${id}`
+          return { id, name }
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(({ id, name }, i) => {
           const color =
-            p?.color && /^#?[0-9a-fA-F]{3,8}$/.test(p.color)
-              ? p.color.startsWith('#')
-                ? p.color
-                : `#${p.color}`
-              : FALLBACK_COLORS[i % FALLBACK_COLORS.length]
+            normalizeHexColor(projectMap.get(id)?.color ?? null) ??
+            CHART_FALLBACK_COLORS[i % CHART_FALLBACK_COLORS.length]
           return { key: `p${id}`, projectId: id, name, color }
         })
 
@@ -200,8 +156,7 @@ export function TimerAnalytics() {
         let dayTotal = 0
         for (const s of seriesList) {
           const sec = buckets.get(`${dayKey}|${s.projectId}`) ?? 0
-          const hoursVal = Number((sec / 3600).toFixed(2))
-          row[s.key] = hoursVal
+          row[s.key] = Number((sec / 3600).toFixed(2))
           dayTotal += sec
           total += sec
         }
@@ -223,10 +178,9 @@ export function TimerAnalytics() {
       }
     }, [hours, projects, year, monthIndex])
 
-  const dailyAvg =
-    activeDays > 0 ? Math.round(totalSeconds / activeDays) : 0
-
+  const dailyAvg = activeDays > 0 ? Math.round(totalSeconds / activeDays) : 0
   const hasBars = series.length > 0 && totalSeconds > 0
+  const monthKey = `${year}-${monthIndex}`
 
   return (
     <div className="flex flex-col gap-4">
@@ -243,7 +197,7 @@ export function TimerAnalytics() {
             <ChevronLeft />
           </Button>
           <p className="min-w-40 text-center text-sm font-medium capitalize text-foreground">
-            {monthLabel(year, monthIndex)}
+            {monthLabelEs(year, monthIndex)}
           </p>
           <Button
             type="button"
@@ -314,7 +268,7 @@ export function TimerAnalytics() {
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">Horas por día</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Apilado por proyecto · {monthLabel(year, monthIndex)}
+            Apilado por proyecto · {monthLabelEs(year, monthIndex)}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -322,6 +276,7 @@ export function TimerAnalytics() {
             <Skeleton className="h-[280px] w-full rounded-lg" />
           ) : hasBars ? (
             <ChartContainer
+              key={monthKey}
               config={chartConfig}
               className="aspect-auto h-[320px] w-full"
             >

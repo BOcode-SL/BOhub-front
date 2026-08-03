@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import {
-  formatHoursFromSeconds,
-  useHomeDashboard,
-} from '@/hooks/useHomeDashboard'
+import { formatHoursFromSeconds } from '@/lib/time'
+import { useHomeDashboard } from '@/hooks/useHomeDashboard'
 import {
   ProjectStatusChart,
   StatsCards,

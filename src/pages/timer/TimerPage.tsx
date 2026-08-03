@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
 import { Pause, Play, Plus, Square, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { listProjectOptions } from '@/lib/projects'
 import {
@@ -32,7 +33,11 @@ import {
   type HoursMeta,
 } from '@/lib/timer'
 import { HoursTable } from './HoursTable'
-import { TimerAnalytics } from './TimerAnalytics'
+
+// ponytail: keep recharts off the Mis horas / Equipo path until Analytics opens
+const TimerAnalytics = lazy(() =>
+  import('./TimerAnalytics').then((m) => ({ default: m.TimerAnalytics })),
+)
 
 const selectClass =
   'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -549,7 +554,11 @@ export function TimerPage() {
       </nav>
 
       {tab === 'analytics' ? (
-        <TimerAnalytics />
+        <Suspense
+          fallback={<Skeleton className="h-[420px] w-full rounded-xl" />}
+        >
+          <TimerAnalytics />
+        </Suspense>
       ) : (
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

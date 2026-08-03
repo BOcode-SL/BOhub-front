@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/auth/AuthContext'
 import { listClients } from '@/lib/clients'
 import {
@@ -8,6 +8,10 @@ import {
   type ProjectStatus,
 } from '@/lib/projects'
 import { listHours, listTeamHours, type Hour } from '@/lib/timer'
+import {
+  currentMonthBounds,
+  fetchAllPages,
+} from '@/lib/time'
 
 export type StatusSlice = {
   status: ProjectStatus
@@ -43,42 +47,6 @@ const STATUS_COLORS: Record<ProjectStatus, string> = {
   maintenance: '#fbbf24',
 }
 
-function monthBounds(d = new Date()): { from: string; to: string } {
-  const y = d.getFullYear()
-  const m = d.getMonth()
-  const from = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10)
-  const last = new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10)
-  return { from, to: last }
-}
-
-async function fetchAllPages<T>(
-  load: (
-    page: number,
-  ) => Promise<{ data: T[]; meta: { last_page: number } }>,
-  signal: AbortSignal,
-): Promise<T[]> {
-  const out: T[] = []
-  let page = 1
-  for (;;) {
-    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-    const res = await load(page)
-    out.push(...res.data)
-    if (page >= res.meta.last_page) break
-    page += 1
-  }
-  return out
-}
-
-export function formatHoursFromSeconds(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const parts: string[] = []
-  if (h > 0) parts.push(`${h}h`)
-  if (m > 0) parts.push(`${m}m`)
-  return parts.length > 0 ? parts.join(' ') : '0h'
-}
-
 export function useHomeDashboard(): HomeDashboard {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -98,7 +66,8 @@ export function useHomeDashboard(): HomeDashboard {
       setLoading(true)
       setError(null)
       try {
-        const { from, to } = monthBounds()
+        const { from, to } = currentMonthBounds()
+        // one Promise.all; AbortSignal on unmount — no shell re-fetch
         const [clientsRes, projectsList, hoursList] = await Promise.all([
           listClients({ perPage: 5, page: 1 }, ac.signal),
           fetchAllPages<Project>(
@@ -109,10 +78,7 @@ export function useHomeDashboard(): HomeDashboard {
           fetchAllPages<Hour>(
             (page) =>
               isAdmin
-                ? listTeamHours(
-                    { page, perPage: 50, from, to },
-                    ac.signal,
-                  )
+                ? listTeamHours({ page, perPage: 50, from, to }, ac.signal)
                 : listHours({ page, perPage: 50, from, to }, ac.signal),
             ac.signal,
           ),
@@ -164,9 +130,12 @@ export function useHomeDashboard(): HomeDashboard {
     }
   }, [isAdmin])
 
-  const projectsInProgress = projects.filter((p) => p.status !== 'done').length
+  const projectsInProgress = useMemo(
+    () => projects.filter((p) => p.status !== 'done').length,
+    [projects],
+  )
 
-  const statusSlices: StatusSlice[] = (() => {
+  const statusSlices = useMemo((): StatusSlice[] => {
     const counts = {} as Record<ProjectStatus, number>
     for (const p of projects) {
       counts[p.status] = (counts[p.status] ?? 0) + 1
@@ -180,15 +149,15 @@ export function useHomeDashboard(): HomeDashboard {
         color: STATUS_COLORS[status],
       }))
       .filter((s) => s.value > 0)
-  })()
+  }, [projects])
 
-  const deadlines = projects
-    .filter((p) => p.status !== 'done' && p.endDate)
-    .sort((a, b) => {
-      const da = a.endDate ?? ''
-      const db = b.endDate ?? ''
-      return da.localeCompare(db)
-    })
+  const deadlines = useMemo(
+    () =>
+      projects
+        .filter((p) => p.status !== 'done' && p.endDate)
+        .sort((a, b) => (a.endDate ?? '').localeCompare(b.endDate ?? '')),
+    [projects],
+  )
 
   return {
     clientsCount,
