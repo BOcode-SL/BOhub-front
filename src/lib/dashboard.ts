@@ -35,7 +35,6 @@ export type HomeDashboardResponse = {
 
 export function getHomeDashboard(signal?: AbortSignal) {
   return request<HomeDashboardResponse>('/api/dashboard/home', {
-    auth: true,
     signal,
   })
 }

@@ -120,7 +120,6 @@ export async function listProjects(
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString()
   return request<PaginatedProjects>(`/api/projects${qs ? `?${qs}` : ''}`, {
-    auth: true,
     signal,
   })
 }
@@ -146,14 +145,13 @@ export function invalidateProjectOptionsCache(): void {
 }
 
 export async function getProject(id: number): Promise<Project> {
-  return request<Project>(`/api/projects/${id}`, { auth: true })
+  return request<Project>(`/api/projects/${id}`, {})
 }
 
 export async function createProject(body: ProjectInput): Promise<Project> {
   const created = await request<Project>('/api/projects', {
     method: 'POST',
     body,
-    auth: true,
   })
   invalidateProjectOptionsCache()
   return created
@@ -166,7 +164,6 @@ export async function updateProject(
   const updated = await request<Project>(`/api/projects/${id}`, {
     method: 'PUT',
     body,
-    auth: true,
   })
   invalidateProjectOptionsCache()
   return updated
@@ -175,7 +172,6 @@ export async function updateProject(
 export async function deleteProject(id: number): Promise<void> {
   await request<{ ok: boolean }>(`/api/projects/${id}`, {
     method: 'DELETE',
-    auth: true,
   })
   invalidateProjectOptionsCache()
 }

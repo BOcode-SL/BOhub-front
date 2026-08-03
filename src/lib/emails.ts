@@ -105,13 +105,12 @@ export async function listTemplates(params: {
   sp.set('per_page', String(params.perPage ?? 15))
   if (params.q) sp.set('q', params.q)
   return request(`/api/email-templates?${sp}`, {
-    auth: true,
     signal: params.signal,
   })
 }
 
 export async function getTemplate(id: number): Promise<EmailTemplate> {
-  return request(`/api/email-templates/${id}`, { auth: true })
+  return request(`/api/email-templates/${id}`, {})
 }
 
 export async function createTemplate(
@@ -120,7 +119,6 @@ export async function createTemplate(
   return request('/api/email-templates', {
     method: 'POST',
     body: input,
-    auth: true,
   })
 }
 
@@ -131,14 +129,12 @@ export async function updateTemplate(
   return request(`/api/email-templates/${id}`, {
     method: 'PUT',
     body: input,
-    auth: true,
   })
 }
 
 export async function deleteTemplate(id: number): Promise<void> {
   await request(`/api/email-templates/${id}`, {
     method: 'DELETE',
-    auth: true,
   })
 }
 
@@ -155,13 +151,12 @@ export async function listMessages(params: {
   if (params.tab) sp.set('tab', params.tab)
   if (params.status) sp.set('status', params.status)
   return request(`/api/emails/messages?${sp}`, {
-    auth: true,
     signal: params.signal,
   })
 }
 
 export async function getMessage(id: number): Promise<EmailMessage> {
-  return request(`/api/emails/messages/${id}`, { auth: true })
+  return request(`/api/emails/messages/${id}`, {})
 }
 
 export async function updateScheduledMessage(
@@ -176,14 +171,12 @@ export async function updateScheduledMessage(
   return request(`/api/emails/messages/${id}`, {
     method: 'PATCH',
     body: input,
-    auth: true,
   })
 }
 
 export async function cancelMessage(id: number): Promise<EmailMessage> {
   return request(`/api/emails/messages/${id}/cancel`, {
     method: 'POST',
-    auth: true,
   })
 }
 

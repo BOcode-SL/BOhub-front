@@ -63,20 +63,18 @@ export async function listClients(
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString()
   return request<PaginatedClients>(`/api/clients${qs ? `?${qs}` : ''}`, {
-    auth: true,
     signal,
   })
 }
 
 export async function getClient(id: number): Promise<Client> {
-  return request<Client>(`/api/clients/${id}`, { auth: true })
+  return request<Client>(`/api/clients/${id}`, {})
 }
 
 export async function createClient(body: ClientInput): Promise<Client> {
   const created = await request<Client>('/api/clients', {
     method: 'POST',
     body,
-    auth: true,
   })
   invalidateClientOptionsCache()
   return created
@@ -89,7 +87,6 @@ export async function updateClient(
   const updated = await request<Client>(`/api/clients/${id}`, {
     method: 'PUT',
     body,
-    auth: true,
   })
   invalidateClientOptionsCache()
   return updated
@@ -98,7 +95,6 @@ export async function updateClient(
 export async function deleteClient(id: number): Promise<void> {
   await request<{ ok: boolean }>(`/api/clients/${id}`, {
     method: 'DELETE',
-    auth: true,
   })
   invalidateClientOptionsCache()
 }

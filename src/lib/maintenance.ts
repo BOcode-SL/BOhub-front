@@ -106,19 +106,18 @@ export async function listMaintenances(
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString()
   return request(`/api/maintenances${qs ? `?${qs}` : ''}`, {
-    auth: true,
     signal,
   })
 }
 
 export async function getMaintenance(id: number): Promise<MaintenancePeriod> {
-  return request(`/api/maintenances/${id}`, { auth: true })
+  return request(`/api/maintenances/${id}`, {})
 }
 
 export async function createMaintenance(
   body: MaintenanceInput,
 ): Promise<MaintenancePeriod> {
-  return request('/api/maintenances', { method: 'POST', body, auth: true })
+  return request('/api/maintenances', { method: 'POST', body })
 }
 
 export async function updateMaintenance(
@@ -128,12 +127,11 @@ export async function updateMaintenance(
   return request(`/api/maintenances/${id}`, {
     method: 'PUT',
     body,
-    auth: true,
   })
 }
 
 export async function deleteMaintenance(id: number): Promise<void> {
-  await request(`/api/maintenances/${id}`, { method: 'DELETE', auth: true })
+  await request(`/api/maintenances/${id}`, { method: 'DELETE' })
 }
 
 export function maintenanceErrorMessage(err: unknown): string {

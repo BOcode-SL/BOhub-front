@@ -178,7 +178,6 @@ export async function getBillingSummary(params: {
     quarter: String(params.quarter),
   })
   return request<BillingSummary>(`/api/billing/summary?${q}`, {
-    auth: true,
     signal,
   })
 }
@@ -204,16 +203,16 @@ export async function listPayments(
   const qs = q.toString()
   return request<{ data: Payment[]; meta: BillingMeta }>(
     `/api/payments${qs ? `?${qs}` : ''}`,
-    { auth: true, signal },
+    { signal },
   )
 }
 
 export async function getPayment(id: number): Promise<Payment> {
-  return request<Payment>(`/api/payments/${id}`, { auth: true })
+  return request<Payment>(`/api/payments/${id}`, {})
 }
 
 export async function createPayment(body: PaymentInput): Promise<Payment> {
-  return request<Payment>('/api/payments', { method: 'POST', body, auth: true })
+  return request<Payment>('/api/payments', { method: 'POST', body })
 }
 
 export async function updatePayment(
@@ -223,14 +222,12 @@ export async function updatePayment(
   return request<Payment>(`/api/payments/${id}`, {
     method: 'PUT',
     body,
-    auth: true,
   })
 }
 
 export async function deletePayment(id: number): Promise<void> {
   await request<{ ok: boolean }>(`/api/payments/${id}`, {
     method: 'DELETE',
-    auth: true,
   })
 }
 
@@ -255,16 +252,16 @@ export async function listExpenses(
   const qs = q.toString()
   return request<{ data: Expense[]; meta: BillingMeta }>(
     `/api/expenses${qs ? `?${qs}` : ''}`,
-    { auth: true, signal },
+    { signal },
   )
 }
 
 export async function getExpense(id: number): Promise<Expense> {
-  return request<Expense>(`/api/expenses/${id}`, { auth: true })
+  return request<Expense>(`/api/expenses/${id}`, {})
 }
 
 export async function createExpense(body: ExpenseInput): Promise<Expense> {
-  return request<Expense>('/api/expenses', { method: 'POST', body, auth: true })
+  return request<Expense>('/api/expenses', { method: 'POST', body })
 }
 
 export async function updateExpense(
@@ -274,14 +271,12 @@ export async function updateExpense(
   return request<Expense>(`/api/expenses/${id}`, {
     method: 'PUT',
     body,
-    auth: true,
   })
 }
 
 export async function deleteExpense(id: number): Promise<void> {
   await request<{ ok: boolean }>(`/api/expenses/${id}`, {
     method: 'DELETE',
-    auth: true,
   })
 }
 

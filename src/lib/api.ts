@@ -63,8 +63,6 @@ export async function ensureCsrf(): Promise<void> {
 type RequestOptions = {
   method?: string
   body?: unknown
-  /** @deprecated session cookie auth; kept so call sites still compile */
-  auth?: boolean
   signal?: AbortSignal
   /** Internal: already retried after 419 */
   _retried?: boolean

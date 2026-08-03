@@ -56,7 +56,7 @@ export async function getActiveTimer(
 ): Promise<ActiveTimer | null> {
   const res = await request<{ timer: ActiveTimer | null }>(
     '/api/timers/active',
-    { auth: true, signal },
+    { signal },
   )
   return res.timer
 }
@@ -68,7 +68,6 @@ export async function startTimer(body: {
   const res = await request<{ timer: ActiveTimer }>('/api/timers/start', {
     method: 'POST',
     body,
-    auth: true,
   })
   return res.timer
 }
@@ -84,7 +83,6 @@ export async function patchTimer(
   const res = await request<{ timer: ActiveTimer }>(`/api/timers/${id}`, {
     method: 'PATCH',
     body,
-    auth: true,
   })
   return res.timer
 }
@@ -100,12 +98,11 @@ export async function saveTimer(
   return request(`/api/timers/${id}/save`, {
     method: 'POST',
     body,
-    auth: true,
   })
 }
 
 export async function discardTimer(id: number): Promise<void> {
-  await request(`/api/timers/${id}`, { method: 'DELETE', auth: true })
+  await request(`/api/timers/${id}`, { method: 'DELETE' })
 }
 
 export async function listHours(
@@ -125,7 +122,7 @@ export async function listHours(
   if (params.from) q.set('from', params.from)
   if (params.to) q.set('to', params.to)
   const qs = q.toString()
-  return request(`/api/hours${qs ? `?${qs}` : ''}`, { auth: true, signal })
+  return request(`/api/hours${qs ? `?${qs}` : ''}`, { signal })
 }
 
 export async function listTeamHours(
@@ -151,22 +148,22 @@ export async function listTeamHours(
   if (params.from) q.set('from', params.from)
   if (params.to) q.set('to', params.to)
   const qs = q.toString()
-  return request(`/api/hours/team${qs ? `?${qs}` : ''}`, { auth: true, signal })
+  return request(`/api/hours/team${qs ? `?${qs}` : ''}`, { signal })
 }
 
 export async function createHour(body: HourInput): Promise<Hour> {
-  return request('/api/hours', { method: 'POST', body, auth: true })
+  return request('/api/hours', { method: 'POST', body })
 }
 
 export async function updateHour(
   id: number,
   body: Partial<HourInput>,
 ): Promise<Hour> {
-  return request(`/api/hours/${id}`, { method: 'PUT', body, auth: true })
+  return request(`/api/hours/${id}`, { method: 'PUT', body })
 }
 
 export async function deleteHour(id: number): Promise<void> {
-  await request(`/api/hours/${id}`, { method: 'DELETE', auth: true })
+  await request(`/api/hours/${id}`, { method: 'DELETE' })
 }
 
 export type HoursAnalyticsProject = {
@@ -198,7 +195,7 @@ export function getHoursAnalytics(
   q.set('year', String(params.year))
   q.set('month', String(params.month))
   if (params.projectId) q.set('project_id', String(params.projectId))
-  return request(`/api/hours/analytics?${q}`, { auth: true, signal })
+  return request(`/api/hours/analytics?${q}`, { signal })
 }
 
 export function timerErrorMessage(err: unknown): string {
