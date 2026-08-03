@@ -69,13 +69,25 @@ export async function request<T>(
   const data: unknown = await res.json().catch(() => null)
 
   if (!res.ok) {
-    const message =
-      data &&
-      typeof data === 'object' &&
-      'message' in data &&
-      typeof (data as { message: unknown }).message === 'string'
-        ? (data as { message: string }).message
-        : `Error ${res.status}`
+    let message = `Error ${res.status}`
+    if (data && typeof data === 'object') {
+      if (
+        'message' in data &&
+        typeof (data as { message: unknown }).message === 'string'
+      ) {
+        message = (data as { message: string }).message
+      }
+      if (
+        'errors' in data &&
+        data.errors &&
+        typeof data.errors === 'object'
+      ) {
+        const first = Object.values(data.errors as Record<string, string[]>)[0]
+        if (Array.isArray(first) && first[0]) {
+          message = first[0]
+        }
+      }
+    }
     throw new ApiError(message, res.status)
   }
 

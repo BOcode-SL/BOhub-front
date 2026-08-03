@@ -1,0 +1,228 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import {
+  type Client,
+  type ClientInput,
+  clientErrorMessage,
+} from '@/lib/clients'
+
+const emptyForm: ClientInput = {
+  name: '',
+  taxId: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  postalCode: '',
+  country: 'España',
+  notes: '',
+}
+
+type ClientSheetProps = {
+  open: boolean
+  mode: 'add' | 'edit'
+  client: Client | null
+  onOpenChange: (open: boolean) => void
+  onSubmit: (data: ClientInput) => Promise<void>
+}
+
+export function ClientSheet({
+  open,
+  mode,
+  client,
+  onOpenChange,
+  onSubmit,
+}: ClientSheetProps) {
+  const [form, setForm] = useState<ClientInput>(emptyForm)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setError(null)
+    if (mode === 'edit' && client) {
+      setForm({
+        name: client.name,
+        taxId: client.taxId ?? '',
+        email: client.email ?? '',
+        phone: client.phone ?? '',
+        address: client.address ?? '',
+        city: client.city ?? '',
+        postalCode: client.postalCode ?? '',
+        country: client.country ?? 'España',
+        notes: client.notes ?? '',
+      })
+    } else {
+      setForm(emptyForm)
+    }
+  }, [open, mode, client])
+
+  function setField<K extends keyof ClientInput>(key: K, value: ClientInput[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setSaving(true)
+    try {
+      await onSubmit({
+        name: form.name.trim(),
+        taxId: form.taxId?.toString().trim() || null,
+        email: form.email?.toString().trim() || null,
+        phone: form.phone?.toString().trim() || null,
+        address: form.address?.toString().trim() || null,
+        city: form.city?.toString().trim() || null,
+        postalCode: form.postalCode?.toString().trim() || null,
+        country: form.country?.toString().trim() || 'España',
+        notes: form.notes?.toString().trim() || null,
+      })
+      onOpenChange(false)
+    } catch (err) {
+      setError(clientErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>
+            {mode === 'add' ? 'Añadir cliente' : 'Editar cliente'}
+          </SheetTitle>
+          <SheetDescription>
+            Datos fiscales y de contacto del cliente.
+          </SheetDescription>
+        </SheetHeader>
+
+        <form id="client-form" onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
+          <div className="space-y-2">
+            <Label htmlFor="client-name">Nombre *</Label>
+            <Input
+              id="client-name"
+              required
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-tax">NIF / CIF</Label>
+            <Input
+              id="client-tax"
+              value={form.taxId ?? ''}
+              onChange={(e) => setField('taxId', e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-email">Email</Label>
+            <Input
+              id="client-email"
+              type="email"
+              value={form.email ?? ''}
+              onChange={(e) => setField('email', e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-phone">Teléfono</Label>
+            <Input
+              id="client-phone"
+              value={form.phone ?? ''}
+              onChange={(e) => setField('phone', e.target.value)}
+              placeholder="+34 …"
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-address">Dirección</Label>
+            <Input
+              id="client-address"
+              value={form.address ?? ''}
+              onChange={(e) => setField('address', e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="client-city">Ciudad</Label>
+              <Input
+                id="client-city"
+                value={form.city ?? ''}
+                onChange={(e) => setField('city', e.target.value)}
+                className="bg-background"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-postal">C.P.</Label>
+              <Input
+                id="client-postal"
+                value={form.postalCode ?? ''}
+                onChange={(e) => setField('postalCode', e.target.value)}
+                className="bg-background"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-country">País</Label>
+            <Input
+              id="client-country"
+              value={form.country ?? ''}
+              onChange={(e) => setField('country', e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="client-notes">Notas</Label>
+            <Textarea
+              id="client-notes"
+              value={form.notes ?? ''}
+              onChange={(e) => setField('notes', e.target.value)}
+              className="bg-background min-h-24"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </form>
+
+        <SheetFooter>
+          <Button
+            type="button"
+            variant="outline"
+            className="cursor-pointer"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="client-form"
+            className="cursor-pointer"
+            disabled={saving}
+          >
+            {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}

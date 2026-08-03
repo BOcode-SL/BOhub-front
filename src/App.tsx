@@ -4,6 +4,7 @@ import { ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards'
 import { AppLayout } from '@/components/layout/app-layout'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoginPage } from '@/pages/LoginPage'
+import { ClientsPage } from '@/pages/clients/ClientsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -19,10 +20,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/app" element={<AppLayout />}>
                 <Route index element={<PlaceholderPage title="Inicio" />} />
-                <Route
-                  path="clients"
-                  element={<PlaceholderPage title="Clientes" />}
-                />
+                <Route path="clients" element={<ClientsPage />} />
                 <Route
                   path="projects"
                   element={<PlaceholderPage title="Proyectos" />}

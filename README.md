@@ -26,7 +26,7 @@ Token: `localStorage` → `bohub_token`
 | --- | --- |
 | `/login` | público |
 | `/app` | Inicio (placeholder) |
-| `/app/clients` | Clientes |
+| `/app/clients` | Clientes (CRUD) |
 | `/app/projects` | Proyectos |
 | `/app/billing` | Facturación |
 | `/app/timer` | Timer |
