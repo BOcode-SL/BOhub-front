@@ -11,6 +11,7 @@ import { BillingSummaryPage } from '@/pages/billing/BillingSummaryPage'
 import { IncomePage } from '@/pages/billing/IncomePage'
 import { ExpensesPage } from '@/pages/billing/ExpensesPage'
 import { TimerPage } from '@/pages/timer/TimerPage'
+import { MaintenancePage } from '@/pages/maintenance/MaintenancePage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -37,10 +38,7 @@ export default function App() {
                   path="emails"
                   element={<PlaceholderPage title="Emails" />}
                 />
-                <Route
-                  path="maintenance"
-                  element={<PlaceholderPage title="Mantenimientos" />}
-                />
+                <Route path="maintenance" element={<MaintenancePage />} />
               </Route>
             </Route>
 
