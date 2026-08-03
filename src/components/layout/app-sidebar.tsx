@@ -12,24 +12,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
 } from '@/components/ui/sidebar'
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="gap-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               render={<Link to="/app" />}
               tooltip="BOhub"
+              className="cursor-pointer transition-colors duration-200 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Zap className="size-4" strokeWidth={2.5} />
+                <Zap className="size-4" strokeWidth={2.5} aria-hidden />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold text-primary">BOhub</span>
+                <span className="truncate font-semibold tracking-tight text-foreground">
+                  BOhub
+                </span>
                 <span className="truncate text-xs text-muted-foreground">
                   by BOcode
                 </span>
@@ -38,10 +42,16 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+
+      <SidebarSeparator className="mx-0" />
+
+      <SidebarContent className="px-0 py-2">
         <NavMain />
       </SidebarContent>
-      <SidebarFooter>
+
+      <SidebarSeparator className="mx-0" />
+
+      <SidebarFooter className="gap-2">
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

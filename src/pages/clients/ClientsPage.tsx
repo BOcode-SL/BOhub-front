@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -34,12 +43,33 @@ import {
   clientErrorMessage,
   type Client,
   type ClientInput,
+  type ClientsMeta,
 } from '@/lib/clients'
 
+const PER_PAGE_OPTIONS = [10, 15, 25] as const
+
+function parsePage(value: string | null): number {
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
+}
+
+function parsePerPage(value: string | null): number {
+  const n = Number(value)
+  if (PER_PAGE_OPTIONS.includes(n as (typeof PER_PAGE_OPTIONS)[number])) {
+    return n
+  }
+  return 15
+}
+
 export function ClientsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const page = parsePage(searchParams.get('page'))
+  const perPage = parsePerPage(searchParams.get('per_page'))
+  const urlSearch = searchParams.get('search') ?? ''
+
+  const [searchInput, setSearchInput] = useState(urlSearch)
   const [clients, setClients] = useState<Client[]>([])
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [meta, setMeta] = useState<ClientsMeta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -49,30 +79,103 @@ export function ClientsPage() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
-    return () => clearTimeout(t)
-  }, [search])
+    setSearchInput(urlSearch)
+  }, [urlSearch])
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const next = searchInput.trim()
+      if (next === urlSearch) return
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          if (next) p.set('search', next)
+          else p.delete('search')
+          p.set('page', '1')
+          p.set('per_page', String(perPage))
+          return p
+        },
+        { replace: true },
+      )
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput, urlSearch, perPage, setSearchParams])
+
+  // ponytail: one abortable fetch; keep rows while paging (skeleton only if empty)
+  useEffect(() => {
+    const ac = new AbortController()
+    let cancelled = false
+
+    async function run() {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await listClients(
+          {
+            search: urlSearch || undefined,
+            page,
+            perPage,
+          },
+          ac.signal,
+        )
+        if (cancelled) return
+        setClients(res.data)
+        setMeta(res.meta)
+      } catch (err) {
+        if (cancelled) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setError(clientErrorMessage(err))
+        setClients([])
+        setMeta(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+      ac.abort()
+    }
+  }, [urlSearch, page, perPage])
+
+  async function reload() {
     setLoading(true)
     setError(null)
     try {
       const res = await listClients({
-        search: debouncedSearch || undefined,
-        perPage: 50,
+        search: urlSearch || undefined,
+        page,
+        perPage,
       })
       setClients(res.data)
+      setMeta(res.meta)
     } catch (err) {
       setError(clientErrorMessage(err))
-      setClients([])
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch])
+  }
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  function setPage(next: number) {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('page', String(next))
+      p.set('per_page', String(perPage))
+      if (urlSearch) p.set('search', urlSearch)
+      return p
+    })
+  }
+
+  function setPerPage(next: number) {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('per_page', String(next))
+      p.set('page', '1')
+      if (urlSearch) p.set('search', urlSearch)
+      return p
+    })
+  }
 
   function openAdd() {
     setSheetMode('add')
@@ -92,7 +195,7 @@ export function ClientsPage() {
     } else {
       await createClient(data)
     }
-    await load()
+    await reload()
   }
 
   async function handleDelete() {
@@ -101,13 +204,19 @@ export function ClientsPage() {
     try {
       await deleteClient(deleteTarget.id)
       setDeleteTarget(null)
-      await load()
+      await reload()
     } catch (err) {
       setError(clientErrorMessage(err))
     } finally {
       setDeleting(false)
     }
   }
+
+  const total = meta?.total ?? 0
+  const lastPage = meta?.last_page ?? 1
+  const currentPage = meta?.current_page ?? page
+  const canPrev = currentPage > 1
+  const canNext = currentPage < lastPage
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,7 +226,7 @@ export function ClientsPage() {
             Clientes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gestión de clientes de BOhub.
+            Gestión de clientes.
           </p>
         </div>
         <Button type="button" className="cursor-pointer" onClick={openAdd}>
@@ -126,23 +235,43 @@ export function ClientsPage() {
         </Button>
       </header>
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre, email, NIF o ciudad…"
-          className="bg-card pl-9"
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Buscar por nombre, email, NIF o ciudad…"
+            className="bg-card pl-9"
+            aria-label="Buscar clientes"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="shrink-0">Por página</span>
+          <select
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+            className="h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            {PER_PAGE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+        >
           {error}
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -155,8 +284,8 @@ export function ClientsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading &&
-              Array.from({ length: 4 }).map((_, i) => (
+            {loading && clients.length === 0 &&
+              Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 6 }).map((__, j) => (
                     <TableCell key={j}>
@@ -166,17 +295,22 @@ export function ClientsPage() {
                 </TableRow>
               ))}
 
-            {!loading && clients.length === 0 && (
+            {!loading && total === 0 && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="h-32 text-center text-muted-foreground"
+                >
                   No hay clientes. Añade el primero.
                 </TableCell>
               </TableRow>
             )}
 
-            {!loading &&
-              clients.map((client) => (
-                <TableRow key={client.id}>
+            {clients.map((client) => (
+                <TableRow
+                  key={client.id}
+                  className={loading ? 'opacity-60' : undefined}
+                >
                   <TableCell className="font-medium text-foreground">
                     {client.name}
                   </TableCell>
@@ -230,6 +364,45 @@ export function ClientsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {total > 0 && (
+        <nav
+          aria-label="Paginación de clientes"
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {meta?.from != null && meta.to != null
+              ? `${meta.from}–${meta.to} de ${total}`
+              : `${total} en total`}
+            <span className="mx-2 text-border">·</span>
+            Página {currentPage} de {lastPage}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 min-w-24 cursor-pointer"
+              disabled={!canPrev || loading}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <ChevronLeft />
+              Anterior
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 min-w-24 cursor-pointer"
+              disabled={!canNext || loading}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Siguiente
+              <ChevronRight />
+            </Button>
+          </div>
+        </nav>
+      )}
 
       <ClientSheet
         open={sheetOpen}

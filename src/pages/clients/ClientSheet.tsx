@@ -15,6 +15,7 @@ import {
   type Client,
   type ClientInput,
   clientErrorMessage,
+  getClient,
 } from '@/lib/clients'
 
 const emptyForm: ClientInput = {
@@ -27,6 +28,20 @@ const emptyForm: ClientInput = {
   postalCode: '',
   country: 'España',
   notes: '',
+}
+
+function toForm(c: Client): ClientInput {
+  return {
+    name: c.name,
+    taxId: c.taxId ?? '',
+    email: c.email ?? '',
+    phone: c.phone ?? '',
+    address: c.address ?? '',
+    city: c.city ?? '',
+    postalCode: c.postalCode ?? '',
+    country: c.country ?? 'España',
+    notes: c.notes ?? '',
+  }
 }
 
 type ClientSheetProps = {
@@ -51,20 +66,26 @@ export function ClientSheet({
   useEffect(() => {
     if (!open) return
     setError(null)
-    if (mode === 'edit' && client) {
-      setForm({
-        name: client.name,
-        taxId: client.taxId ?? '',
-        email: client.email ?? '',
-        phone: client.phone ?? '',
-        address: client.address ?? '',
-        city: client.city ?? '',
-        postalCode: client.postalCode ?? '',
-        country: client.country ?? 'España',
-        notes: client.notes ?? '',
-      })
-    } else {
+
+    if (mode !== 'edit' || !client) {
       setForm(emptyForm)
+      return
+    }
+
+    // seed from list row; hydrate notes via show() (list omits notes)
+    setForm(toForm(client))
+
+    let cancelled = false
+    void getClient(client.id)
+      .then((full) => {
+        if (!cancelled) setForm(toForm(full))
+      })
+      .catch((err) => {
+        if (!cancelled) setError(clientErrorMessage(err))
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [open, mode, client])
 

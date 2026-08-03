@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { cn } from '@/lib/utils'
 
 const items: { title: string; url: string; icon: LucideIcon; end?: boolean }[] = [
   { title: 'Inicio', url: '/app', icon: Home, end: true },
@@ -30,8 +31,9 @@ export function NavMain() {
   const location = useLocation()
 
   return (
-    <SidebarGroup>
-      <SidebarMenu className="gap-1.5">
+    <SidebarGroup className="px-2 py-0">
+      {/* gap-2 ≥ 8px — UX Pro Max touch spacing */}
+      <SidebarMenu className="gap-2">
         {items.map((item) => {
           const isActive = item.end
             ? location.pathname === item.url
@@ -44,9 +46,14 @@ export function NavMain() {
                 render={<NavLink to={item.url} end={item.end} />}
                 tooltip={item.title}
                 isActive={isActive}
-                className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
+                className={cn(
+                  'h-9 cursor-pointer transition-colors duration-200',
+                  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  'focus-visible:ring-2 focus-visible:ring-primary/40',
+                  'data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-primary',
+                )}
               >
-                <item.icon />
+                <item.icon aria-hidden />
                 <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

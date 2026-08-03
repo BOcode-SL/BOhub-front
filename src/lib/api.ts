@@ -37,11 +37,12 @@ type RequestOptions = {
   method?: string
   body?: unknown
   auth?: boolean
+  signal?: AbortSignal
 }
 
 export async function request<T>(
   path: string,
-  { method = 'GET', body, auth = false }: RequestOptions = {},
+  { method = 'GET', body, auth = false, signal }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -61,8 +62,12 @@ export async function request<T>(
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     })
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
     throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0)
   }
 

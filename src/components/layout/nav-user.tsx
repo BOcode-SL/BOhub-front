@@ -44,22 +44,24 @@ export function NavUser() {
             render={
               <SidebarMenuButton
                 size="lg"
-                className="cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                className="h-12 cursor-pointer transition-colors duration-200 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               />
             }
           >
             <Avatar className="size-8 rounded-lg">
-              <AvatarFallback className="rounded-lg bg-primary font-semibold text-primary-foreground">
+              <AvatarFallback className="rounded-lg bg-muted font-semibold text-foreground">
                 {initials(user.name)}
               </AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
+              <span className="truncate font-medium text-foreground">
+                {user.name}
+              </span>
               <span className="truncate text-xs text-muted-foreground">
                 {user.email}
               </span>
             </div>
-            <ChevronsUpDown className="ml-auto size-4" />
+            <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56 rounded-lg"
@@ -70,7 +72,7 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-primary font-semibold text-primary-foreground">
+                  <AvatarFallback className="rounded-lg bg-muted font-semibold text-foreground">
                     {initials(user.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -84,10 +86,10 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer"
+              className="cursor-pointer focus:bg-sidebar-accent"
               onClick={() => void handleLogout()}
             >
-              <LogOut />
+              <LogOut aria-hidden />
               Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
