@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
-import { Pause, Play, Plus, Square, Trash2 } from 'lucide-react'
+import { Clock, Pause, Play, Plus, Square, Trash2 } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import { listProjectOptions } from '@/lib/projects'
 import {
   createHour,
@@ -33,6 +33,7 @@ import {
   type HoursMeta,
 } from '@/lib/timer'
 import { HoursTable } from './HoursTable'
+import { TimerTabs } from './TimerTabs'
 
 // ponytail: keep recharts off the Mis horas / Equipo path until Analytics opens
 const TimerAnalytics = lazy(() =>
@@ -40,7 +41,7 @@ const TimerAnalytics = lazy(() =>
 )
 
 const selectClass =
-  'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+  'h-9 w-full rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -379,16 +380,6 @@ export function TimerPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Timer
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cronómetro live al estilo BOtimer. Mis horas
-          {isAdmin ? ' y equipo' : ''}.
-        </p>
-      </header>
-
       {error && (
         <p
           role="alert"
@@ -444,7 +435,7 @@ export function TimerPage() {
             <Button
               type="button"
               size="lg"
-              className="min-w-32 cursor-pointer"
+              className="min-w-32"
               disabled={busy}
               onClick={() => void handleStart()}
             >
@@ -458,7 +449,7 @@ export function TimerPage() {
                 type="button"
                 variant="outline"
                 size="lg"
-                className="min-w-32 cursor-pointer"
+                className="min-w-32"
                 disabled={busy}
                 onClick={() => void handlePause()}
               >
@@ -469,7 +460,7 @@ export function TimerPage() {
                 type="button"
                 variant="destructive"
                 size="lg"
-                className="min-w-32 cursor-pointer"
+                className="min-w-32"
                 disabled={busy}
                 onClick={handleStop}
               >
@@ -483,7 +474,7 @@ export function TimerPage() {
               <Button
                 type="button"
                 size="lg"
-                className="min-w-32 cursor-pointer"
+                className="min-w-32"
                 disabled={busy}
                 onClick={() => void handleResume()}
               >
@@ -494,7 +485,7 @@ export function TimerPage() {
                 type="button"
                 variant="destructive"
                 size="lg"
-                className="min-w-32 cursor-pointer"
+                className="min-w-32"
                 disabled={busy}
                 onClick={handleStop}
               >
@@ -506,154 +497,127 @@ export function TimerPage() {
         </div>
       </section>
 
-      <nav
-        aria-label="Vistas de horas"
-        className="flex flex-wrap gap-2 border-b border-border pb-3"
-      >
-        <button
-          type="button"
-          className={cn(
-            'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-            tab === 'mine'
-              ? 'bg-sidebar-accent font-medium text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-          )}
-          onClick={() => switchTab('mine')}
-        >
-          Mis horas
-        </button>
-        {isAdmin && (
-          <button
-            type="button"
-            className={cn(
-              'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              tab === 'team'
-                ? 'bg-sidebar-accent font-medium text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-            onClick={() => switchTab('team')}
-          >
-            Equipo
-          </button>
-        )}
-        <button
-          type="button"
-          className={cn(
-            'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-            tab === 'analytics'
-              ? 'bg-sidebar-accent font-medium text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-          )}
-          onClick={() => switchTab('analytics')}
-        >
-          Analytics
-        </button>
-      </nav>
-
       {tab === 'analytics' ? (
         <Suspense
           fallback={<Skeleton className="h-[420px] w-full rounded-xl" />}
         >
-          <TimerAnalytics />
+          <TimerAnalytics
+            above={
+              <TimerTabs tab={tab} isAdmin={isAdmin} onChange={switchTab} />
+            }
+          />
         </Suspense>
       ) : (
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <label className="grid gap-1 text-xs text-muted-foreground">
-              Proyecto
-              <select
-                value={filters.projectId}
-                onChange={(e) =>
-                  patchFilters({
-                    projectId: e.target.value ? Number(e.target.value) : '',
-                  })
-                }
-                className={selectClass + ' min-w-40'}
-              >
-                <option value="">Todos</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {tab === 'team' && (
-              <label className="grid gap-1 text-xs text-muted-foreground">
-                Usuario
-                <select
-                  value={filters.userId}
-                  onChange={(e) =>
-                    patchFilters({
-                      userId: e.target.value ? Number(e.target.value) : '',
-                    })
-                  }
-                  className={selectClass + ' min-w-40'}
+        <ListPageShell
+          title={tab === 'team' ? 'Equipo' : 'Mis horas'}
+          description={
+            tab === 'team'
+              ? 'Horas registradas por el equipo.'
+              : 'Historistro de tus horas trabajadas.'
+          }
+          icon={Clock}
+          above={
+            <TimerTabs tab={tab} isAdmin={isAdmin} onChange={switchTab} />
+          }
+          toolbar={
+            <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="shrink-0">Proyecto</span>
+                  <select
+                    value={filters.projectId}
+                    onChange={(e) =>
+                      patchFilters({
+                        projectId: e.target.value
+                          ? Number(e.target.value)
+                          : '',
+                      })
+                    }
+                    className={selectClass + ' w-auto min-w-40'}
+                  >
+                    <option value="">Todos</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {tab === 'team' && (
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="shrink-0">Usuario</span>
+                    <select
+                      value={filters.userId}
+                      onChange={(e) =>
+                        patchFilters({
+                          userId: e.target.value
+                            ? Number(e.target.value)
+                            : '',
+                        })
+                      }
+                      className={selectClass + ' w-auto min-w-40'}
+                    >
+                      <option value="">Todos</option>
+                      {teamUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="shrink-0">Desde</span>
+                  <Input
+                    type="date"
+                    value={filters.from}
+                    onChange={(e) => patchFilters({ from: e.target.value })}
+                    className="h-9 w-auto bg-input/30"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="shrink-0">Hasta</span>
+                  <Input
+                    type="date"
+                    value={filters.to}
+                    onChange={(e) => patchFilters({ to: e.target.value })}
+                    className="h-9 w-auto bg-input/30"
+                  />
+                </label>
+              </div>
+              {tab === 'mine' && (
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setManualProjectId('')
+                    setManualHours('0')
+                    setManualMinutes('30')
+                    setManualSeconds('0')
+                    setManualDate(today())
+                    setManualDesc('')
+                    setManualOpen(true)
+                  }}
                 >
-                  <option value="">Todos</option>
-                  {teamUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="grid gap-1 text-xs text-muted-foreground">
-              Desde
-              <Input
-                type="date"
-                value={filters.from}
-                onChange={(e) => patchFilters({ from: e.target.value })}
-                className="h-9 bg-card"
-              />
-            </label>
-            <label className="grid gap-1 text-xs text-muted-foreground">
-              Hasta
-              <Input
-                type="date"
-                value={filters.to}
-                onChange={(e) => patchFilters({ to: e.target.value })}
-                className="h-9 bg-card"
-              />
-            </label>
-          </div>
-          {tab === 'mine' && (
-            <Button
-              type="button"
-              className="cursor-pointer"
-              onClick={() => {
-                setManualProjectId('')
-                setManualHours('0')
-                setManualMinutes('30')
-                setManualSeconds('0')
-                setManualDate(today())
-                setManualDesc('')
-                setManualOpen(true)
-              }}
-            >
-              <Plus />
-              Añadir
-            </Button>
-          )}
-        </div>
-
-        <HoursTable
-          hours={hours}
-          meta={meta}
-          loading={listLoading}
-          showUser={tab === 'team'}
-          showActions={tab === 'mine'}
-          page={page}
-          onPageChange={setPage}
-          onEdit={openEdit}
-          onDelete={setDeleteTarget}
-        />
-      </section>
+                  <Plus />
+                  Añadir
+                </Button>
+              )}
+            </div>
+          }
+        >
+          <HoursTable
+            hours={hours}
+            meta={meta}
+            loading={listLoading}
+            showUser={tab === 'team'}
+            showActions={tab === 'mine'}
+            page={page}
+            onPageChange={setPage}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+          />
+        </ListPageShell>
       )}
 
       <Dialog
@@ -714,7 +678,7 @@ export function TimerPage() {
             <Button
               type="button"
               variant="destructive"
-              className="cursor-pointer"
+             
               disabled={busy}
               onClick={() => void confirmDiscardFromSave()}
             >
@@ -723,7 +687,7 @@ export function TimerPage() {
             </Button>
             <Button
               type="button"
-              className="cursor-pointer"
+             
               disabled={busy}
               onClick={() => void confirmSave()}
             >
@@ -821,7 +785,7 @@ export function TimerPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="cursor-pointer"
+             
               onClick={() => setManualOpen(false)}
             >
               Cancelar
@@ -829,7 +793,7 @@ export function TimerPage() {
             <Button
               type="submit"
               form="manual-hour-form"
-              className="cursor-pointer"
+             
               disabled={manualSaving}
             >
               {manualSaving ? 'Guardando…' : 'Guardar'}
@@ -896,13 +860,13 @@ export function TimerPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="cursor-pointer"
+             
               onClick={() => setEditHour(null)}
             >
               Cancelar
             </Button>
             <Button
-              className="cursor-pointer"
+             
               disabled={busy}
               onClick={() => void saveEdit()}
             >
@@ -926,14 +890,14 @@ export function TimerPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="cursor-pointer"
+             
               onClick={() => setDeleteTarget(null)}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              className="cursor-pointer"
+             
               disabled={busy}
               onClick={() => void confirmDelete()}
             >

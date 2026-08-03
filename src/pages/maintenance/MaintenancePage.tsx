@@ -7,8 +7,10 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Table,
   TableBody,
@@ -199,149 +201,146 @@ export function MaintenancePage() {
   const currentPage = meta?.current_page ?? page
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Mantenimientos
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cola de contratos de soporte por vencimiento. Historial intacto.
+    <>
+      <ListPageShell
+        title="Mantenimientos"
+        description="Cola de contratos de soporte por vencimiento. Historial intacto."
+        icon={Wrench}
+        toolbar={
+          <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Estado
+                <select
+                  value={urlStatus || (urlScope === 'open' ? 'open' : '')}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v === 'open') {
+                      patch({ status: null, scope: 'open' })
+                    } else if (v === '') {
+                      patch({ status: null, scope: null })
+                    } else {
+                      patch({ status: v, scope: null })
+                    }
+                  }}
+                  className={selectClass + ' min-w-40'}
+                >
+                  <option value="open">Abiertos (prog. + activos)</option>
+                  <option value="">Todos</option>
+                  {MAINTENANCE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {MAINTENANCE_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Periodo
+                <select
+                  value={urlPeriod}
+                  onChange={(e) => patch({ period: e.target.value || null })}
+                  className={selectClass + ' min-w-36'}
+                >
+                  <option value="">Todos</option>
+                  {MAINTENANCE_PERIODS.map((p) => (
+                    <option key={p} value={p}>
+                      {MAINTENANCE_PERIOD_LABELS[p]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Cliente
+                <select
+                  value={urlClient}
+                  onChange={(e) => patch({ client_id: e.target.value || null })}
+                  className={selectClass + ' min-w-40'}
+                >
+                  <option value="">Todos</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Proyecto
+                <select
+                  value={urlProject}
+                  onChange={(e) => patch({ project_id: e.target.value || null })}
+                  className={selectClass + ' min-w-40'}
+                >
+                  <option value="">Todos</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="flex gap-1 pb-0.5">
+                <button
+                  type="button"
+                  className={cn(
+                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                    urlEnding === '7'
+                      ? 'bg-sidebar-accent font-medium text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                  onClick={() =>
+                    patch({ ending_within: urlEnding === '7' ? null : '7' })
+                  }
+                >
+                  Vence en 7d
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                    urlEnding === '30'
+                      ? 'bg-sidebar-accent font-medium text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                  onClick={() =>
+                    patch({ ending_within: urlEnding === '30' ? null : '30' })
+                  }
+                >
+                  Vence en 30d
+                </button>
+              </div>
+            </div>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setSheetMode('add')
+                setEditing(null)
+                setSheetOpen(true)
+              }}
+            >
+              <Plus />
+              Añadir mantenimiento
+            </Button>
+          </div>
+        }
+      >
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+          >
+            {error}
           </p>
-        </div>
-        <Button
-          type="button"
-          className="cursor-pointer"
-          onClick={() => {
-            setSheetMode('add')
-            setEditing(null)
-            setSheetOpen(true)
-          }}
-        >
-          <Plus />
-          Añadir mantenimiento
-        </Button>
-      </header>
+        )}
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Estado
-          <select
-            value={urlStatus || (urlScope === 'open' ? 'open' : '')}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === 'open') {
-                patch({ status: null, scope: 'open' })
-              } else if (v === '') {
-                patch({ status: null, scope: null })
-              } else {
-                patch({ status: v, scope: null })
-              }
-            }}
-            className={selectClass + ' min-w-40'}
-          >
-            <option value="open">Abiertos (prog. + activos)</option>
-            <option value="">Todos</option>
-            {MAINTENANCE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {MAINTENANCE_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Periodo
-          <select
-            value={urlPeriod}
-            onChange={(e) => patch({ period: e.target.value || null })}
-            className={selectClass + ' min-w-36'}
-          >
-            <option value="">Todos</option>
-            {MAINTENANCE_PERIODS.map((p) => (
-              <option key={p} value={p}>
-                {MAINTENANCE_PERIOD_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Cliente
-          <select
-            value={urlClient}
-            onChange={(e) => patch({ client_id: e.target.value || null })}
-            className={selectClass + ' min-w-40'}
-          >
-            <option value="">Todos</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Proyecto
-          <select
-            value={urlProject}
-            onChange={(e) => patch({ project_id: e.target.value || null })}
-            className={selectClass + ' min-w-40'}
-          >
-            <option value="">Todos</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="flex gap-1 pb-0.5">
-          <button
-            type="button"
-            className={cn(
-              'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              urlEnding === '7'
-                ? 'bg-sidebar-accent font-medium text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-            onClick={() =>
-              patch({ ending_within: urlEnding === '7' ? null : '7' })
-            }
-          >
-            Vence en 7d
-          </button>
-          <button
-            type="button"
-            className={cn(
-              'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              urlEnding === '30'
-                ? 'bg-sidebar-accent font-medium text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-            onClick={() =>
-              patch({ ending_within: urlEnding === '30' ? null : '30' })
-            }
-          >
-            Vence en 30d
-          </button>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -496,6 +495,7 @@ export function MaintenancePage() {
           </div>
         </nav>
       )}
+      </ListPageShell>
 
       <MaintenanceSheet
         open={sheetOpen}
@@ -537,6 +537,6 @@ export function MaintenancePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

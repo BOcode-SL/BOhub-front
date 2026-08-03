@@ -1,6 +1,8 @@
+import { ReceiptEuro } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { ListPageShell } from '@/components/list-page-shell'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   billingErrorMessage,
@@ -12,7 +14,7 @@ import {
 import { BillingTabs } from '@/pages/billing/BillingTabs'
 
 const selectClass =
-  'h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+  'h-9 rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 function parseYear(v: string | null): number {
   const n = Number(v)
@@ -20,9 +22,7 @@ function parseYear(v: string | null): number {
   return Number.isFinite(n) && n >= 2000 && n <= 2100 ? Math.floor(n) : y
 }
 
-function parseQuarter(
-  v: string | null,
-): 1 | 2 | 3 | 4 | 'all' {
+function parseQuarter(v: string | null): 1 | 2 | 3 | 4 | 'all' {
   if (v === 'all') return 'all'
   const n = Number(v)
   if (n === 1 || n === 2 || n === 3 || n === 4) return n
@@ -40,7 +40,6 @@ export function BillingSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // one effect: seed URL defaults OR fetch (avoids double request)
   useEffect(() => {
     if (!urlHasPeriod) {
       setSearchParams(
@@ -83,92 +82,68 @@ export function BillingSummaryPage() {
     quarter === 'all' ? `Año ${year}` : `T${quarter} ${year}`
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Facturación
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ledger interno. Registra facturas creadas en tu app de facturación.
-            Periodo: {periodLabel}.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <ListPageShell
+      title="Resumen"
+      description={`Ledger interno · periodo ${periodLabel}. Registra facturas creadas en tu app de facturación.`}
+      icon={ReceiptEuro}
+      above={<BillingTabs />}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2 py-1">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Año
+            <select
+              value={year}
+              onChange={(e) => setPeriod(Number(e.target.value), quarter)}
+              className={selectClass}
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Trimestre
+            <select
+              value={quarter === 'all' ? 'all' : String(quarter)}
+              onChange={(e) => {
+                const v = e.target.value
+                setPeriod(
+                  year,
+                  v === 'all' ? 'all' : (Number(v) as 1 | 2 | 3 | 4),
+                )
+              }}
+              className={selectClass}
+            >
+              <option value="1">T1</option>
+              <option value="2">T2</option>
+              <option value="3">T3</option>
+              <option value="4">T4</option>
+              <option value="all">Todo el año</option>
+            </select>
+          </label>
           <Button
-            variant="outline"
-            className="cursor-pointer"
-            render={<Link to="/dashboard/billing/income" />}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setPeriod(new Date().getFullYear(), currentQuarter())
+            }
           >
-            Ingresos
+            Trimestre actual
           </Button>
           <Button
-            variant="outline"
-            className="cursor-pointer"
-            render={<Link to="/dashboard/billing/expenses" />}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setPeriod(year, 'all')}
           >
-            Gastos
+            Todo el año
           </Button>
         </div>
-      </header>
-
-      <BillingTabs />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          Año
-          <select
-            value={year}
-            onChange={(e) => setPeriod(Number(e.target.value), quarter)}
-            className={selectClass}
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          Trimestre
-          <select
-            value={quarter === 'all' ? 'all' : String(quarter)}
-            onChange={(e) => {
-              const v = e.target.value
-              setPeriod(
-                year,
-                v === 'all' ? 'all' : (Number(v) as 1 | 2 | 3 | 4),
-              )
-            }}
-            className={selectClass}
-          >
-            <option value="1">T1</option>
-            <option value="2">T2</option>
-            <option value="3">T3</option>
-            <option value="4">T4</option>
-            <option value="all">Todo el año</option>
-          </select>
-        </label>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="cursor-pointer"
-          onClick={() => setPeriod(new Date().getFullYear(), currentQuarter())}
-        >
-          Trimestre actual
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="cursor-pointer"
-          onClick={() => setPeriod(year, 'all')}
-        >
-          Todo el año
-        </Button>
-      </div>
-
+      }
+    >
       {error && (
         <p
           role="alert"
@@ -211,7 +186,7 @@ export function BillingSummaryPage() {
           />
         </div>
       )}
-    </div>
+    </ListPageShell>
   )
 }
 
@@ -227,7 +202,7 @@ function SummaryCard({
   emphasize?: boolean
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       <p className="text-sm text-muted-foreground">{title}</p>
       <p
         className={

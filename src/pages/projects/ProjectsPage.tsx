@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Folder,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Table,
   TableBody,
@@ -237,115 +239,110 @@ export function ProjectsPage() {
   const canNext = currentPage < lastPage
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Proyectos
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Proyectos ligados a clientes.
+    <>
+      <ListPageShell
+        title="Proyectos"
+        description="Proyectos ligados a clientes."
+        icon={Folder}
+        toolbar={
+          <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Buscar por nombre o cliente…"
+                className="pl-9"
+                aria-label="Buscar proyectos"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="shrink-0">Estado</span>
+                <select
+                  value={urlStatus}
+                  onChange={(e) =>
+                    patchParams({
+                      status: e.target.value || null,
+                      page: '1',
+                      per_page: String(perPage),
+                      search: urlSearch || null,
+                      client_id: urlClientId || null,
+                    })
+                  }
+                  className={selectClass}
+                >
+                  <option value="">Todos</option>
+                  {PROJECT_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {PROJECT_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="shrink-0">Cliente</span>
+                <select
+                  value={urlClientId}
+                  onChange={(e) =>
+                    patchParams({
+                      client_id: e.target.value || null,
+                      page: '1',
+                      per_page: String(perPage),
+                      search: urlSearch || null,
+                      status: urlStatus || null,
+                    })
+                  }
+                  className={selectClass}
+                >
+                  <option value="">Todos</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="shrink-0">Por página</span>
+                <select
+                  value={perPage}
+                  onChange={(e) =>
+                    patchParams({
+                      per_page: e.target.value,
+                      page: '1',
+                      search: urlSearch || null,
+                      status: urlStatus || null,
+                      client_id: urlClientId || null,
+                    })
+                  }
+                  className={selectClass}
+                >
+                  {PER_PAGE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="button" onClick={openAdd} className="w-full sm:w-auto">
+                <Plus />
+                Añadir proyecto
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+          >
+            {error}
           </p>
-        </div>
-        <Button type="button" className="cursor-pointer" onClick={openAdd}>
-          <Plus />
-          Añadir proyecto
-        </Button>
-      </header>
+        )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
-        <div className="relative w-full max-w-md">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar por nombre o cliente…"
-            className="bg-card pl-9"
-            aria-label="Buscar proyectos"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="shrink-0">Estado</span>
-            <select
-              value={urlStatus}
-              onChange={(e) =>
-                patchParams({
-                  status: e.target.value || null,
-                  page: '1',
-                  per_page: String(perPage),
-                  search: urlSearch || null,
-                  client_id: urlClientId || null,
-                })
-              }
-              className={selectClass}
-            >
-              <option value="">Todos</option>
-              {PROJECT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PROJECT_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="shrink-0">Cliente</span>
-            <select
-              value={urlClientId}
-              onChange={(e) =>
-                patchParams({
-                  client_id: e.target.value || null,
-                  page: '1',
-                  per_page: String(perPage),
-                  search: urlSearch || null,
-                  status: urlStatus || null,
-                })
-              }
-              className={selectClass}
-            >
-              <option value="">Todos</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="shrink-0">Por página</span>
-            <select
-              value={perPage}
-              onChange={(e) =>
-                patchParams({
-                  per_page: e.target.value,
-                  page: '1',
-                  search: urlSearch || null,
-                  status: urlStatus || null,
-                  client_id: urlClientId || null,
-                })
-              }
-              className={selectClass}
-            >
-              {PER_PAGE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
-
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -482,7 +479,7 @@ export function ProjectsPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 min-w-24 cursor-pointer"
+              className="min-w-24"
               disabled={!canPrev || loading}
               onClick={() => setPage(currentPage - 1)}
             >
@@ -493,7 +490,7 @@ export function ProjectsPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 min-w-24 cursor-pointer"
+              className="min-w-24"
               disabled={!canNext || loading}
               onClick={() => setPage(currentPage + 1)}
             >
@@ -503,6 +500,7 @@ export function ProjectsPage() {
           </div>
         </nav>
       )}
+      </ListPageShell>
 
       <ProjectSheet
         open={sheetOpen}
@@ -549,6 +547,6 @@ export function ProjectsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

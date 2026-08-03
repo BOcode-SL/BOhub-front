@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  FileText,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Table,
   TableBody,
@@ -148,44 +150,52 @@ export function EmailsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <EmailTabs />
+    <>
+      <ListPageShell
+        title="Plantillas"
+        description="Plantillas de email reutilizables con variables."
+        icon={FileText}
+        above={<EmailTabs />}
+        toolbar={
+          <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+                placeholder="Buscar plantillas…"
+                className="pl-9"
+                aria-label="Buscar plantillas"
+              />
+            </div>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setEditing(null)
+                setFormMode('add')
+                setFormOpen(true)
+              }}
+            >
+              <Plus />
+              Nueva plantilla
+            </Button>
+          </div>
+        }
+      >
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+          >
+            {error}
+          </p>
+        )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative min-w-0 flex-1 sm:max-w-xs">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            placeholder="Buscar plantillas…"
-            className="pl-8"
-            aria-label="Buscar plantillas"
-          />
-        </div>
-        <Button
-          type="button"
-          className="cursor-pointer"
-          onClick={() => {
-            setEditing(null)
-            setFormMode('add')
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          Nueva plantilla
-        </Button>
-      </div>
-
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -320,6 +330,7 @@ export function EmailsPage() {
           </div>
         </div>
       )}
+      </ListPageShell>
 
       <TemplateFormSheet
         open={formOpen}
@@ -393,6 +404,6 @@ export function EmailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

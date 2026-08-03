@@ -40,7 +40,7 @@ export function HoursTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -100,7 +100,6 @@ export function HoursTable({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="cursor-pointer"
                         onClick={() => onEdit?.(h)}
                       >
                         Editar
@@ -109,7 +108,7 @@ export function HoursTable({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="cursor-pointer text-destructive"
+                        className="text-destructive"
                         onClick={() => onDelete?.(h)}
                       >
                         Eliminar
@@ -135,7 +134,6 @@ export function HoursTable({
             <Button
               variant="outline"
               size="sm"
-              className="cursor-pointer"
               disabled={currentPage <= 1 || loading}
               onClick={() => onPageChange(currentPage - 1)}
             >
@@ -145,7 +143,6 @@ export function HoursTable({
             <Button
               variant="outline"
               size="sm"
-              className="cursor-pointer"
               disabled={currentPage >= lastPage || loading}
               onClick={() => onPageChange(currentPage + 1)}
             >

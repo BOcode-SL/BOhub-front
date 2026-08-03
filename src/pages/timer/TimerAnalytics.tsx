@@ -1,15 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import {
   ChartContainer,
   ChartLegend,
@@ -18,6 +11,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { ListPageShell } from '@/components/list-page-shell'
 import { Skeleton } from '@/components/ui/skeleton'
 import { listProjects, type Project } from '@/lib/projects'
 import {
@@ -38,7 +32,7 @@ import {
 } from '@/lib/time'
 
 const selectClass =
-  'h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+  'h-9 rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 type SeriesMeta = {
   key: string
@@ -47,7 +41,11 @@ type SeriesMeta = {
   color: string
 }
 
-export function TimerAnalytics() {
+type Props = {
+  above?: ReactNode
+}
+
+export function TimerAnalytics({ above }: Props) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
@@ -183,52 +181,56 @@ export function TimerAnalytics() {
   const monthKey = `${year}-${monthIndex}`
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="cursor-pointer"
-            onClick={() => shiftMonth(-1)}
-            aria-label="Mes anterior"
-          >
-            <ChevronLeft />
-          </Button>
-          <p className="min-w-40 text-center text-sm font-medium capitalize text-foreground">
-            {monthLabelEs(year, monthIndex)}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="cursor-pointer"
-            onClick={() => shiftMonth(1)}
-            aria-label="Mes siguiente"
-          >
-            <ChevronRight />
-          </Button>
+    <ListPageShell
+      title="Analytics"
+      description={`Horas por día · ${monthLabelEs(year, monthIndex)}`}
+      icon={BarChart3}
+      above={above}
+      toolbar={
+        <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Mes anterior"
+            >
+              <ChevronLeft />
+            </Button>
+            <p className="min-w-40 text-center text-sm font-medium capitalize text-foreground">
+              {monthLabelEs(year, monthIndex)}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={() => shiftMonth(1)}
+              aria-label="Mes siguiente"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="shrink-0">Proyecto</span>
+            <select
+              value={projectFilter}
+              onChange={(e) =>
+                setProjectFilter(e.target.value ? Number(e.target.value) : '')
+              }
+              className={selectClass + ' min-w-48'}
+            >
+              <option value="">Todos</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <label className="grid gap-1 text-xs text-muted-foreground">
-          Proyecto
-          <select
-            value={projectFilter}
-            onChange={(e) =>
-              setProjectFilter(e.target.value ? Number(e.target.value) : '')
-            }
-            className={selectClass + ' min-w-48'}
-          >
-            <option value="">Todos</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
+      }
+    >
       {error && (
         <p
           role="alert"
@@ -253,25 +255,28 @@ export function TimerAnalytics() {
             value: String(activeDays),
           },
         ].map((tile) => (
-          <Card key={tile.title}>
-            <CardHeader className="pb-2">
-              <CardDescription>{tile.title}</CardDescription>
-              <CardTitle className="font-mono text-xl text-primary tabular-nums sm:text-2xl">
-                {loading ? <Skeleton className="h-7 w-24" /> : tile.value}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+          <div
+            key={tile.title}
+            className="rounded-xl border border-border bg-card/50 p-4"
+          >
+            <p className="text-sm text-muted-foreground">{tile.title}</p>
+            <p className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
+              {loading ? <Skeleton className="h-7 w-24" /> : tile.value}
+            </p>
+          </div>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Horas por día</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
+      <div className="rounded-md border">
+        <div className="border-b border-border px-4 py-3">
+          <p className="text-base font-medium text-foreground sm:text-lg">
+            Horas por día
+          </p>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Apilado por proyecto · {monthLabelEs(year, monthIndex)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-4">
           {loading ? (
             <Skeleton className="h-[280px] w-full rounded-lg" />
           ) : hasBars ? (
@@ -325,8 +330,8 @@ export function TimerAnalytics() {
               No hay horas este mes
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </ListPageShell>
   )
 }

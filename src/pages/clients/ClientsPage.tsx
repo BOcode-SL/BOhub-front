@@ -8,9 +8,11 @@ import {
   Plus,
   Search,
   Trash2,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Table,
   TableBody,
@@ -219,94 +221,92 @@ export function ClientsPage() {
   const canNext = currentPage < lastPage
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Clientes
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gestión de clientes.
-          </p>
-        </div>
-        <Button type="button" className="cursor-pointer" onClick={openAdd}>
-          <Plus />
-          Añadir cliente
-        </Button>
-      </header>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-md">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar por nombre, email, NIF o ciudad…"
-            className="bg-card pl-9"
-            aria-label="Buscar clientes"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="shrink-0">Por página</span>
-          <select
-            value={perPage}
-            onChange={(e) => setPerPage(Number(e.target.value))}
-            className="h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            {PER_PAGE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {error && (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Nombre</TableHead>
-              <TableHead>NIF/CIF</TableHead>
-              <TableHead>Teléfono</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Ciudad</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && clients.length === 0 &&
-              Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-
-            {!loading && total === 0 && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={6}
-                  className="h-32 text-center text-muted-foreground"
+    <>
+      <ListPageShell
+        title="Clientes"
+        description="Buscar y gestionar tus clientes"
+        icon={Users}
+        toolbar={
+          <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Buscar por nombre, email, NIF o ciudad…"
+                className="pl-9"
+                aria-label="Buscar clientes"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="shrink-0">Por página</span>
+                <select
+                  value={perPage}
+                  onChange={(e) => setPerPage(Number(e.target.value))}
+                  className="h-9 rounded-md border border-border bg-input/30 px-2 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
-                  No hay clientes. Añade el primero.
-                </TableCell>
-              </TableRow>
-            )}
+                  {PER_PAGE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="button" onClick={openAdd} className="w-full sm:w-auto">
+                <Plus />
+                Añadir cliente
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+          >
+            {error}
+          </p>
+        )}
 
-            {clients.map((client) => (
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Nombre</TableHead>
+                <TableHead>NIF/CIF</TableHead>
+                <TableHead>Teléfono</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Ciudad</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading &&
+                clients.length === 0 &&
+                Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 6 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+
+              {!loading && total === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={6}
+                    className="h-32 text-center text-muted-foreground"
+                  >
+                    No hay clientes. Añade el primero.
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {clients.map((client) => (
                 <TableRow
                   key={client.id}
                   className={loading ? 'opacity-60' : undefined}
@@ -329,28 +329,18 @@ export function ClientsPage() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="cursor-pointer"
-                          />
-                        }
+                        render={<Button variant="ghost" size="icon-sm" />}
                       >
                         <MoreHorizontal />
                         <span className="sr-only">Acciones</span>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() => openEdit(client)}
-                        >
+                        <DropdownMenuItem onClick={() => openEdit(client)}>
                           <Pencil />
                           Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          variant="destructive"
-                          className="cursor-pointer"
+                          className="text-destructive"
                           onClick={() => setDeleteTarget(client)}
                         >
                           <Trash2 />
@@ -361,48 +351,49 @@ export function ClientsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableBody>
+          </Table>
+        </div>
 
-      {total > 0 && (
-        <nav
-          aria-label="Paginación de clientes"
-          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {meta?.from != null && meta.to != null
-              ? `${meta.from}–${meta.to} de ${total}`
-              : `${total} en total`}
-            <span className="mx-2 text-border">·</span>
-            Página {currentPage} de {lastPage}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 min-w-24 cursor-pointer"
-              disabled={!canPrev || loading}
-              onClick={() => setPage(currentPage - 1)}
-            >
-              <ChevronLeft />
-              Anterior
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 min-w-24 cursor-pointer"
-              disabled={!canNext || loading}
-              onClick={() => setPage(currentPage + 1)}
-            >
-              Siguiente
-              <ChevronRight />
-            </Button>
-          </div>
-        </nav>
-      )}
+        {total > 0 && (
+          <nav
+            aria-label="Paginación de clientes"
+            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {meta?.from != null && meta.to != null
+                ? `${meta.from}–${meta.to} de ${total}`
+                : `${total} en total`}
+              <span className="mx-2 text-border">·</span>
+              Página {currentPage} de {lastPage}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-w-24"
+                disabled={!canPrev || loading}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                <ChevronLeft />
+                Anterior
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-w-24"
+                disabled={!canNext || loading}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                Siguiente
+                <ChevronRight />
+              </Button>
+            </div>
+          </nav>
+        )}
+      </ListPageShell>
 
       <ClientSheet
         open={sheetOpen}
@@ -429,7 +420,6 @@ export function ClientsPage() {
             <Button
               type="button"
               variant="outline"
-              className="cursor-pointer"
               onClick={() => setDeleteTarget(null)}
               disabled={deleting}
             >
@@ -438,7 +428,6 @@ export function ClientsPage() {
             <Button
               type="button"
               variant="destructive"
-              className="cursor-pointer"
               onClick={() => void handleDelete()}
               disabled={deleting}
             >
@@ -447,6 +436,6 @@ export function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

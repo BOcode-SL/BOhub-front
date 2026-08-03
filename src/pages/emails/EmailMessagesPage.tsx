@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Inbox,
   MoreHorizontal,
   Pencil,
   XCircle,
@@ -10,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ListPageShell } from '@/components/list-page-shell'
 import {
   Table,
   TableBody,
@@ -201,35 +203,43 @@ export function EmailMessagesPage() {
   ]
 
   return (
-    <div className="flex flex-col gap-6">
-      <EmailTabs />
-
-      <div className="flex flex-wrap gap-2">
-        {chips.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => changeTab(c.id)}
-            className={cn(
-              'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-              'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-              tab === c.id
-                ? 'bg-sidebar-accent font-medium text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
+    <>
+      <ListPageShell
+        title="Mensajes"
+        description="Historial de envíos y mensajes programados."
+        icon={Inbox}
+        above={<EmailTabs />}
+        toolbar={
+          <div className="flex flex-wrap gap-2 py-1">
+            {chips.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => changeTab(c.id)}
+                className={cn(
+                  'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                  'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                  tab === c.id
+                    ? 'bg-sidebar-accent font-medium text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
           >
-            {c.label}
-          </button>
-        ))}
-      </div>
+            {error}
+          </p>
+        )}
 
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -368,6 +378,7 @@ export function EmailMessagesPage() {
           </div>
         </div>
       )}
+      </ListPageShell>
 
       <Dialog
         open={!!preview}
@@ -519,6 +530,6 @@ export function EmailMessagesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
