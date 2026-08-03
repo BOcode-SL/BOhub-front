@@ -5,6 +5,8 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoginPage } from '@/pages/LoginPage'
 import { ClientsPage } from '@/pages/clients/ClientsPage'
+import { ProjectsPage } from '@/pages/projects/ProjectsPage'
+import { ProjectDetailPage } from '@/pages/projects/ProjectDetailPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -21,10 +23,8 @@ export default function App() {
               <Route path="/app" element={<AppLayout />}>
                 <Route index element={<PlaceholderPage title="Inicio" />} />
                 <Route path="clients" element={<ClientsPage />} />
-                <Route
-                  path="projects"
-                  element={<PlaceholderPage title="Proyectos" />}
-                />
+                <Route path="projects" element={<ProjectsPage />} />
+                <Route path="projects/:id" element={<ProjectDetailPage />} />
                 <Route
                   path="billing"
                   element={<PlaceholderPage title="Facturación" />}
