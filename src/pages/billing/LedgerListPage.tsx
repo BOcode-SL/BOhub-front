@@ -46,6 +46,7 @@ import {
   type LedgerStatus,
 } from '@/lib/billing'
 import { BillingTabs } from '@/pages/billing/BillingTabs'
+import { useAuth } from '@/auth/AuthContext'
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const
 const selectClass =
@@ -109,6 +110,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({
 }: {
   config: LedgerListConfig<TRow, TInput>
 }) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const perPage = parsePerPage(searchParams.get('per_page'))
@@ -414,14 +417,16 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({
                           <Pencil />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="cursor-pointer"
-                          onClick={() => setDeleteTarget(row)}
-                        >
-                          <Trash2 />
-                          Eliminar
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            className="cursor-pointer"
+                            onClick={() => setDeleteTarget(row)}
+                          >
+                            <Trash2 />
+                            Eliminar
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

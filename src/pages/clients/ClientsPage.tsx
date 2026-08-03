@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ClientSheet } from '@/pages/clients/ClientSheet'
+import { useAuth } from '@/auth/AuthContext'
 import {
   createClient,
   deleteClient,
@@ -64,6 +65,8 @@ function parsePerPage(value: string | null): number {
 }
 
 export function ClientsPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const perPage = parsePerPage(searchParams.get('per_page'))
@@ -339,13 +342,15 @@ export function ClientsPage() {
                           <Pencil />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setDeleteTarget(client)}
-                        >
-                          <Trash2 />
-                          Eliminar
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeleteTarget(client)}
+                          >
+                            <Trash2 />
+                            Eliminar
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

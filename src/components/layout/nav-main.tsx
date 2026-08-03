@@ -16,25 +16,35 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/auth/AuthContext'
 
-const items: { title: string; url: string; icon: LucideIcon; end?: boolean }[] = [
+const items: {
+  title: string
+  url: string
+  icon: LucideIcon
+  end?: boolean
+  adminOnly?: boolean
+}[] = [
   { title: 'Inicio', url: '/dashboard', icon: Home, end: true },
   { title: 'Clientes', url: '/dashboard/clients', icon: Users },
   { title: 'Proyectos', url: '/dashboard/projects', icon: Folder },
   { title: 'Facturación', url: '/dashboard/billing', icon: ReceiptEuro },
   { title: 'Timer', url: '/dashboard/timer', icon: Clock },
-  { title: 'Emails', url: '/dashboard/emails', icon: Mail },
+  { title: 'Emails', url: '/dashboard/emails', icon: Mail, adminOnly: true },
   { title: 'Mantenimientos', url: '/dashboard/maintenance', icon: Wrench },
 ]
 
 export function NavMain() {
   const location = useLocation()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const visible = items.filter((item) => !item.adminOnly || isAdmin)
 
   return (
     <SidebarGroup className="px-2 py-0">
       {/* gap-2 ≥ 8px — UX Pro Max touch spacing */}
       <SidebarMenu className="gap-2">
-        {items.map((item) => {
+        {visible.map((item) => {
           const isActive = item.end
             ? location.pathname === item.url
             : location.pathname === item.url ||

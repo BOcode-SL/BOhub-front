@@ -37,3 +37,22 @@ export function PublicOnlyRoute() {
 
   return <Outlet />
 }
+
+/** Emails + other admin-only dashboard sections. */
+export function AdminRoute() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        Cargando sesión…
+      </div>
+    )
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <Outlet />
+}

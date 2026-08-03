@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@/auth/AuthContext'
-import { ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards'
+import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards'
 import { AppLayout } from '@/components/layout/app-layout'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoginPage } from '@/pages/LoginPage'
@@ -43,8 +43,10 @@ export default function App() {
                 <Route path="billing/income" element={<IncomePage />} />
                 <Route path="billing/expenses" element={<ExpensesPage />} />
                 <Route path="timer" element={<TimerPage />} />
-                <Route path="emails" element={<EmailsPage />} />
-                <Route path="emails/messages" element={<EmailMessagesPage />} />
+                <Route element={<AdminRoute />}>
+                  <Route path="emails" element={<EmailsPage />} />
+                  <Route path="emails/messages" element={<EmailMessagesPage />} />
+                </Route>
                 <Route path="maintenance" element={<MaintenancePage />} />
               </Route>
             </Route>
