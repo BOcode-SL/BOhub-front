@@ -12,6 +12,7 @@ import { IncomePage } from '@/pages/billing/IncomePage'
 import { ExpensesPage } from '@/pages/billing/ExpensesPage'
 import { TimerPage } from '@/pages/timer/TimerPage'
 import { MaintenancePage } from '@/pages/maintenance/MaintenancePage'
+import { HomePage } from '@/pages/home/HomePage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/app" element={<AppLayout />}>
-                <Route index element={<PlaceholderPage title="Inicio" />} />
+                <Route index element={<HomePage />} />
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="projects/:id" element={<ProjectDetailPage />} />
