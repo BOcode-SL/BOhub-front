@@ -32,6 +32,7 @@ import {
   type HoursMeta,
 } from '@/lib/timer'
 import { HoursTable } from './HoursTable'
+import { TimerAnalytics } from './TimerAnalytics'
 
 const selectClass =
   'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -40,7 +41,7 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-type Tab = 'mine' | 'team'
+type Tab = 'mine' | 'team' | 'analytics'
 
 type ListFilters = {
   projectId: number | ''
@@ -153,6 +154,7 @@ export function TimerPage() {
   }, [tab, isAdmin])
 
   useEffect(() => {
+    if (tab === 'analytics') return
     const ac = new AbortController()
     let cancelled = false
     async function run() {
@@ -531,8 +533,24 @@ export function TimerPage() {
             Equipo
           </button>
         )}
+        <button
+          type="button"
+          className={cn(
+            'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+            tab === 'analytics'
+              ? 'bg-sidebar-accent font-medium text-primary'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+          onClick={() => switchTab('analytics')}
+        >
+          Analytics
+        </button>
       </nav>
 
+      {tab === 'analytics' ? (
+        <TimerAnalytics />
+      ) : (
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-wrap gap-2">
@@ -627,6 +645,7 @@ export function TimerPage() {
           onDelete={setDeleteTarget}
         />
       </section>
+      )}
 
       <Dialog
         open={saveOpen}
