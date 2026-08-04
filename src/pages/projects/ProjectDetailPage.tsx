@@ -43,7 +43,6 @@ import {
     listProjectActivities,
     syncProjectJira,
     updateProject,
-    wasJiraBatchRecent,
     type ProjectActivity,
     type ProjectBillingSummary,
     type ProjectHoursSummary,
@@ -270,15 +269,15 @@ export function ProjectDetailPage() {
                 void (async () => {
                     let projectAfter = nextProject;
                     let summaryAfter = nextSummary;
-                    if (!wasJiraBatchRecent()) {
-                        try {
-                            projectAfter = await syncProjectJira(projectId);
-                            summaryAfter = await getProjectSummary(projectId);
-                            applyLocalPayload(projectAfter, summaryAfter, local);
-                        } catch (err) {
-                            if (!(err instanceof ApiError && err.status === 422)) {
-                                /* silence flaky Jira */
-                            }
+                    // Always sync this issue on detail open — batch throttle must not skip
+                    // (user may have changed Jira after Home/list sync within 60s).
+                    try {
+                        projectAfter = await syncProjectJira(projectId);
+                        summaryAfter = await getProjectSummary(projectId);
+                        applyLocalPayload(projectAfter, summaryAfter, local);
+                    } catch (err) {
+                        if (!(err instanceof ApiError && err.status === 422)) {
+                            /* silence flaky Jira */
                         }
                     }
 
