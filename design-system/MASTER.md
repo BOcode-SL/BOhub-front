@@ -18,24 +18,25 @@
 
 ### Color Palette (LOCKED — do not invent skill palettes)
 
-| Role | Hex / value | CSS variable |
-|------|-------------|--------------|
-| Primary (lime) | `#ccff00` | `--primary` |
-| On primary | `#24292a` | `--primary-foreground` |
-| Primary hover | `#b8e600` | `--primary-hover` |
-| Background | `#1a1d1e` | `--background` |
-| Foreground | `#ecf0f1` | `--foreground` |
-| Card / popover / sidebar | `#24292a` | `--card` / `--popover` / `--sidebar` |
-| Muted surface | `#2f3435` | `--muted` |
-| Muted text | `#8a9199` | `--muted-foreground` |
-| Border | `#3a3f41` | `--border` |
-| Input border | `rgba(255,255,255,0.12)` | `--input` |
-| Destructive | `#ef4444` | `--destructive` |
-| Ring | mix of primary + white | `--ring` |
+| Role                     | Hex / value              | CSS variable                         |
+| ------------------------ | ------------------------ | ------------------------------------ |
+| Primary (lime)           | `#ccff00`                | `--primary`                          |
+| On primary               | `#24292a`                | `--primary-foreground`               |
+| Primary hover            | `#b8e600`                | `--primary-hover`                    |
+| Background               | `#1a1d1e`                | `--background`                       |
+| Foreground               | `#ecf0f1`                | `--foreground`                       |
+| Card / popover / sidebar | `#24292a`                | `--card` / `--popover` / `--sidebar` |
+| Muted surface            | `#2f3435`                | `--muted`                            |
+| Muted text               | `#8a9199`                | `--muted-foreground`                 |
+| Border                   | `#3a3f41`                | `--border`                           |
+| Input border             | `rgba(255,255,255,0.12)` | `--input`                            |
+| Destructive              | `#ef4444`                | `--destructive`                      |
+| Ring                     | mix of primary + white   | `--ring`                             |
 
 **Brand test:** Primary lime + charcoal bg are non-negotiable. Never replace with purple / cream / indigo skill defaults.
 
 **Usage:**
+
 - Primary = CTAs, brand mark, active nav accent, focus rings (`ring-primary/40`)
 - Surfaces = `--background` / `--card` / `--sidebar` — not white cards on dark
 - Text hierarchy = `--foreground` → `--muted-foreground`
@@ -52,23 +53,23 @@
 
 ### Radius & motion
 
-| Token | Value |
-|-------|-------|
-| `--radius` | `0.625rem` (10px) |
-| `--radius-sm` / `md` / `lg` / `xl` | derived from `--radius` |
-| Transitions | 150–200ms ease |
-| Hover lift | prefer opacity / color — avoid layout-shifting scale |
+| Token                              | Value                                                |
+| ---------------------------------- | ---------------------------------------------------- |
+| `--radius`                         | `0.625rem` (10px)                                    |
+| `--radius-sm` / `md` / `lg` / `xl` | derived from `--radius`                              |
+| Transitions                        | 150–200ms ease                                       |
+| Hover lift                         | prefer opacity / color — avoid layout-shifting scale |
 
 ### Spacing (Tailwind scale)
 
 Prefer Tailwind spacing; no custom `--space-*` layer required.
 
-| Usage | Typical |
-|-------|---------|
-| Icon / inline gaps | `gap-2` (8px) |
-| Control padding | `px-3` / `py-2` |
-| Section gaps | `gap-6` (24px) |
-| Page padding | `p-4` → `p-6` / `lg:p-8` |
+| Usage              | Typical                  |
+| ------------------ | ------------------------ |
+| Icon / inline gaps | `gap-2` (8px)            |
+| Control padding    | `px-3` / `py-2`          |
+| Section gaps       | `gap-6` (24px)           |
+| Page padding       | `p-4` → `p-6` / `lg:p-8` |
 
 ---
 
@@ -116,27 +117,27 @@ See also: `pages/shell.md`, `pages/login.md`.
 
 ## Style Guidelines
 
-**Style:** Flat Design · dark professional dashboard  
+**Style:** Flat Design · dark professional dashboard
 
-**Keywords:** charcoal, lime accent, Rubik, dense tables, clear hierarchy, ops tool  
+**Keywords:** charcoal, lime accent, Rubik, dense tables, clear hierarchy, ops tool
 
-**Best For:** Internal BOcode hub (clients, projects, billing) — not consumer landing / App Store promo  
+**Best For:** Internal BOcode hub (clients, projects, billing) — not consumer landing / App Store promo
 
-**Key Effects:** color/opacity hover, focus rings, soft sticky header blur; 150–200ms transitions  
+**Key Effects:** color/opacity hover, focus rings, soft sticky header blur; 150–200ms transitions
 
 ### App pattern (authenticated)
 
-1. Sidebar + sticky header shell  
-2. Page: h1 + one short supporting line + primary action  
-3. Filters / search row  
-4. Data table or form (sheets for create/edit)  
-5. Pagination when lists are paginated  
+1. Sidebar + sticky header shell
+2. Page: h1 + one short supporting line + primary action
+3. Filters / search row
+4. Data table or form (sheets for create/edit)
+5. Pagination when lists are paginated
 
 ### Login pattern
 
-- Full-bleed dark canvas; brand-first (BOhub / lime mark)  
-- Single form column; no register / forgot-password unless product adds them  
-- High-contrast primary CTA  
+- Full-bleed dark canvas; brand-first (BOhub / lime mark)
+- Single form column; no register / forgot-password unless product adds them
+- High-contrast primary CTA
 
 ---
 

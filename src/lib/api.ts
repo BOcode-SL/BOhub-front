@@ -1,218 +1,209 @@
 export type AuthUser = {
-  id: number
-  name: string
-  email: string
-  role: string
-  avatarUrl?: string | null
-}
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    avatarUrl?: string | null;
+};
 
 export class ApiError extends Error {
-  status: number
+    status: number;
 
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-  }
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+    }
 }
 
 function getBaseUrl(): string {
-  return import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+    return import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 }
 
 /** One-time cleanup of legacy Bearer token storage. */
 function clearLegacyToken(): void {
-  try {
-    localStorage.removeItem('bohub_token')
-  } catch {
-    /* ignore */
-  }
+    try {
+        localStorage.removeItem('bohub_token');
+    } catch {
+        /* ignore */
+    }
 }
 
 function readXsrfToken(): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/)
-  if (!match?.[1]) return null
-  try {
-    return decodeURIComponent(match[1])
-  } catch {
-    return match[1]
-  }
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    if (!match?.[1]) return null;
+    try {
+        return decodeURIComponent(match[1]);
+    } catch {
+        return match[1];
+    }
 }
 
-let csrfPromise: Promise<void> | null = null
+let csrfPromise: Promise<void> | null = null;
 
 /** Hit Sanctum csrf endpoint so session + XSRF-TOKEN cookies exist. */
 export async function ensureCsrf(): Promise<void> {
-  if (!csrfPromise) {
-    csrfPromise = (async () => {
-      const res = await fetch(`${getBaseUrl()}/sanctum/csrf-cookie`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      })
-      if (!res.ok) {
-        throw new ApiError(`CSRF init failed (${res.status})`, res.status)
-      }
-    })().finally(() => {
-      csrfPromise = null
-    })
-  }
-  await csrfPromise
+    if (!csrfPromise) {
+        csrfPromise = (async () => {
+            const res = await fetch(`${getBaseUrl()}/sanctum/csrf-cookie`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { Accept: 'application/json' },
+            });
+            if (!res.ok) {
+                throw new ApiError(`CSRF init failed (${res.status})`, res.status);
+            }
+        })().finally(() => {
+            csrfPromise = null;
+        });
+    }
+    await csrfPromise;
 }
 
 type RequestOptions = {
-  method?: string
-  body?: unknown
-  signal?: AbortSignal
-  /** Internal: already retried after 419 */
-  _retried?: boolean
-}
+    method?: string;
+    body?: unknown;
+    signal?: AbortSignal;
+    /** Internal: already retried after 419 */
+    _retried?: boolean;
+};
 
 function buildHeaders(method: string, isJsonBody: boolean): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  }
-  if (isJsonBody) {
-    headers['Content-Type'] = 'application/json'
-  }
-  const xsrf = readXsrfToken()
-  if (xsrf && method !== 'GET' && method !== 'HEAD') {
-    headers['X-XSRF-TOKEN'] = xsrf
-  }
-  return headers
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (isJsonBody) {
+        headers['Content-Type'] = 'application/json';
+    }
+    const xsrf = readXsrfToken();
+    if (xsrf && method !== 'GET' && method !== 'HEAD') {
+        headers['X-XSRF-TOKEN'] = xsrf;
+    }
+    return headers;
 }
 
 async function parseError(res: Response, data: unknown): Promise<ApiError> {
-  let message = `Error ${res.status}`
-  if (data && typeof data === 'object') {
-    if (
-      'message' in data &&
-      typeof (data as { message: unknown }).message === 'string'
-    ) {
-      message = (data as { message: string }).message
+    let message = `Error ${res.status}`;
+    if (data && typeof data === 'object') {
+        if ('message' in data && typeof (data as { message: unknown }).message === 'string') {
+            message = (data as { message: string }).message;
+        }
+        if ('errors' in data && data.errors && typeof data.errors === 'object') {
+            const first = Object.values(data.errors as Record<string, string[]>)[0];
+            if (Array.isArray(first) && first[0]) {
+                message = first[0];
+            }
+        }
     }
-    if ('errors' in data && data.errors && typeof data.errors === 'object') {
-      const first = Object.values(data.errors as Record<string, string[]>)[0]
-      if (Array.isArray(first) && first[0]) {
-        message = first[0]
-      }
-    }
-  }
-  return new ApiError(message, res.status)
+    return new ApiError(message, res.status);
 }
 
-export async function request<T>(
-  path: string,
-  { method = 'GET', body, signal, _retried }: RequestOptions = {},
-): Promise<T> {
-  clearLegacyToken()
+export async function request<T>(path: string, { method = 'GET', body, signal, _retried }: RequestOptions = {}): Promise<T> {
+    clearLegacyToken();
 
-  const headers = buildHeaders(method, body !== undefined)
+    const headers = buildHeaders(method, body !== undefined);
 
-  let res: Response
-  try {
-    res = await fetch(`${getBaseUrl()}${path}`, {
-      method,
-      headers,
-      credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    })
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw err
+    let res: Response;
+    try {
+        res = await fetch(`${getBaseUrl()}${path}`, {
+            method,
+            headers,
+            credentials: 'include',
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+            signal,
+        });
+    } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+            throw err;
+        }
+        throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0);
     }
-    throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0)
-  }
 
-  if (res.status === 419 && !_retried) {
-    await ensureCsrf()
-    return request<T>(path, { method, body, signal, _retried: true })
-  }
+    if (res.status === 419 && !_retried) {
+        await ensureCsrf();
+        return request<T>(path, { method, body, signal, _retried: true });
+    }
 
-  const data: unknown = await res.json().catch(() => null)
+    const data: unknown = await res.json().catch(() => null);
 
-  if (!res.ok) {
-    throw await parseError(res, data)
-  }
+    if (!res.ok) {
+        throw await parseError(res, data);
+    }
 
-  return data as T
+    return data as T;
 }
 
 /** Multipart POST with session cookies + CSRF (no Content-Type: let browser set boundary). */
 export async function requestFormData<T>(
-  path: string,
-  formData: FormData,
-  { signal, _retried }: { signal?: AbortSignal; _retried?: boolean } = {},
+    path: string,
+    formData: FormData,
+    { signal, _retried }: { signal?: AbortSignal; _retried?: boolean } = {},
 ): Promise<T> {
-  clearLegacyToken()
+    clearLegacyToken();
 
-  const headers = buildHeaders('POST', false)
-  delete headers['Content-Type']
+    const headers = buildHeaders('POST', false);
+    delete headers['Content-Type'];
 
-  let res: Response
-  try {
-    res = await fetch(`${getBaseUrl()}${path}`, {
-      method: 'POST',
-      headers,
-      credentials: 'include',
-      body: formData,
-      signal,
-    })
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw err
+    let res: Response;
+    try {
+        res = await fetch(`${getBaseUrl()}${path}`, {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+            body: formData,
+            signal,
+        });
+    } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+            throw err;
+        }
+        throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0);
     }
-    throw new ApiError('No se pudo conectar con la API. ¿Está el back en marcha?', 0)
-  }
 
-  if (res.status === 419 && !_retried) {
-    await ensureCsrf()
-    return requestFormData<T>(path, formData, { signal, _retried: true })
-  }
+    if (res.status === 419 && !_retried) {
+        await ensureCsrf();
+        return requestFormData<T>(path, formData, { signal, _retried: true });
+    }
 
-  const data: unknown = await res.json().catch(() => null)
-  if (!res.ok) {
-    throw await parseError(res, data)
-  }
-  return data as T
+    const data: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+        throw await parseError(res, data);
+    }
+    return data as T;
 }
 
-export async function login(
-  email: string,
-  password: string,
-): Promise<{ user: AuthUser }> {
-  await ensureCsrf()
-  return request<{ user: AuthUser }>('/api/auth/login', {
-    method: 'POST',
-    body: { email, password },
-  })
+export async function login(email: string, password: string): Promise<{ user: AuthUser }> {
+    await ensureCsrf();
+    return request<{ user: AuthUser }>('/api/auth/login', {
+        method: 'POST',
+        body: { email, password },
+    });
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await request<{ ok: boolean }>('/api/auth/logout', {
-      method: 'POST',
-    })
-  } catch (err) {
-    // ponytail: already logged out / network — still clear client state
-    if (!(err instanceof ApiError && (err.status === 401 || err.status === 419))) {
-      throw err
+    try {
+        await request<{ ok: boolean }>('/api/auth/logout', {
+            method: 'POST',
+        });
+    } catch (err) {
+        // ponytail: already logged out / network — still clear client state
+        if (!(err instanceof ApiError && (err.status === 401 || err.status === 419))) {
+            throw err;
+        }
     }
-  }
 }
 
 export async function me(): Promise<AuthUser> {
-  const data = await request<{ user: AuthUser }>('/api/auth/me')
-  return data.user
+    const data = await request<{ user: AuthUser }>('/api/auth/me');
+    return data.user;
 }
 
 export function apiErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message
-  if (err instanceof Error) return err.message
-  return 'Error inesperado'
+    if (err instanceof ApiError) return err.message;
+    if (err instanceof Error) return err.message;
+    return 'Error inesperado';
 }
 
-export { getBaseUrl }
+export { getBaseUrl };

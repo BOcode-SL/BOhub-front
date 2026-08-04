@@ -41,22 +41,22 @@ src/
 
 ## Routes (all under `/dashboard`)
 
-| Path                          | Page                                        | Roles            |
-| ----------------------------- | ------------------------------------------- | ---------------- |
-| `/login`                      | Login                                       | public           |
-| `/dashboard`                  | Home (widgets + charts)                     | admin, employee  |
-| `/dashboard/clients`          | Clients CRUD                                | admin, employee  |
-| `/dashboard/projects`         | Projects list                               | admin, employee  |
-| `/dashboard/projects/:id`     | Project detail                              | admin, employee  |
-| `/dashboard/billing`          | Billing summary (quarter default)           | admin, billing   |
-| `/dashboard/billing/income`   | Payments (billing = read-only)              | admin, billing   |
-| `/dashboard/billing/expenses` | Expenses (billing = read-only)              | admin, billing   |
-| `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics | admin, employee  |
-| `/dashboard/emails`           | Templates                                   | admin            |
-| `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin            |
-| `/dashboard/users`            | Users CRUD                                  | admin            |
-| `/dashboard/maintenance`      | Maintenance periods                         | admin, employee  |
-| `/dashboard/settings`         | Configuración (placeholder)                 | any auth         |
+| Path                          | Page                                        | Roles           |
+| ----------------------------- | ------------------------------------------- | --------------- |
+| `/login`                      | Login                                       | public          |
+| `/dashboard`                  | Home (widgets + charts)                     | admin, employee |
+| `/dashboard/clients`          | Clients CRUD                                | admin, employee |
+| `/dashboard/projects`         | Projects list                               | admin, employee |
+| `/dashboard/projects/:id`     | Project detail                              | admin, employee |
+| `/dashboard/billing`          | Billing summary (quarter default)           | admin, billing  |
+| `/dashboard/billing/income`   | Payments (billing = read-only)              | admin, billing  |
+| `/dashboard/billing/expenses` | Expenses (billing = read-only)              | admin, billing  |
+| `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics | admin, employee |
+| `/dashboard/emails`           | Templates                                   | admin           |
+| `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin           |
+| `/dashboard/users`            | Users CRUD                                  | admin           |
+| `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
+| `/dashboard/settings`         | Configuración (placeholder)                 | any auth        |
 
 Legacy: `/app` → `/dashboard`. Post-login: `billing` → `/dashboard/billing`; resto → `/dashboard`.
 

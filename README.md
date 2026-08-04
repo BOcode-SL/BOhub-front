@@ -22,16 +22,16 @@ pnpm i && pnpm dev
 
 Sanctum SPA: cookie de sesión httpOnly + CSRF (`credentials: 'include'`). Sin token en `localStorage`.
 
-| Ruta | Acceso |
-| --- | --- |
-| `/login` | público |
-| `/dashboard` | Inicio (Home) |
-| `/dashboard/clients` | Clientes (CRUD) |
-| `/dashboard/projects` | Proyectos |
-| `/dashboard/billing` | Facturación |
-| `/dashboard/timer` | Timer |
-| `/dashboard/emails` | Emails |
-| `/dashboard/maintenance` | Mantenimientos |
+| Ruta                     | Acceso          |
+| ------------------------ | --------------- |
+| `/login`                 | público         |
+| `/dashboard`             | Inicio (Home)   |
+| `/dashboard/clients`     | Clientes (CRUD) |
+| `/dashboard/projects`    | Proyectos       |
+| `/dashboard/billing`     | Facturación     |
+| `/dashboard/timer`       | Timer           |
+| `/dashboard/emails`      | Emails          |
+| `/dashboard/maintenance` | Mantenimientos  |
 
 Redirect legacy: `/app` y `/app/*` → `/dashboard/*`.
 
