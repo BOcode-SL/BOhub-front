@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ApiError } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import {
-    LEDGER_STATUS_LABELS,
     createExpense,
     createPayment,
     formatMoney,
@@ -30,6 +29,7 @@ import {
     type Payment,
     type PaymentInput,
 } from '@/lib/billing';
+import { LedgerStatusBadge } from '@/components/ledger-status-badge';
 import { getJiraChangelog, listJiraProjects, searchJiraIssues, type JiraIssue, type JiraProject } from '@/lib/jira';
 import {
     PROJECT_PRIORITY_BADGE_CLASS,
@@ -789,27 +789,31 @@ export function ProjectDetailPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="px-4">
-                            <div className="rounded-md border">
+                            <div className="overflow-x-auto rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Fecha</TableHead>
-                                            <TableHead>Referencia</TableHead>
+                                            <TableHead>F. Factura</TableHead>
+                                            <TableHead>Descripción</TableHead>
                                             <TableHead>Estado</TableHead>
+                                            <TableHead className="text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
+                                            <TableHead>F. Último Pago</TableHead>
+                                            <TableHead>Método</TableHead>
+                                            <TableHead>Referencia</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={4}>
+                                                <TableCell colSpan={8}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={8} className="h-20 text-center text-muted-foreground">
                                                     Sin ingresos.
                                                 </TableCell>
                                             </TableRow>
@@ -828,27 +832,28 @@ export function ProjectDetailPage() {
                                                     {payment.invoiceDate || '—'}
                                                 </TableCell>
                                                 <TableCell className="font-medium text-foreground">
-                                                    <span className="inline-flex items-center gap-2">
-                                                        {payment.reference || payment.invoiceNumber || '—'}
-                                                        {payment.invoiceUrl ? (
-                                                            <a
-                                                                href={payment.invoiceUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="text-primary"
-                                                                aria-label="Abrir PDF"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <ExternalLink className="size-3.5" />
-                                                            </a>
-                                                        ) : null}
-                                                    </span>
+                                                    {payment.notes?.trim() ||
+                                                        payment.reference ||
+                                                        payment.invoiceNumber ||
+                                                        '—'}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {LEDGER_STATUS_LABELS[payment.status] ?? payment.status}
+                                                <TableCell>
+                                                    <LedgerStatusBadge status={payment.status} />
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground">
+                                                    {formatMoney(payment.baseAmount ?? 0)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium text-foreground">
                                                     {formatMoney(payment.totalAmount)}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {payment.lastPaymentDate || payment.paymentDate || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {payment.paymentMethod || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {payment.reference || '—'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -875,27 +880,31 @@ export function ProjectDetailPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="px-4">
-                            <div className="rounded-md border">
+                            <div className="overflow-x-auto rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Fecha</TableHead>
+                                            <TableHead>F. Factura</TableHead>
                                             <TableHead>Descripción</TableHead>
                                             <TableHead>Estado</TableHead>
+                                            <TableHead className="text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
+                                            <TableHead>F. Último Pago</TableHead>
+                                            <TableHead>Método</TableHead>
+                                            <TableHead>Referencia</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={4}>
+                                                <TableCell colSpan={8}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={8} className="h-20 text-center text-muted-foreground">
                                                     Sin gastos.
                                                 </TableCell>
                                             </TableRow>
@@ -914,27 +923,25 @@ export function ProjectDetailPage() {
                                                     {expense.expenseDate || '—'}
                                                 </TableCell>
                                                 <TableCell className="font-medium text-foreground">
-                                                    <span className="inline-flex items-center gap-2">
-                                                        {expense.description}
-                                                        {expense.invoiceUrl ? (
-                                                            <a
-                                                                href={expense.invoiceUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="text-primary"
-                                                                aria-label="Abrir PDF"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <ExternalLink className="size-3.5" />
-                                                            </a>
-                                                        ) : null}
-                                                    </span>
+                                                    {expense.description || '—'}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {LEDGER_STATUS_LABELS[expense.status] ?? expense.status}
+                                                <TableCell>
+                                                    <LedgerStatusBadge status={expense.status} />
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground">
+                                                    {formatMoney(expense.baseAmount ?? 0)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-medium text-foreground">
                                                     {formatMoney(expense.totalAmount)}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {expense.lastPaymentDate || expense.paymentDate || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {expense.paymentMethod || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {expense.recipient || '—'}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

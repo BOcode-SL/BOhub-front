@@ -14,7 +14,6 @@ export function ExpensesPage() {
             searchAriaLabel: 'Buscar gastos',
             addLabel: 'Añadir gasto',
             emptyLabel: 'No hay gastos. Añade el primero.',
-            titleColumnHeader: 'Descripción',
             deleteTitle: 'Eliminar gasto',
             paginationAriaLabel: 'Paginación gastos',
             successCreate: 'Gasto creado',
@@ -25,7 +24,6 @@ export function ExpensesPage() {
             update: updateExpense,
             remove: deleteExpense,
             rowDate: (row) => row.expenseDate,
-            rowTitle: (row) => row.description,
             renderSheet: ({ open, mode, editing, onOpenChange, onSubmit }) => (
                 <ExpenseSheet open={open} mode={mode} expense={editing} onOpenChange={onOpenChange} onSubmit={onSubmit} />
             ),

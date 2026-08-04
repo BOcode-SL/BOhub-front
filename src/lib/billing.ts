@@ -22,6 +22,14 @@ export const LEDGER_STATUS_LABELS: Record<LedgerStatus, string> = {
     partially_paid: 'Pago parcial',
 };
 
+/** Soft badge tints for dark BOcode UI (ledger tables). */
+export const LEDGER_STATUS_BADGE_CLASS: Record<LedgerStatus, string> = {
+    draft: 'border-transparent bg-muted text-muted-foreground',
+    pending: 'border-transparent bg-amber-500/20 text-amber-300',
+    paid: 'border-transparent bg-emerald-500/20 text-emerald-300',
+    partially_paid: 'border-transparent bg-sky-500/20 text-sky-300',
+};
+
 export const VERIFACTU_STATUS_LABELS: Record<VerifactuStatus, string> = {
     unknown: 'Desconocido',
     pending: 'Pendiente',
@@ -53,6 +61,7 @@ export type Payment = {
     paymentMethod?: string | null;
     invoiceDate: string | null;
     paymentDate?: string | null;
+    lastPaymentDate?: string | null;
     reference: string | null;
     invoiceNumber: string | null;
     verifactuStatus?: VerifactuStatus;
@@ -102,8 +111,10 @@ export type Expense = {
     irpfRate?: string;
     totalAmount: string;
     status: LedgerStatus;
+    paymentMethod?: string | null;
     expenseDate: string | null;
     paymentDate?: string | null;
+    lastPaymentDate?: string | null;
     invoiceUrl: string | null;
     project?: BillingProject | null;
     notes?: string | null;

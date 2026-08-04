@@ -47,6 +47,7 @@ const config: LedgerListConfig<PayrollRow, PayrollInput> = {
     title: 'Nóminas',
     description: 'Gestión de nóminas de empleados.',
     icon: Banknote,
+    layout: 'payroll',
     searchPlaceholder: 'Buscar nóminas…',
     searchAriaLabel: 'Buscar nóminas',
     addLabel: 'Añadir nómina',

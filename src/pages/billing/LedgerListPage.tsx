@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
-    ExternalLink,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -18,9 +17,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LedgerStatusBadge } from '@/components/ledger-status-badge';
+import { Badge } from '@/components/ui/badge';
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
+    PAYROLL_STATUS_LABELS,
+    type PayrollStatus,
     formatMoney,
     type BillingMeta,
     type LedgerStatus,
@@ -29,6 +32,7 @@ import { toastError, toastSuccess } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { useAuth } from '@/auth/AuthContext';
+import { cn } from '@/lib/utils';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
 function parsePage(v: string | null) {
@@ -43,9 +47,16 @@ function parsePerPage(v: string | null) {
 export type LedgerRowBase = {
     id: number;
     totalAmount: string;
+    baseAmount?: string;
     status: LedgerStatus;
     invoiceUrl: string | null;
-    project?: { id: number; name: string } | null;
+    lastPaymentDate?: string | null;
+    paymentDate?: string | null;
+    project?: {
+        id: number;
+        name: string;
+        client?: { id: number; name: string } | null;
+    } | null;
 };
 
 export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
@@ -56,12 +67,14 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     searchAriaLabel: string;
     addLabel: string;
     emptyLabel: string;
-    titleColumnHeader: string;
     deleteTitle: string;
     paginationAriaLabel: string;
     successCreate: string;
     successUpdate: string;
     successDelete: string;
+    /** Default ledger (ingresos/gastos). `payroll` = compact columns. */
+    layout?: 'ledger' | 'payroll';
+    titleColumnHeader?: string;
     list: (
         params: {
             search?: string;
@@ -75,7 +88,7 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     update: (id: number, data: TInput) => Promise<unknown>;
     remove: (id: number) => Promise<void>;
     rowDate: (row: TRow) => string | null;
-    rowTitle: (row: TRow) => ReactNode;
+    rowTitle?: (row: TRow) => ReactNode;
     renderSheet: (props: {
         open: boolean;
         mode: 'add' | 'edit';
@@ -113,6 +126,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         remove,
         rowDate,
         rowTitle,
+        titleColumnHeader,
         renderSheet,
         title,
         description,
@@ -121,13 +135,13 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         searchAriaLabel,
         addLabel,
         emptyLabel,
-        titleColumnHeader,
         deleteTitle,
         paginationAriaLabel,
         successCreate,
         successUpdate,
         successDelete,
     } = config;
+    const isPayrollLayout = config.layout === 'payroll';
 
     useEffect(() => {
         setSearchInput(urlSearch);
@@ -292,12 +306,26 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>{titleColumnHeader}</TableHead>
-                                <TableHead>Proyecto</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                                <TableHead className="w-12" />
+                                {isPayrollLayout ? (
+                                    <>
+                                        <TableHead>Periodo</TableHead>
+                                        <TableHead>{titleColumnHeader ?? 'Empleado'}</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className="w-12" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableHead>F. Factura</TableHead>
+                                        <TableHead>F. Último Pago</TableHead>
+                                        <TableHead>Proyecto</TableHead>
+                                        <TableHead>Cliente</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="text-right">Base</TableHead>
+                                        <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className="w-12" />
+                                    </>
+                                )}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -305,7 +333,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 rows.length === 0 &&
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: 6 }).map((__, j) => (
+                                        {Array.from({ length: isPayrollLayout ? 5 : 8 }).map((__, j) => (
                                             <TableCell key={j}>
                                                 <Skeleton className="h-4 w-full" />
                                             </TableCell>
@@ -314,35 +342,60 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 ))}
                             {!loading && total === 0 && (
                                 <TableRow className="hover:bg-transparent">
-                                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                                    <TableCell
+                                        colSpan={isPayrollLayout ? 5 : 8}
+                                        className="h-32 text-center text-muted-foreground"
+                                    >
                                         {emptyLabel}
                                     </TableCell>
                                 </TableRow>
                             )}
                             {rows.map((row) => (
                                 <TableRow key={row.id} className={loading ? 'opacity-60' : undefined}>
-                                    <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
-                                    <TableCell className="font-medium text-foreground">
-                                        <span className="inline-flex items-center gap-2">
-                                            {rowTitle(row)}
-                                            {row.invoiceUrl && (
-                                                <a
-                                                    href={row.invoiceUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-primary"
-                                                    aria-label="Abrir PDF"
+                                    {isPayrollLayout ? (
+                                        <>
+                                            <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
+                                            <TableCell className="font-medium text-foreground">{rowTitle?.(row)}</TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'w-fit font-normal',
+                                                        row.status === 'paid'
+                                                            ? 'border-transparent bg-emerald-500/20 text-emerald-300'
+                                                            : 'border-transparent bg-amber-500/20 text-amber-300',
+                                                    )}
                                                 >
-                                                    <ExternalLink className="size-3.5" />
-                                                </a>
-                                            )}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">{row.project?.name || '—'}</TableCell>
-                                    <TableCell className="text-muted-foreground">{LEDGER_STATUS_LABELS[row.status]}</TableCell>
-                                    <TableCell className="text-right font-medium text-foreground">
-                                        {formatMoney(row.totalAmount)}
-                                    </TableCell>
+                                                    {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? row.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-foreground">
+                                                {formatMoney(row.totalAmount)}
+                                            </TableCell>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {row.lastPaymentDate || row.paymentDate || '—'}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {row.project?.name || '—'}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {row.project?.client?.name || '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <LedgerStatusBadge status={row.status} />
+                                            </TableCell>
+                                            <TableCell className="text-right text-muted-foreground">
+                                                {formatMoney(row.baseAmount ?? 0)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-foreground">
+                                                {formatMoney(row.totalAmount)}
+                                            </TableCell>
+                                        </>
+                                    )}
                                     <TableCell>
                                         {canMutate ? (
                                             <DropdownMenu>

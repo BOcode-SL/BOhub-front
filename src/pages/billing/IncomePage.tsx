@@ -14,7 +14,6 @@ export function IncomePage() {
             searchAriaLabel: 'Buscar ingresos',
             addLabel: 'Añadir ingreso',
             emptyLabel: 'No hay ingresos. Añade el primero.',
-            titleColumnHeader: 'Nº / Ref',
             deleteTitle: 'Eliminar ingreso',
             paginationAriaLabel: 'Paginación ingresos',
             successCreate: 'Pago creado',
@@ -25,7 +24,6 @@ export function IncomePage() {
             update: updatePayment,
             remove: deletePayment,
             rowDate: (row) => row.invoiceDate,
-            rowTitle: (row) => row.invoiceNumber || row.reference || `#${row.id}`,
             renderSheet: ({ open, mode, editing, onOpenChange, onSubmit }) => (
                 <PaymentSheet open={open} mode={mode} payment={editing} onOpenChange={onOpenChange} onSubmit={onSubmit} />
             ),
