@@ -22,7 +22,11 @@ export class ApiError extends Error {
 }
 
 function getBaseUrl(): string {
-    return import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+    const isProd = import.meta.env.VITE_ENV === 'Production';
+    return (
+        (isProd ? import.meta.env.VITE_API_URL_PROD : import.meta.env.VITE_API_URL_DEV) ??
+        'http://localhost:8000'
+    );
 }
 
 /** One-time cleanup of legacy Bearer token storage. */
