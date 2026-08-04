@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import { listJiraProjects, searchJiraIssues, type JiraIssue, type JiraProject } from '@/lib/jira';
 import {
@@ -69,6 +70,7 @@ export function ProjectSheet({
     clientOptions: clientOptionsProp,
 }: ProjectSheetProps) {
     const [form, setForm] = useState<ProjectInput>(emptyForm);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [clients, setClients] = useState<ClientOption[]>(clientOptionsProp ?? []);
     const [jiraProjects, setJiraProjects] = useState<JiraProject[]>([]);
     const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([]);
@@ -124,6 +126,8 @@ export function ProjectSheet({
     useEffect(() => {
         if (!open) return;
 
+        setFieldErrors({});
+
         if (mode !== 'edit' || !project) {
             setForm({
                 ...emptyForm,
@@ -153,20 +157,26 @@ export function ProjectSheet({
 
     function setField<K extends keyof ProjectInput>(key: K, value: ProjectInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
+        setFieldErrors((prev) => {
+            if (!(key in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
     }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.clientId) {
-            toastError('Selecciona un cliente.');
+            setFieldErrors({ clientId: 'Selecciona un cliente.' });
             return;
         }
         if (mode === 'add' && !form.jiraProjectKey) {
-            toastError('Selecciona un espacio de Jira.');
+            setFieldErrors({ jiraProjectKey: 'Selecciona un espacio de Jira.' });
             return;
         }
         if (mode === 'add' && form.jiraMode === 'link' && !form.jiraIssueKey) {
-            toastError('Selecciona un issue de Jira.');
+            setFieldErrors({ jiraIssueKey: 'Selecciona un issue de Jira.' });
             return;
         }
         setSaving(true);
@@ -200,6 +210,9 @@ export function ProjectSheet({
             }
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -218,11 +231,11 @@ export function ProjectSheet({
 
                 <form
                     id="project-form"
+                    noValidate
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="project-name">Nombre</Label>
+                    <FormField id="project-name" label="Nombre" error={fieldErrors.name}>
                         <Input
                             id="project-name"
                             required
@@ -230,22 +243,22 @@ export function ProjectSheet({
                             value={form.name}
                             onChange={(e) => setField('name', e.target.value)}
                             className="bg-card"
+                            aria-invalid={!!fieldErrors.name}
                         />
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="project-client">Cliente</Label>
+                    <FormField id="project-client" label="Cliente" error={fieldErrors.clientId}>
                         <EntitySelect
                             id="project-client"
                             value={form.clientId || null}
                             onValueChange={(id) => setField('clientId', id ?? 0)}
                             items={clients}
                             placeholder="Seleccionar…"
+                            aria-invalid={!!fieldErrors.clientId}
                         />
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="project-type">Tipo</Label>
+                    <FormField id="project-type" label="Tipo" error={fieldErrors.type}>
                         <AppSelect
                             id="project-type"
                             items={PROJECT_TYPES.map((type) => ({
@@ -254,8 +267,9 @@ export function ProjectSheet({
                             }))}
                             value={form.type}
                             onValueChange={(value) => setField('type', value as ProjectType)}
+                            aria-invalid={!!fieldErrors.type}
                         />
-                    </div>
+                    </FormField>
 
                     {mode === 'edit' && project?.jiraLinked && (
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -274,8 +288,7 @@ export function ProjectSheet({
                         </div>
                     )}
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="project-color">Color</Label>
+                    <FormField id="project-color" label="Color" error={fieldErrors.color}>
                         <div className="flex items-center gap-2">
                             <input
                                 id="project-color"
@@ -283,18 +296,19 @@ export function ProjectSheet({
                                 value={form.color || '#ccff00'}
                                 onChange={(e) => setField('color', e.target.value)}
                                 className="h-9 w-12 cursor-pointer rounded-md border border-border bg-card"
+                                aria-invalid={!!fieldErrors.color}
                             />
                             <Input
                                 value={form.color || ''}
                                 onChange={(e) => setField('color', e.target.value)}
                                 className="bg-card font-mono text-sm"
                                 maxLength={7}
+                                aria-invalid={!!fieldErrors.color}
                             />
                         </div>
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="project-description">Descripción</Label>
+                    <FormField id="project-description" label="Descripción" error={fieldErrors.description}>
                         <Textarea
                             id="project-description"
                             value={form.description ?? ''}
@@ -302,13 +316,13 @@ export function ProjectSheet({
                             rows={4}
                             className="bg-card"
                             placeholder={mode === 'add' ? 'Opcional' : undefined}
+                            aria-invalid={!!fieldErrors.description}
                         />
-                    </div>
+                    </FormField>
 
                     {mode === 'add' && (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="project-jira-space">Espacio</Label>
+                            <FormField id="project-jira-space" label="Espacio" error={fieldErrors.jiraProjectKey}>
                                 <AppSelect
                                     id="project-jira-space"
                                     items={jiraProjects.map((space) => ({
@@ -321,11 +335,11 @@ export function ProjectSheet({
                                         setField('jiraIssueKey', null);
                                     }}
                                     placeholder="Seleccionar espacio…"
+                                    aria-invalid={!!fieldErrors.jiraProjectKey}
                                 />
-                            </div>
+                            </FormField>
 
-                            <div className="grid gap-2">
-                                <Label>Tarea Jira</Label>
+                            <FormField id="project-jira-mode" label="Tarea Jira" error={fieldErrors.jiraMode}>
                                 <div className="grid grid-cols-2 gap-2">
                                     <Button
                                         type="button"
@@ -347,11 +361,10 @@ export function ProjectSheet({
                                         Asignar
                                     </Button>
                                 </div>
-                            </div>
+                            </FormField>
 
                             {form.jiraMode === 'link' && (
-                                <div className="grid gap-2">
-                                    <Label htmlFor="project-jira-issue">Issue</Label>
+                                <FormField id="project-jira-issue" label="Issue" error={fieldErrors.jiraIssueKey}>
                                     <AppSelect
                                         id="project-jira-issue"
                                         items={jiraIssues.map((issue) => ({
@@ -366,8 +379,9 @@ export function ProjectSheet({
                                                 : 'Elige un espacio primero'
                                         }
                                         disabled={!form.jiraProjectKey}
+                                        aria-invalid={!!fieldErrors.jiraIssueKey}
                                     />
-                                </div>
+                                </FormField>
                             )}
                         </>
                     )}

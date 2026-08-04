@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AppSelect } from '@/components/app-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { USER_ROLES, USER_ROLE_LABELS, type HubUser, type UserInput, type UserRole } from '@/lib/users';
 import { toastError } from '@/lib/toast';
 
@@ -42,16 +43,27 @@ type UserSheetProps = {
 export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserSheetProps) {
     const [form, setForm] = useState<UserInput>(emptyForm);
     const [passwordConfirm, setPasswordConfirm] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
+        setFieldErrors({});
         setPasswordConfirm('');
         setForm(mode === 'edit' && user ? toForm(user) : emptyForm);
     }, [open, mode, user]);
 
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
+    }
+
     function setField<K extends keyof UserInput>(key: K, value: UserInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
+        clearFieldError(String(key));
     }
 
     async function handleSubmit(e: FormEvent) {
@@ -86,6 +98,9 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
             await onSubmit(payload);
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -100,20 +115,19 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                     <SheetDescription>Cuenta interna de BOhub (rol y acceso).</SheetDescription>
                 </SheetHeader>
 
-                <form id="user-form" onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="user-name">Nombre *</Label>
+                <form id="user-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
+                    <FormField id="user-name" label="Nombre *" error={fieldErrors.name}>
                         <Input
                             id="user-name"
                             required
                             maxLength={255}
                             value={form.name}
                             onChange={(e) => setField('name', e.target.value)}
+                            aria-invalid={!!fieldErrors.name}
                             className="bg-background"
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-email">Email *</Label>
+                    </FormField>
+                    <FormField id="user-email" label="Email *" error={fieldErrors.email}>
                         <Input
                             id="user-email"
                             type="email"
@@ -121,11 +135,15 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             maxLength={255}
                             value={form.email}
                             onChange={(e) => setField('email', e.target.value)}
+                            aria-invalid={!!fieldErrors.email}
                             className="bg-background"
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-password">Contraseña {mode === 'add' ? '*' : '(opcional)'}</Label>
+                    </FormField>
+                    <FormField
+                        id="user-password"
+                        label={`Contraseña ${mode === 'add' ? '*' : '(opcional)'}`}
+                        error={fieldErrors.password}
+                    >
                         <Input
                             id="user-password"
                             type="password"
@@ -133,13 +151,13 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             minLength={8}
                             value={form.password ?? ''}
                             onChange={(e) => setField('password', e.target.value)}
+                            aria-invalid={!!fieldErrors.password}
                             className="bg-background"
                             autoComplete="new-password"
                         />
-                    </div>
+                    </FormField>
                     {(mode === 'add' || (form.password?.length ?? 0) > 0) && (
-                        <div className="space-y-2">
-                            <Label htmlFor="user-password-confirm">Confirmar contraseña *</Label>
+                        <FormField id="user-password-confirm" label="Confirmar contraseña *">
                             <Input
                                 id="user-password-confirm"
                                 type="password"
@@ -150,10 +168,9 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                                 className="bg-background"
                                 autoComplete="new-password"
                             />
-                        </div>
+                        </FormField>
                     )}
-                    <div className="space-y-2">
-                        <Label htmlFor="user-role">Rol *</Label>
+                    <FormField id="user-role" label="Rol *" error={fieldErrors.role}>
                         <AppSelect
                             id="user-role"
                             items={USER_ROLES.map((role) => ({
@@ -162,10 +179,10 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             }))}
                             value={form.role}
                             onValueChange={(value) => setField('role', value as UserRole)}
+                            aria-invalid={!!fieldErrors.role}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-avatar">URL avatar</Label>
+                    </FormField>
+                    <FormField id="user-avatar" label="URL avatar" error={fieldErrors.avatarUrl}>
                         <Input
                             id="user-avatar"
                             type="url"
@@ -173,47 +190,48 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             value={form.avatarUrl ?? ''}
                             onChange={(e) => setField('avatarUrl', e.target.value)}
                             placeholder="https://…"
+                            aria-invalid={!!fieldErrors.avatarUrl}
                             className="bg-background"
                         />
-                    </div>
+                    </FormField>
 
                     <div className="space-y-2 border-t border-border pt-4">
                         <p className="text-sm font-medium text-foreground">Datos de nómina</p>
                         <p className="text-xs text-muted-foreground">Se usan al crear nóminas desde el selector de empleado.</p>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-employee-name">Nombre empleado</Label>
+                    <FormField id="user-employee-name" label="Nombre empleado" error={fieldErrors.employeeName}>
                         <Input
                             id="user-employee-name"
                             maxLength={255}
                             value={form.employeeName ?? ''}
                             onChange={(e) => setField('employeeName', e.target.value)}
                             placeholder="Nombre y apellidos"
+                            aria-invalid={!!fieldErrors.employeeName}
                             className="bg-background"
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-dni">DNI</Label>
+                    </FormField>
+                    <FormField id="user-dni" label="DNI" error={fieldErrors.dni}>
                         <Input
                             id="user-dni"
                             maxLength={32}
                             value={form.dni ?? ''}
                             onChange={(e) => setField('dni', e.target.value)}
                             placeholder="99999999R"
+                            aria-invalid={!!fieldErrors.dni}
                             className="bg-background"
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="user-category">Categoría</Label>
+                    </FormField>
+                    <FormField id="user-category" label="Categoría" error={fieldErrors.category}>
                         <Input
                             id="user-category"
                             maxLength={120}
                             value={form.category ?? ''}
                             onChange={(e) => setField('category', e.target.value)}
                             placeholder="Categoría de nómina"
+                            aria-invalid={!!fieldErrors.category}
                             className="bg-background"
                         />
-                    </div>
+                    </FormField>
                 </form>
 
                 <SheetFooter>

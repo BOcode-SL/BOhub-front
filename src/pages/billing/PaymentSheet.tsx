@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ import {
     type Payment,
     type PaymentInput,
 } from '@/lib/billing';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
 import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
@@ -70,6 +72,7 @@ type Props = {
 
 export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lockedProjectId }: Props) {
     const [form, setForm] = useState<PaymentInput>(empty);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
     const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
@@ -92,6 +95,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
 
     useEffect(() => {
         if (!open) return;
+        setFieldErrors({});
         if (mode !== 'edit' || !payment) {
             setForm({ ...empty, projectId: lockedProjectId ?? null });
             setTotalInput('');
@@ -126,8 +130,17 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         };
     }, [open, mode, payment, lockedProjectId]);
 
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
+    }
+
     function setField<K extends keyof PaymentInput>(key: K, value: PaymentInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
+        clearFieldError(String(key));
     }
 
     function recalcFromBase() {
@@ -163,6 +176,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     }
 
     function addInstallment() {
+        clearFieldError('installments');
         setForm((prev) => ({
             ...prev,
             installments: [
@@ -173,6 +187,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     }
 
     function removeInstallment(idx: number) {
+        clearFieldError('installments');
         setForm((prev) => ({
             ...prev,
             installments: (prev.installments ?? []).filter((_, i) => i !== idx),
@@ -180,6 +195,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     }
 
     function updateInstallment(idx: number, field: keyof Installment, value: string | null) {
+        clearFieldError('installments');
         setForm((prev) => {
             const inst = [...(prev.installments ?? [])];
             inst[idx] = { ...inst[idx], [field]: value };
@@ -221,6 +237,9 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
             });
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -258,12 +277,12 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
 
                 <form
                     id="payment-form"
+                    noValidate
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
                     {!lockedProjectId && (
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-project">Proyecto</Label>
+                        <FormField id="pay-project" label="Proyecto" error={fieldErrors.projectId}>
                             <EntitySelect
                                 id="pay-project"
                                 value={form.projectId ?? null}
@@ -271,23 +290,23 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 items={projects}
                                 allowClear
                                 placeholder="Sin proyecto"
+                                aria-invalid={!!fieldErrors.projectId}
                             />
-                        </div>
+                        </FormField>
                     )}
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-method">Método de pago</Label>
+                    <FormField id="pay-method" label="Método de pago" error={fieldErrors.paymentMethod}>
                         <AppSelect
                             id="pay-method"
                             items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
                             value={form.paymentMethod ?? 'Transferencia Bancaria'}
                             onValueChange={(value) => setField('paymentMethod', value)}
+                            aria-invalid={!!fieldErrors.paymentMethod}
                         />
-                    </div>
+                    </FormField>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-base">Base</Label>
+                        <FormField id="pay-base" label="Base" error={fieldErrors.baseAmount}>
                             <Input
                                 id="pay-base"
                                 type="number"
@@ -296,11 +315,11 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 required
                                 value={form.baseAmount}
                                 onChange={(e) => handleBaseChange(e.target.value)}
+                                aria-invalid={!!fieldErrors.baseAmount}
                                 className="bg-card"
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-total">Total (bruto)</Label>
+                        </FormField>
+                        <FormField id="pay-total" label="Total (bruto)">
                             <Input
                                 id="pay-total"
                                 type="number"
@@ -310,12 +329,11 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 onChange={(e) => handleTotalChange(e.target.value)}
                                 className="bg-card"
                             />
-                        </div>
+                        </FormField>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-iva">IVA %</Label>
+                        <FormField id="pay-iva" label="IVA %" error={fieldErrors.ivaRate}>
                             <Input
                                 id="pay-iva"
                                 type="number"
@@ -327,11 +345,11 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                     setField('ivaRate', e.target.value);
                                     handleRateChange();
                                 }}
+                                aria-invalid={!!fieldErrors.ivaRate}
                                 className="bg-card"
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-irpf">IRPF %</Label>
+                        </FormField>
+                        <FormField id="pay-irpf" label="IRPF %" error={fieldErrors.irpfRate}>
                             <Input
                                 id="pay-irpf"
                                 type="number"
@@ -343,14 +361,14 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                     setField('irpfRate', e.target.value);
                                     handleRateChange();
                                 }}
+                                aria-invalid={!!fieldErrors.irpfRate}
                                 className="bg-card"
                             />
-                        </div>
+                        </FormField>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-status">Estado</Label>
+                        <FormField id="pay-status" label="Estado" error={fieldErrors.status}>
                             <AppSelect
                                 id="pay-status"
                                 items={LEDGER_STATUSES.map((status) => ({
@@ -359,33 +377,37 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 }))}
                                 value={form.status}
                                 onValueChange={(value) => setField('status', value as LedgerStatus)}
+                                aria-invalid={!!fieldErrors.status}
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-inv-date">Fecha factura</Label>
+                        </FormField>
+                        <FormField id="pay-inv-date" label="Fecha factura" error={fieldErrors.invoiceDate}>
                             <Input
                                 id="pay-inv-date"
                                 type="date"
                                 value={form.invoiceDate ?? ''}
                                 onChange={(e) => setField('invoiceDate', e.target.value)}
+                                aria-invalid={!!fieldErrors.invoiceDate}
                                 className="bg-card"
                             />
-                        </div>
+                        </FormField>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-ref">Referencia</Label>
+                    <FormField id="pay-ref" label="Referencia" error={fieldErrors.reference}>
                         <Input
                             id="pay-ref"
                             maxLength={120}
                             value={form.reference ?? ''}
                             onChange={(e) => setField('reference', e.target.value)}
+                            aria-invalid={!!fieldErrors.reference}
                             className="bg-card"
                         />
-                    </div>
+                    </FormField>
 
                     <fieldset className="grid gap-3 rounded-lg border border-border p-3">
                         <legend className="px-1 text-sm font-medium text-foreground">Plazos de pago</legend>
+                        {fieldErrors.installments ? (
+                            <p className="text-sm text-destructive">{fieldErrors.installments}</p>
+                        ) : null}
                         {(form.installments ?? []).length === 0 && (
                             <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
                         )}
@@ -448,8 +470,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </Button>
                     </fieldset>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-drive">URL Drive</Label>
+                    <FormField id="pay-drive" label="URL Drive" error={fieldErrors.invoiceUrl}>
                         <Input
                             id="pay-drive"
                             type="text"
@@ -457,20 +478,21 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             placeholder="https://drive.google.com/file/d/…/view"
                             value={form.invoiceUrl ?? ''}
                             onChange={(e) => setField('invoiceUrl', e.target.value)}
+                            aria-invalid={!!fieldErrors.invoiceUrl}
                             className="bg-card"
                         />
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-notes">Notas</Label>
+                    <FormField id="pay-notes" label="Notas" error={fieldErrors.notes}>
                         <Textarea
                             id="pay-notes"
                             value={form.notes ?? ''}
                             onChange={(e) => setField('notes', e.target.value)}
+                            aria-invalid={!!fieldErrors.notes}
                             rows={3}
                             className="bg-card"
                         />
-                    </div>
+                    </FormField>
                 </form>
 
                 <SheetFooter>

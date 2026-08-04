@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { type Client, type ClientInput, getClient } from '@/lib/clients';
 import { toastError } from '@/lib/toast';
 
@@ -43,10 +44,13 @@ type ClientSheetProps = {
 
 export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: ClientSheetProps) {
     const [form, setForm] = useState<ClientInput>(emptyForm);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
+
+        setFieldErrors({});
 
         if (mode !== 'edit' || !client) {
             setForm(emptyForm);
@@ -72,10 +76,20 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
 
     function setField<K extends keyof ClientInput>(key: K, value: ClientInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
+        setFieldErrors((prev) => {
+            if (!(key in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
     }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
+        if (!form.name.trim()) {
+            setFieldErrors({ name: 'El nombre es obligatorio.' });
+            return;
+        }
         setSaving(true);
         try {
             await onSubmit({
@@ -91,6 +105,9 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
             });
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -105,9 +122,8 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                     <SheetDescription>Datos fiscales y de contacto del cliente.</SheetDescription>
                 </SheetHeader>
 
-                <form id="client-form" onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="client-name">Nombre *</Label>
+                <form id="client-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
+                    <FormField id="client-name" label="Nombre *" error={fieldErrors.name}>
                         <Input
                             id="client-name"
                             required
@@ -116,10 +132,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('name', e.target.value)}
                             placeholder="Nombre o razón social"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.name}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-tax">NIF / CIF</Label>
+                    </FormField>
+                    <FormField id="client-tax" label="NIF / CIF" error={fieldErrors.taxId}>
                         <Input
                             id="client-tax"
                             maxLength={50}
@@ -127,10 +143,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('taxId', e.target.value)}
                             placeholder="B12345678"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.taxId}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-email">Email</Label>
+                    </FormField>
+                    <FormField id="client-email" label="Email" error={fieldErrors.email}>
                         <Input
                             id="client-email"
                             type="email"
@@ -139,10 +155,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('email', e.target.value)}
                             placeholder="contacto@empresa.com"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.email}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-phone">Teléfono</Label>
+                    </FormField>
+                    <FormField id="client-phone" label="Teléfono" error={fieldErrors.phone}>
                         <Input
                             id="client-phone"
                             maxLength={50}
@@ -150,10 +166,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('phone', e.target.value)}
                             placeholder="600 000 000"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.phone}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-address">Dirección</Label>
+                    </FormField>
+                    <FormField id="client-address" label="Dirección" error={fieldErrors.address}>
                         <Input
                             id="client-address"
                             maxLength={255}
@@ -161,11 +177,11 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('address', e.target.value)}
                             placeholder="Calle, número, piso…"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.address}
                         />
-                    </div>
+                    </FormField>
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                            <Label htmlFor="client-city">Ciudad</Label>
+                        <FormField id="client-city" label="Ciudad" error={fieldErrors.city}>
                             <Input
                                 id="client-city"
                                 maxLength={120}
@@ -173,10 +189,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                                 onChange={(e) => setField('city', e.target.value)}
                                 placeholder="Madrid"
                                 className="bg-background"
+                                aria-invalid={!!fieldErrors.city}
                             />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="client-postal">C.P.</Label>
+                        </FormField>
+                        <FormField id="client-postal" label="C.P." error={fieldErrors.postalCode}>
                             <Input
                                 id="client-postal"
                                 maxLength={20}
@@ -184,11 +200,11 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                                 onChange={(e) => setField('postalCode', e.target.value)}
                                 placeholder="28001"
                                 className="bg-background"
+                                aria-invalid={!!fieldErrors.postalCode}
                             />
-                        </div>
+                        </FormField>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-country">País</Label>
+                    <FormField id="client-country" label="País" error={fieldErrors.country}>
                         <Input
                             id="client-country"
                             maxLength={120}
@@ -196,18 +212,19 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             onChange={(e) => setField('country', e.target.value)}
                             placeholder="España"
                             className="bg-background"
+                            aria-invalid={!!fieldErrors.country}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="client-notes">Notas</Label>
+                    </FormField>
+                    <FormField id="client-notes" label="Notas" error={fieldErrors.notes}>
                         <Textarea
                             id="client-notes"
                             value={form.notes ?? ''}
                             onChange={(e) => setField('notes', e.target.value)}
                             placeholder="Notas internas…"
                             className="bg-background min-h-24"
+                            aria-invalid={!!fieldErrors.notes}
                         />
-                    </div>
+                    </FormField>
                 </form>
 
                 <SheetFooter>

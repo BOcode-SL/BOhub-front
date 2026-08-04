@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
     PAYROLL_STATUSES,
@@ -14,6 +14,7 @@ import {
     type PayrollInput,
     type PayrollStatus,
 } from '@/lib/billing';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listUsers, type HubUser } from '@/lib/users';
 import { toastError } from '@/lib/toast';
 import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
@@ -66,6 +67,7 @@ type Props = {
 
 export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<PayrollInput>(empty);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [users, setUsers] = useState<HubUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -87,6 +89,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
 
     useEffect(() => {
         if (!open) return;
+        setFieldErrors({});
         setSelectedUserId(null);
         if (mode !== 'edit' || !editing) {
             setForm(empty);
@@ -95,8 +98,17 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
         setForm(toForm(editing));
     }, [open, mode, editing]);
 
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
+    }
+
     function setField<K extends keyof PayrollInput>(key: K, value: PayrollInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
+        clearFieldError(String(key));
     }
 
     function applyEmployee(userId: number | null) {
@@ -110,6 +122,9 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
             nif: u.dni?.trim() || '',
             category: u.category?.trim() || '',
         }));
+        clearFieldError('employeeName');
+        clearFieldError('nif');
+        clearFieldError('category');
     }
 
     const totalCost = Number(form.baseSalary || 0) + Number(form.socialSecurityEmployer || 0);
@@ -139,6 +154,9 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
             });
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -178,11 +196,11 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
 
                         <form
                             id="payroll-form"
+                            noValidate
                             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                             onSubmit={(e) => void handleSubmit(e)}
                         >
-                            <div className="grid gap-2">
-                                <Label htmlFor="pr-employee">Seleccionar empleado</Label>
+                            <FormField id="pr-employee" label="Seleccionar empleado">
                                 <EntitySelect
                                     id="pr-employee"
                                     value={selectedUserId}
@@ -191,59 +209,70 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                     allowClear
                                     placeholder="Elige un empleado…"
                                 />
-                            </div>
+                            </FormField>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="pr-name">
-                                    Nombre del empleado <span className="text-destructive">*</span>
-                                </Label>
+                            <FormField
+                                id="pr-name"
+                                label={
+                                    <>
+                                        Nombre del empleado <span className="text-destructive">*</span>
+                                    </>
+                                }
+                                error={fieldErrors.employeeName}
+                            >
                                 <Input
                                     id="pr-name"
                                     required
                                     maxLength={255}
                                     value={form.employeeName}
                                     onChange={(e) => setField('employeeName', e.target.value)}
+                                    aria-invalid={!!fieldErrors.employeeName}
                                     className="bg-card"
                                 />
-                            </div>
+                            </FormField>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-nif">NIF / DNI</Label>
+                                <FormField id="pr-nif" label="NIF / DNI" error={fieldErrors.nif}>
                                     <Input
                                         id="pr-nif"
                                         maxLength={20}
                                         value={form.nif ?? ''}
                                         onChange={(e) => setField('nif', e.target.value)}
+                                        aria-invalid={!!fieldErrors.nif}
                                         className="bg-card"
                                     />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-cat">Categoría</Label>
+                                </FormField>
+                                <FormField id="pr-cat" label="Categoría" error={fieldErrors.category}>
                                     <Input
                                         id="pr-cat"
                                         maxLength={100}
                                         value={form.category ?? ''}
                                         onChange={(e) => setField('category', e.target.value)}
+                                        aria-invalid={!!fieldErrors.category}
                                         className="bg-card"
                                     />
-                                </div>
+                                </FormField>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-month">Mes</Label>
+                                <FormField id="pr-month" label="Mes" error={fieldErrors.month}>
                                     <AppSelect
                                         id="pr-month"
                                         items={MONTH_ITEMS}
                                         value={String(form.month)}
                                         onValueChange={(value) => setField('month', Number(value))}
+                                        aria-invalid={!!fieldErrors.month}
                                     />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-year">
-                                        Año <span className="text-destructive">*</span>
-                                    </Label>
+                                </FormField>
+                                <FormField
+                                    id="pr-year"
+                                    label={
+                                        <>
+                                            Año <span className="text-destructive">*</span>
+                                        </>
+                                    }
+                                    error={fieldErrors.year}
+                                >
                                     <Input
                                         id="pr-year"
                                         type="number"
@@ -252,16 +281,22 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         required
                                         value={form.year}
                                         onChange={(e) => setField('year', Number(e.target.value))}
+                                        aria-invalid={!!fieldErrors.year}
                                         className="bg-card"
                                     />
-                                </div>
+                                </FormField>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-base">
-                                        Sueldo bruto (€) <span className="text-destructive">*</span>
-                                    </Label>
+                                <FormField
+                                    id="pr-base"
+                                    label={
+                                        <>
+                                            Sueldo bruto (€) <span className="text-destructive">*</span>
+                                        </>
+                                    }
+                                    error={fieldErrors.baseSalary}
+                                >
                                     <Input
                                         id="pr-base"
                                         type="number"
@@ -270,13 +305,19 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         required
                                         value={form.baseSalary}
                                         onChange={(e) => setField('baseSalary', e.target.value)}
+                                        aria-invalid={!!fieldErrors.baseSalary}
                                         className="bg-card"
                                     />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-net">
-                                        Sueldo neto (€) <span className="text-destructive">*</span>
-                                    </Label>
+                                </FormField>
+                                <FormField
+                                    id="pr-net"
+                                    label={
+                                        <>
+                                            Sueldo neto (€) <span className="text-destructive">*</span>
+                                        </>
+                                    }
+                                    error={fieldErrors.netSalary}
+                                >
                                     <Input
                                         id="pr-net"
                                         type="number"
@@ -285,14 +326,14 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         required
                                         value={form.netSalary}
                                         onChange={(e) => setField('netSalary', e.target.value)}
+                                        aria-invalid={!!fieldErrors.netSalary}
                                         className="bg-card"
                                     />
-                                </div>
+                                </FormField>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-irpf">Retención IRPF (€)</Label>
+                                <FormField id="pr-irpf" label="Retención IRPF (€)" error={fieldErrors.irpfRetained}>
                                     <Input
                                         id="pr-irpf"
                                         type="number"
@@ -300,11 +341,15 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         min="0"
                                         value={form.irpfRetained ?? ''}
                                         onChange={(e) => setField('irpfRetained', e.target.value)}
+                                        aria-invalid={!!fieldErrors.irpfRetained}
                                         className="bg-card"
                                     />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-ss-emp">SS Empresa (€)</Label>
+                                </FormField>
+                                <FormField
+                                    id="pr-ss-emp"
+                                    label="SS Empresa (€)"
+                                    error={fieldErrors.socialSecurityEmployer}
+                                >
                                     <Input
                                         id="pr-ss-emp"
                                         type="number"
@@ -312,13 +357,13 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         min="0"
                                         value={form.socialSecurityEmployer ?? ''}
                                         onChange={(e) => setField('socialSecurityEmployer', e.target.value)}
+                                        aria-invalid={!!fieldErrors.socialSecurityEmployer}
                                         className="bg-card"
                                     />
-                                </div>
+                                </FormField>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="pr-drive">Enlace del documento</Label>
+                            <FormField id="pr-drive" label="Enlace del documento" error={fieldErrors.invoiceUrl}>
                                 <Input
                                     id="pr-drive"
                                     type="text"
@@ -326,13 +371,13 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                     placeholder="https://drive.google.com/file/d/…/view"
                                     value={form.invoiceUrl ?? ''}
                                     onChange={(e) => setField('invoiceUrl', e.target.value)}
+                                    aria-invalid={!!fieldErrors.invoiceUrl}
                                     className="bg-card"
                                 />
-                            </div>
+                            </FormField>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-status">Estado</Label>
+                                <FormField id="pr-status" label="Estado" error={fieldErrors.status}>
                                     <AppSelect
                                         id="pr-status"
                                         items={PAYROLL_STATUSES.map((status) => ({
@@ -341,18 +386,19 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                         }))}
                                         value={form.status}
                                         onValueChange={(value) => setField('status', value as PayrollStatus)}
+                                        aria-invalid={!!fieldErrors.status}
                                     />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pr-pay-date">Fecha de pago</Label>
+                                </FormField>
+                                <FormField id="pr-pay-date" label="Fecha de pago" error={fieldErrors.paymentDate}>
                                     <Input
                                         id="pr-pay-date"
                                         type="date"
                                         value={form.paymentDate ?? ''}
                                         onChange={(e) => setField('paymentDate', e.target.value)}
+                                        aria-invalid={!!fieldErrors.paymentDate}
                                         className="bg-card"
                                     />
-                                </div>
+                                </FormField>
                             </div>
 
                             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">

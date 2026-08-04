@@ -1,17 +1,18 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Clock, Pause, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
+import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToolbarField, toolbarControlClass } from '@/components/toolbar-field';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listProjectOptions } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { cn } from '@/lib/utils';
-import { EntitySelect } from '@/components/entity-select';
-import { ToolbarField, toolbarControlClass } from '@/components/toolbar-field';
 import {
     createHour,
     deleteHour,
@@ -94,6 +95,7 @@ export function TimerPage() {
     const [editMinutes, setEditMinutes] = useState('0');
     const [editDesc, setEditDesc] = useState('');
     const [editDate, setEditDate] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         void listProjectOptions().then(setProjects);
@@ -229,15 +231,32 @@ export function TimerPage() {
         setPage(1);
     }
 
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
+    }
+
     async function handleStart() {
-        await runAction(async () => {
+        setFieldErrors({});
+        setBusy(true);
+        try {
             const t = await startTimer({
                 projectId: liveProjectId || null,
                 description: liveDesc.trim() || null,
             });
             setTimer(t);
             setDisplaySeconds(t.elapsedSeconds);
-        });
+        } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
+            toastError(err);
+        } finally {
+            setBusy(false);
+        }
     }
 
     async function handlePause() {
@@ -260,6 +279,7 @@ export function TimerPage() {
 
     function handleStop() {
         if (!timer) return;
+        setFieldErrors({});
         setFrozenSeconds(displaySeconds);
         setSaveProjectId(liveProjectId || timer.projectId || '');
         setSaveDesc(liveDesc || timer.description || '');
@@ -270,10 +290,11 @@ export function TimerPage() {
     async function confirmSave() {
         if (!timer) return;
         if (!saveProjectId) {
-            toastError('Selecciona un proyecto para guardar.');
+            setFieldErrors({ projectId: 'Selecciona un proyecto para guardar.' });
             return;
         }
-        await runAction(async () => {
+        setBusy(true);
+        try {
             await saveTimer(timer.id, {
                 projectId: Number(saveProjectId),
                 description: saveDesc.trim() || null,
@@ -282,9 +303,17 @@ export function TimerPage() {
             setTimer(null);
             setDisplaySeconds(0);
             setSaveOpen(false);
+            setFieldErrors({});
             reloadList();
             toastSuccess('Horas guardadas');
-        });
+        } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
+            toastError(err);
+        } finally {
+            setBusy(false);
+        }
     }
 
     async function confirmDiscardFromSave() {
@@ -299,13 +328,13 @@ export function TimerPage() {
 
     async function handleManual(e: FormEvent) {
         e.preventDefault();
-        if (!manualProjectId) {
-            toastError('Selecciona un proyecto.');
-            return;
-        }
-        const duration = (Number(manualHours) || 0) * 3600 + (Number(manualMinutes) || 0) * 60 + (Number(manualSeconds) || 0);
-        if (duration < 1) {
-            toastError('La duración debe ser mayor que 0.');
+        const nextErrors: Record<string, string> = {};
+        if (!manualProjectId) nextErrors.projectId = 'Selecciona un proyecto.';
+        const duration =
+            (Number(manualHours) || 0) * 3600 + (Number(manualMinutes) || 0) * 60 + (Number(manualSeconds) || 0);
+        if (duration < 1) nextErrors.duration = 'La duración debe ser mayor que 0.';
+        if (Object.keys(nextErrors).length) {
+            setFieldErrors(nextErrors);
             return;
         }
         setManualSaving(true);
@@ -320,9 +349,13 @@ export function TimerPage() {
             });
             setManualDesc('');
             setManualOpen(false);
+            setFieldErrors({});
             reloadList();
             toastSuccess('Horas guardadas');
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setManualSaving(false);
@@ -330,6 +363,7 @@ export function TimerPage() {
     }
 
     function openEdit(h: Hour) {
+        setFieldErrors({});
         setEditHour(h);
         const total = h.durationSeconds;
         setEditHours(String(Math.floor(total / 3600)));
@@ -342,7 +376,7 @@ export function TimerPage() {
         if (!editHour) return;
         const duration = (Number(editHours) || 0) * 3600 + (Number(editMinutes) || 0) * 60;
         if (duration < 1) {
-            toastError('La duración debe ser mayor que 0.');
+            setFieldErrors({ duration: 'La duración debe ser mayor que 0.' });
             return;
         }
         setBusy(true);
@@ -355,9 +389,13 @@ export function TimerPage() {
                 workedOn: editDate,
             });
             setEditHour(null);
+            setFieldErrors({});
             reloadList();
             toastSuccess('Horas actualizadas');
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setBusy(false);
@@ -393,29 +431,35 @@ export function TimerPage() {
                 </p>
 
                 <div className="grid w-full max-w-xl gap-3 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                        <Label htmlFor="live-project">Proyecto</Label>
+                    <FormField id="live-project" label="Proyecto" error={fieldErrors.projectId}>
                         <EntitySelect
                             id="live-project"
                             items={projects}
                             value={liveProjectId || null}
-                            onValueChange={(value) => setLiveProjectId(value ?? '')}
+                            onValueChange={(value) => {
+                                setLiveProjectId(value ?? '');
+                                clearFieldError('projectId');
+                            }}
                             allowClear
                             placeholder="Seleccionar…"
                             disabled={busy || saveOpen}
+                            aria-invalid={!!fieldErrors.projectId}
                         />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="live-desc">Descripción</Label>
+                    </FormField>
+                    <FormField id="live-desc" label="Descripción" error={fieldErrors.description}>
                         <Input
                             id="live-desc"
                             value={liveDesc}
-                            onChange={(e) => setLiveDesc(e.target.value)}
+                            onChange={(e) => {
+                                setLiveDesc(e.target.value);
+                                clearFieldError('description');
+                            }}
                             className="bg-background"
                             disabled={busy || saveOpen}
                             placeholder="¿En qué trabajas?"
+                            aria-invalid={!!fieldErrors.description}
                         />
-                    </div>
+                    </FormField>
                 </div>
 
                 <div className="flex w-full max-w-xl flex-wrap justify-center gap-2">
@@ -494,6 +538,7 @@ export function TimerPage() {
                             <Button
                                 type="button"
                                 onClick={() => {
+                                    setFieldErrors({});
                                     setManualProjectId('');
                                     setManualHours('0');
                                     setManualMinutes('30');
@@ -582,29 +627,44 @@ export function TimerPage() {
                     </DialogHeader>
                     <p className="font-mono text-3xl font-semibold text-primary tabular-nums">{formatDuration(frozenSeconds)}</p>
                     <div className="grid gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="save-project">Proyecto *</Label>
+                        <FormField id="save-project" label="Proyecto *" error={fieldErrors.projectId}>
                             <EntitySelect
                                 id="save-project"
                                 items={projects}
                                 value={saveProjectId || null}
-                                onValueChange={(value) => setSaveProjectId(value ?? '')}
+                                onValueChange={(value) => {
+                                    setSaveProjectId(value ?? '');
+                                    clearFieldError('projectId');
+                                }}
                                 placeholder="Selecciona proyecto…"
+                                aria-invalid={!!fieldErrors.projectId}
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Descripción</Label>
-                            <Input value={saveDesc} onChange={(e) => setSaveDesc(e.target.value)} className="bg-card" />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Fecha</Label>
+                        </FormField>
+                        <FormField id="save-desc" label="Descripción" error={fieldErrors.description}>
                             <Input
+                                id="save-desc"
+                                value={saveDesc}
+                                onChange={(e) => {
+                                    setSaveDesc(e.target.value);
+                                    clearFieldError('description');
+                                }}
+                                className="bg-card"
+                                aria-invalid={!!fieldErrors.description}
+                            />
+                        </FormField>
+                        <FormField id="save-date" label="Fecha" error={fieldErrors.workedOn}>
+                            <Input
+                                id="save-date"
                                 type="date"
                                 value={saveDate}
-                                onChange={(e) => setSaveDate(e.target.value)}
+                                onChange={(e) => {
+                                    setSaveDate(e.target.value);
+                                    clearFieldError('workedOn');
+                                }}
                                 className="bg-card"
+                                aria-invalid={!!fieldErrors.workedOn}
                             />
-                        </div>
+                        </FormField>
                     </div>
                     <DialogFooter className="gap-2 sm:justify-between">
                         <Button type="button" variant="destructive" disabled={busy} onClick={() => void confirmDiscardFromSave()}>
@@ -618,72 +678,104 @@ export function TimerPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+            <Dialog
+                open={manualOpen}
+                onOpenChange={(o) => {
+                    if (!o) setFieldErrors({});
+                    setManualOpen(o);
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Añadir horas</DialogTitle>
                         <DialogDescription>Alta manual de tiempo.</DialogDescription>
                     </DialogHeader>
-                    <form id="manual-hour-form" className="grid gap-3" onSubmit={(e) => void handleManual(e)}>
-                        <div className="grid gap-2">
-                            <Label htmlFor="manual-project">Proyecto</Label>
+                    <form id="manual-hour-form" noValidate className="grid gap-3" onSubmit={(e) => void handleManual(e)}>
+                        <FormField id="manual-project" label="Proyecto" error={fieldErrors.projectId}>
                             <EntitySelect
                                 id="manual-project"
                                 items={projects}
                                 value={manualProjectId || null}
-                                onValueChange={(value) => setManualProjectId(value ?? '')}
+                                onValueChange={(value) => {
+                                    setManualProjectId(value ?? '');
+                                    clearFieldError('projectId');
+                                }}
                                 placeholder="Seleccionar…"
+                                aria-invalid={!!fieldErrors.projectId}
                             />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className="grid gap-2">
-                                <Label>Horas</Label>
+                        </FormField>
+                        <FormField id="manual-duration" label="Duración" error={fieldErrors.duration}>
+                            <div className="grid grid-cols-3 gap-2">
                                 <Input
+                                    id="manual-hours"
                                     type="number"
                                     min={0}
                                     max={24}
                                     value={manualHours}
-                                    onChange={(e) => setManualHours(e.target.value)}
+                                    onChange={(e) => {
+                                        setManualHours(e.target.value);
+                                        clearFieldError('duration');
+                                    }}
                                     className="bg-card"
+                                    aria-label="Horas"
+                                    aria-invalid={!!fieldErrors.duration}
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Min</Label>
                                 <Input
+                                    id="manual-minutes"
                                     type="number"
                                     min={0}
                                     max={59}
                                     value={manualMinutes}
-                                    onChange={(e) => setManualMinutes(e.target.value)}
+                                    onChange={(e) => {
+                                        setManualMinutes(e.target.value);
+                                        clearFieldError('duration');
+                                    }}
                                     className="bg-card"
+                                    aria-label="Minutos"
+                                    aria-invalid={!!fieldErrors.duration}
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Seg</Label>
                                 <Input
+                                    id="manual-seconds"
                                     type="number"
                                     min={0}
                                     max={59}
                                     value={manualSeconds}
-                                    onChange={(e) => setManualSeconds(e.target.value)}
+                                    onChange={(e) => {
+                                        setManualSeconds(e.target.value);
+                                        clearFieldError('duration');
+                                    }}
                                     className="bg-card"
+                                    aria-label="Segundos"
+                                    aria-invalid={!!fieldErrors.duration}
                                 />
                             </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Fecha</Label>
+                        </FormField>
+                        <FormField id="manual-date" label="Fecha" error={fieldErrors.workedOn}>
                             <Input
+                                id="manual-date"
                                 type="date"
                                 required
                                 value={manualDate}
-                                onChange={(e) => setManualDate(e.target.value)}
+                                onChange={(e) => {
+                                    setManualDate(e.target.value);
+                                    clearFieldError('workedOn');
+                                }}
                                 className="bg-card"
+                                aria-invalid={!!fieldErrors.workedOn}
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Descripción</Label>
-                            <Input value={manualDesc} onChange={(e) => setManualDesc(e.target.value)} className="bg-card" />
-                        </div>
+                        </FormField>
+                        <FormField id="manual-desc" label="Descripción" error={fieldErrors.description}>
+                            <Input
+                                id="manual-desc"
+                                value={manualDesc}
+                                onChange={(e) => {
+                                    setManualDesc(e.target.value);
+                                    clearFieldError('description');
+                                }}
+                                className="bg-card"
+                                aria-invalid={!!fieldErrors.description}
+                            />
+                        </FormField>
                     </form>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setManualOpen(false)}>
@@ -708,43 +800,63 @@ export function TimerPage() {
                         <DialogDescription>{editHour?.project?.name ?? 'Entrada'}</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-3">
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="grid gap-2">
-                                <Label>Horas</Label>
+                        <FormField id="edit-duration" label="Duración" error={fieldErrors.duration}>
+                            <div className="grid grid-cols-2 gap-2">
                                 <Input
+                                    id="edit-hours"
                                     type="number"
                                     min={0}
                                     max={24}
                                     value={editHours}
-                                    onChange={(e) => setEditHours(e.target.value)}
+                                    onChange={(e) => {
+                                        setEditHours(e.target.value);
+                                        clearFieldError('duration');
+                                    }}
                                     className="bg-card"
+                                    aria-label="Horas"
+                                    aria-invalid={!!fieldErrors.duration}
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Minutos</Label>
                                 <Input
+                                    id="edit-minutes"
                                     type="number"
                                     min={0}
                                     max={59}
                                     value={editMinutes}
-                                    onChange={(e) => setEditMinutes(e.target.value)}
+                                    onChange={(e) => {
+                                        setEditMinutes(e.target.value);
+                                        clearFieldError('duration');
+                                    }}
                                     className="bg-card"
+                                    aria-label="Minutos"
+                                    aria-invalid={!!fieldErrors.duration}
                                 />
                             </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Fecha</Label>
+                        </FormField>
+                        <FormField id="edit-date" label="Fecha" error={fieldErrors.workedOn}>
                             <Input
+                                id="edit-date"
                                 type="date"
                                 value={editDate}
-                                onChange={(e) => setEditDate(e.target.value)}
+                                onChange={(e) => {
+                                    setEditDate(e.target.value);
+                                    clearFieldError('workedOn');
+                                }}
                                 className="bg-card"
+                                aria-invalid={!!fieldErrors.workedOn}
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Descripción</Label>
-                            <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="bg-card" />
-                        </div>
+                        </FormField>
+                        <FormField id="edit-desc" label="Descripción" error={fieldErrors.description}>
+                            <Input
+                                id="edit-desc"
+                                value={editDesc}
+                                onChange={(e) => {
+                                    setEditDesc(e.target.value);
+                                    clearFieldError('description');
+                                }}
+                                className="bg-card"
+                                aria-invalid={!!fieldErrors.description}
+                            />
+                        </FormField>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditHour(null)}>

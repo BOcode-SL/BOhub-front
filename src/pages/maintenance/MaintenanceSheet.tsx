@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     MAINTENANCE_PERIODS,
     MAINTENANCE_PERIOD_LABELS,
@@ -56,6 +57,7 @@ type Props = {
 
 export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<MaintenanceInput>(emptyForm());
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [clientLabel, setClientLabel] = useState('Elige un proyecto');
     const [endsTouched, setEndsTouched] = useState(false);
@@ -105,6 +107,7 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
 
     useEffect(() => {
         if (!open) return;
+        setFieldErrors({});
         setEndsTouched(false);
         if (mode !== 'edit' || !period) {
             setForm(emptyForm());
@@ -122,6 +125,20 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
         };
     }, [open, mode, period]);
 
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!(key in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    }
+
+    function setField<K extends keyof MaintenanceInput>(key: K, value: MaintenanceInput[K]) {
+        setForm((prev) => ({ ...prev, [key]: value }));
+        clearFieldError(key);
+    }
+
     function setPeriodOrStart(patch: Partial<Pick<MaintenanceInput, 'period' | 'startsOn'>>) {
         setForm((f) => {
             const next = { ...f, ...patch };
@@ -130,12 +147,15 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
             }
             return next;
         });
+        for (const key of Object.keys(patch)) {
+            clearFieldError(key);
+        }
     }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.projectId) {
-            toastError('Selecciona un proyecto.');
+            setFieldErrors({ projectId: 'Selecciona un proyecto.' });
             return;
         }
         setSaving(true);
@@ -149,6 +169,9 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
             });
             onOpenChange(false);
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSaving(false);
@@ -165,35 +188,29 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
 
                 <form
                     id="maintenance-form"
+                    noValidate
                     className="flex flex-1 flex-col gap-4 px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="m-project">Proyecto</Label>
+                    <FormField id="m-project" label="Proyecto" error={fieldErrors.projectId}>
                         <EntitySelect
                             id="m-project"
                             value={form.projectId || null}
-                            onValueChange={(id) =>
-                                setForm((f) => ({
-                                    ...f,
-                                    projectId: id ?? 0,
-                                }))
-                            }
+                            onValueChange={(id) => setField('projectId', id ?? 0)}
                             items={projects}
                             placeholder="Seleccionar…"
                             disabled={mode === 'edit'}
+                            aria-invalid={!!fieldErrors.projectId}
                         />
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label>Cliente</Label>
+                    <FormField id="m-client" label="Cliente">
                         <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                             {clientLabel}
                         </p>
-                    </div>
+                    </FormField>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="m-period">Periodo</Label>
+                    <FormField id="m-period" label="Periodo" error={fieldErrors.period}>
                         <AppSelect
                             id="m-period"
                             items={MAINTENANCE_PERIODS.map((period) => ({
@@ -206,12 +223,12 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                                     period: value as MaintenancePeriodKind,
                                 })
                             }
+                            aria-invalid={!!fieldErrors.period}
                         />
-                    </div>
+                    </FormField>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="m-start">Inicio</Label>
+                        <FormField id="m-start" label="Inicio" error={fieldErrors.startsOn}>
                             <Input
                                 id="m-start"
                                 type="date"
@@ -219,10 +236,10 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                                 value={form.startsOn}
                                 onChange={(e) => setPeriodOrStart({ startsOn: e.target.value })}
                                 className="bg-card"
+                                aria-invalid={!!fieldErrors.startsOn}
                             />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="m-end">Fin</Label>
+                        </FormField>
+                        <FormField id="m-end" label="Fin" error={fieldErrors.endsOn}>
                             <Input
                                 id="m-end"
                                 type="date"
@@ -230,23 +247,24 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                                 value={form.endsOn}
                                 onChange={(e) => {
                                     setEndsTouched(true);
-                                    setForm((f) => ({ ...f, endsOn: e.target.value }));
+                                    setField('endsOn', e.target.value);
                                 }}
                                 min={form.startsOn || undefined}
                                 className="bg-card"
+                                aria-invalid={!!fieldErrors.endsOn}
                             />
-                        </div>
+                        </FormField>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="m-notes">Notas</Label>
+                    <FormField id="m-notes" label="Notas" error={fieldErrors.notes}>
                         <Textarea
                             id="m-notes"
                             value={form.notes ?? ''}
-                            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                            onChange={(e) => setField('notes', e.target.value)}
                             className="min-h-24 bg-card"
+                            aria-invalid={!!fieldErrors.notes}
                         />
-                    </div>
+                    </FormField>
                 </form>
 
                 <SheetFooter className="border-t border-border px-4 py-3">

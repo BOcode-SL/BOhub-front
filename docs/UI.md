@@ -36,6 +36,16 @@ Use `ListPageShell`:
 
 Reference implementations: `pages/clients/ClientsPage.tsx`, `pages/projects/ProjectsPage.tsx`.
 
+## Forms (invalid state)
+
+Use `FormField` + control `aria-invalid`. Forms should use **`noValidate`** so the browser bubble does not replace FieldError. Laravel 422 → `ApiError.fieldErrors` → `flattenFieldErrors`; clear that key on change. No Zod/RHF.
+
+```tsx
+<FormField id="client-name" label="Nombre *" error={fieldErrors.name}>
+  <Input id="client-name" aria-invalid={!!fieldErrors.name} … />
+</FormField>
+```
+
 ## Buttons
 
 Aligned with ProjectHub CVA: default **h-9**, `rounded-md`, `hover:bg-primary/90`, solid destructive.

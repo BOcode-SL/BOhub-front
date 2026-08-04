@@ -837,7 +837,7 @@ export function ProjectDetailPage() {
             )}
 
             {tab === 'config' && (
-                <form className="flex w-full flex-col gap-6" onSubmit={(e) => void handleConfigSave(e)}>
+                <form className="flex w-full flex-col gap-6" noValidate onSubmit={(e) => void handleConfigSave(e)}>
                     <Card className="gap-4 py-4">
                         <CardHeader className="px-4">
                             <CardTitle>Datos del proyecto</CardTitle>

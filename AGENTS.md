@@ -57,7 +57,7 @@ src/
 | `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin           |
 | `/dashboard/users`            | Users CRUD                                  | admin           |
 | `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
-| `/dashboard/settings`         | Configuración (placeholder)                 | any auth        |
+| `/dashboard/settings`         | Perfil + cambio de contraseña       | any auth        |
 
 Legacy: `/app` → `/dashboard`. Post-login: `billing` → `/dashboard/billing`; resto → `/dashboard`.
 
@@ -76,12 +76,13 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 7. Debounce search (~300ms) + **AbortSignal** on fetches.
 8. **Selects**: never native `<select>`. Short enums/filters → `AppSelect` / `ToolbarSelect`. Cliente/proyecto (searchable) → `EntitySelect` (Combobox).
 9. No Emails “Configuración” UI — SMTP is backend `.env` only.
+10. **Forms**: use `FormField` + `aria-invalid` on the control. Forms: **`noValidate`** (no browser bubble). On 422, `flattenFieldErrors(ApiError.fieldErrors)`; clear key on change. Toast via `toastError`. No Zod/RHF.
 
 ## `lib/` API map
 
 | File             | Domain                               |
 | ---------------- | ------------------------------------ |
-| `api.ts`         | `request()`, CSRF, auth helpers      |
+| `api.ts`         | `request()`, CSRF, auth helpers, `ApiError.fieldErrors` |
 | `toast.ts`       | `toastSuccess` / `toastError` (shadcn Base Toast) |
 | `users.ts`       | users CRUD + role labels             |
 | `clients.ts`     | clients CRUD                         |

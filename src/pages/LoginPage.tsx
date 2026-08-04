@@ -1,10 +1,15 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { FormField } from '@/components/form-field';
 import { useAuth } from '../auth/AuthContext';
-import { ApiError } from '../lib/api';
+import { ApiError, flattenFieldErrors } from '../lib/api';
 import { toastError } from '@/lib/toast';
 import { homePathForRole } from '@/lib/users';
+import { cn } from '@/lib/utils';
+
+const loginInputClass =
+    'h-12 w-full rounded-md border border-border bg-background/50 px-3 text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20 aria-invalid:border-destructive aria-invalid:ring-destructive/20';
 
 export function LoginPage() {
     const { login } = useAuth();
@@ -16,9 +21,26 @@ export function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    function clearFieldError(key: string) {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
+    }
 
     async function onSubmit(e: FormEvent) {
         e.preventDefault();
+        const local: Record<string, string> = {};
+        if (!email.trim()) local.email = 'El email es obligatorio.';
+        if (!password) local.password = 'La contraseña es obligatoria.';
+        if (Object.keys(local).length > 0) {
+            setFieldErrors(local);
+            return;
+        }
+        setFieldErrors({});
         setSubmitting(true);
 
         try {
@@ -27,6 +49,9 @@ export function LoginPage() {
         } catch (err) {
             if (err instanceof ApiError && err.status === 401) {
                 toastError('Credenciales inválidas. Revisa email y contraseña.');
+            } else if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+                toastError(err);
             } else {
                 toastError(err, 'No se pudo iniciar sesión.');
             }
@@ -70,12 +95,14 @@ export function LoginPage() {
                     </div>
                 </header>
 
-                <form onSubmit={onSubmit} className="relative space-y-6 px-6 pt-6 pb-8 sm:px-8">
+                <form onSubmit={onSubmit} noValidate className="relative space-y-6 px-6 pt-6 pb-8 sm:px-8">
                     <div className="space-y-5">
-                        <div className="space-y-2">
-                            <label htmlFor={emailId} className="text-sm font-semibold tracking-wide text-primary">
-                                Correo electrónico
-                            </label>
+                        <FormField
+                            id={emailId}
+                            label="Correo electrónico"
+                            error={fieldErrors.email}
+                            labelClassName="text-sm font-semibold tracking-wide text-primary"
+                        >
                             <input
                                 id={emailId}
                                 name="email"
@@ -84,16 +111,22 @@ export function LoginPage() {
                                 required
                                 maxLength={255}
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    clearFieldError('email');
+                                }}
                                 placeholder="tu@email.com"
-                                className="h-12 w-full rounded-md border border-border bg-background/50 px-3 text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className={loginInputClass}
+                                aria-invalid={!!fieldErrors.email}
                             />
-                        </div>
+                        </FormField>
 
-                        <div className="space-y-2">
-                            <label htmlFor={passwordId} className="text-sm font-semibold tracking-wide text-primary">
-                                Contraseña
-                            </label>
+                        <FormField
+                            id={passwordId}
+                            label="Contraseña"
+                            error={fieldErrors.password}
+                            labelClassName="text-sm font-semibold tracking-wide text-primary"
+                        >
                             <div className="relative">
                                 <input
                                     id={passwordId}
@@ -102,9 +135,13 @@ export function LoginPage() {
                                     autoComplete="current-password"
                                     required
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        clearFieldError('password');
+                                    }}
                                     placeholder="••••••••"
-                                    className="h-12 w-full rounded-md border border-border bg-background/50 px-3 pr-12 text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                    className={cn(loginInputClass, 'pr-12')}
+                                    aria-invalid={!!fieldErrors.password}
                                 />
                                 <button
                                     type="button"
@@ -115,7 +152,7 @@ export function LoginPage() {
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
-                        </div>
+                        </FormField>
                     </div>
 
                     <button
