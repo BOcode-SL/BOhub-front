@@ -16,6 +16,9 @@ export type HubUser = {
     email: string;
     role: UserRole;
     avatarUrl: string | null;
+    employeeName?: string | null;
+    dni?: string | null;
+    category?: string | null;
     createdAt?: string;
     updatedAt?: string;
 };
@@ -26,6 +29,9 @@ export type UserInput = {
     password?: string;
     role: UserRole;
     avatarUrl?: string | null;
+    employeeName?: string | null;
+    dni?: string | null;
+    category?: string | null;
 };
 
 export type UsersMeta = {

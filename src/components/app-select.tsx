@@ -24,6 +24,7 @@ type AppSelectProps = {
   className?: string
   disabled?: boolean
   required?: boolean
+  'aria-invalid'?: boolean
 }
 
 /** Short dropdowns (status, role, per_page, …). Not for searchable entity lists. */
@@ -37,6 +38,7 @@ export function AppSelect({
   className,
   disabled,
   required,
+  'aria-invalid': ariaInvalid,
 }: AppSelectProps) {
   return (
     <Select
@@ -48,6 +50,7 @@ export function AppSelect({
     >
       <SelectTrigger
         id={id}
+        aria-invalid={ariaInvalid || undefined}
         className={cn(
           'h-9 w-full min-w-0 rounded-md border-border bg-input/30 px-2.5 dark:bg-input/30 dark:hover:bg-input/50',
           className,

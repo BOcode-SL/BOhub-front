@@ -4,15 +4,20 @@ export type AuthUser = {
     email: string;
     role: string;
     avatarUrl?: string | null;
+    employeeName?: string | null;
+    dni?: string | null;
+    category?: string | null;
 };
 
 export class ApiError extends Error {
     status: number;
+    fieldErrors?: Record<string, string[]>;
 
-    constructor(message: string, status: number) {
+    constructor(message: string, status: number, fieldErrors?: Record<string, string[]>) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
+        this.fieldErrors = fieldErrors;
     }
 }
 
@@ -86,18 +91,30 @@ function buildHeaders(method: string, isJsonBody: boolean): Record<string, strin
 
 async function parseError(res: Response, data: unknown): Promise<ApiError> {
     let message = `Error ${res.status}`;
+    let fieldErrors: Record<string, string[]> | undefined;
     if (data && typeof data === 'object') {
         if ('message' in data && typeof (data as { message: unknown }).message === 'string') {
             message = (data as { message: string }).message;
         }
         if ('errors' in data && data.errors && typeof data.errors === 'object') {
-            const first = Object.values(data.errors as Record<string, string[]>)[0];
-            if (Array.isArray(first) && first[0]) {
-                message = first[0];
+            const raw = data.errors as Record<string, unknown>;
+            fieldErrors = {};
+            for (const [key, value] of Object.entries(raw)) {
+                if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+                    fieldErrors[key] = value as string[];
+                } else if (typeof value === 'string') {
+                    fieldErrors[key] = [value];
+                }
+            }
+            if (Object.keys(fieldErrors).length === 0) {
+                fieldErrors = undefined;
+            } else {
+                const first = Object.values(fieldErrors)[0];
+                if (first?.[0]) message = first[0];
             }
         }
     }
-    return new ApiError(message, res.status);
+    return new ApiError(message, res.status, fieldErrors);
 }
 
 export async function request<T>(path: string, { method = 'GET', body, signal, _retried }: RequestOptions = {}): Promise<T> {
@@ -204,6 +221,31 @@ export function apiErrorMessage(err: unknown): string {
     if (err instanceof ApiError) return err.message;
     if (err instanceof Error) return err.message;
     return 'Error inesperado';
+}
+
+/** Laravel 422 `errors` map from an ApiError (empty if none). */
+export function apiFieldErrors(err: unknown): Record<string, string[]> {
+    if (err instanceof ApiError && err.fieldErrors) return err.fieldErrors;
+    return {};
+}
+
+export function firstFieldError(
+    errors: Record<string, string[]> | Record<string, string> | undefined,
+    key: string,
+): string | undefined {
+    if (!errors) return undefined;
+    const v = errors[key];
+    if (Array.isArray(v)) return v[0];
+    return typeof v === 'string' ? v : undefined;
+}
+
+/** Flatten Laravel errors to first message per field (form state). */
+export function flattenFieldErrors(errors: Record<string, string[]>): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [key, msgs] of Object.entries(errors)) {
+        if (msgs?.[0]) out[key] = msgs[0];
+    }
+    return out;
 }
 
 export { getBaseUrl };

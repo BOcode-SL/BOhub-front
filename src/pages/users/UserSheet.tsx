@@ -13,6 +13,9 @@ const emptyForm: UserInput = {
     password: '',
     role: 'employee',
     avatarUrl: '',
+    employeeName: '',
+    dni: '',
+    category: '',
 };
 
 function toForm(u: HubUser): UserInput {
@@ -22,6 +25,9 @@ function toForm(u: HubUser): UserInput {
         password: '',
         role: u.role,
         avatarUrl: u.avatarUrl ?? '',
+        employeeName: u.employeeName ?? '',
+        dni: u.dni ?? '',
+        category: u.category ?? '',
     };
 }
 
@@ -70,6 +76,9 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                 email: form.email.trim(),
                 role: form.role,
                 avatarUrl: form.avatarUrl?.toString().trim() || null,
+                employeeName: form.employeeName?.toString().trim() || null,
+                dni: form.dni?.toString().trim() || null,
+                category: form.category?.toString().trim() || null,
             };
             if (mode === 'add' || pwd.length > 0) {
                 payload.password = pwd;
@@ -164,6 +173,44 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             value={form.avatarUrl ?? ''}
                             onChange={(e) => setField('avatarUrl', e.target.value)}
                             placeholder="https://…"
+                            className="bg-background"
+                        />
+                    </div>
+
+                    <div className="space-y-2 border-t border-border pt-4">
+                        <p className="text-sm font-medium text-foreground">Datos de nómina</p>
+                        <p className="text-xs text-muted-foreground">Se usan al crear nóminas desde el selector de empleado.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="user-employee-name">Nombre empleado</Label>
+                        <Input
+                            id="user-employee-name"
+                            maxLength={255}
+                            value={form.employeeName ?? ''}
+                            onChange={(e) => setField('employeeName', e.target.value)}
+                            placeholder="Nombre y apellidos"
+                            className="bg-background"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="user-dni">DNI</Label>
+                        <Input
+                            id="user-dni"
+                            maxLength={32}
+                            value={form.dni ?? ''}
+                            onChange={(e) => setField('dni', e.target.value)}
+                            placeholder="99999999R"
+                            className="bg-background"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="user-category">Categoría</Label>
+                        <Input
+                            id="user-category"
+                            maxLength={120}
+                            value={form.category ?? ''}
+                            onChange={(e) => setField('category', e.target.value)}
+                            placeholder="Categoría de nómina"
                             className="bg-background"
                         />
                     </div>

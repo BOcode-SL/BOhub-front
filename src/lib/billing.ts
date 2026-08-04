@@ -337,7 +337,7 @@ export const PAYROLL_STATUSES = ['pending', 'paid'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
 export const PAYROLL_STATUS_LABELS: Record<PayrollStatus, string> = {
     pending: 'Pendiente',
-    paid: 'Pagado',
+    paid: 'Pagada',
 };
 
 export type Payroll = {
@@ -345,8 +345,6 @@ export type Payroll = {
     employeeName: string;
     nif?: string | null;
     category?: string | null;
-    socialSecurityNumber?: string | null;
-    iban?: string | null;
     month: number;
     year: number;
     baseSalary: string;
@@ -355,7 +353,7 @@ export type Payroll = {
     irpfRetained?: string | null;
     status: PayrollStatus;
     paymentDate?: string | null;
-    notes?: string | null;
+    invoiceUrl?: string | null;
     totalCost?: string;
 };
 
@@ -363,8 +361,6 @@ export type PayrollInput = {
     employeeName: string;
     nif?: string | null;
     category?: string | null;
-    socialSecurityNumber?: string | null;
-    iban?: string | null;
     month: number;
     year: number;
     baseSalary: number | string;
@@ -373,7 +369,7 @@ export type PayrollInput = {
     irpfRetained?: number | string | null;
     status: PayrollStatus;
     paymentDate?: string | null;
-    notes?: string | null;
+    invoiceUrl?: string | null;
 };
 
 export async function listPayrolls(
