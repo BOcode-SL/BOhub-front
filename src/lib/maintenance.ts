@@ -76,7 +76,7 @@ export type MaintenanceMeta = {
     to: number | null;
 };
 
-/** starts_on + 1 month|year − 1 day (inclusive). Keep in sync with back suggestEndsOn. */
+/** starts_on + 1 month|year (mismo día). Keep in sync with back suggestEndsOn. */
 export function suggestEndsOn(startsOn: string, period: MaintenancePeriodKind): string {
     const [y, m, d] = startsOn.split('-').map(Number);
     if (!y || !m || !d) return startsOn;
@@ -86,7 +86,6 @@ export function suggestEndsOn(startsOn: string, period: MaintenancePeriodKind): 
     } else {
         start.setUTCFullYear(start.getUTCFullYear() + 1);
     }
-    start.setUTCDate(start.getUTCDate() - 1);
     return start.toISOString().slice(0, 10);
 }
 

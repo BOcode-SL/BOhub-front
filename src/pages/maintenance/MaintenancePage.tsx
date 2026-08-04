@@ -248,7 +248,7 @@ export function MaintenancePage() {
                             ]}
                             value={urlPeriod || null}
                             onValueChange={(value) => patch({ period: value })}
-                            className="min-w-36"
+                            className="min-w-40"
                         />
 
                         <ToolbarField id="maint-client" label="Cliente">

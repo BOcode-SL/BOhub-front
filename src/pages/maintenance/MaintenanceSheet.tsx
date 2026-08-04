@@ -113,7 +113,7 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
             return;
         }
         setForm(toForm(period));
-        setEndsTouched(true); // edit: don't auto-overwrite existing ends
+        setEndsTouched(true);
     }, [open, mode, period]);
 
     function clearFieldError(key: string) {
@@ -174,7 +174,11 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
             <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
                 <SheetHeader>
                     <SheetTitle>{mode === 'add' ? 'Añadir mantenimiento' : 'Editar mantenimiento'}</SheetTitle>
-                    <SheetDescription>Mensual o anual. Contacto = datos del cliente. Renovar = nuevo periodo.</SheetDescription>
+                    <SheetDescription>
+                        {mode === 'add'
+                            ? 'Mensual o anual. Al vencer sin cancelar se autorenueva y avisa a soporte.'
+                            : 'Cambiar fechas o notas. Cancelar el periodo desde la lista (no se renovará).'}
+                    </SheetDescription>
                 </SheetHeader>
 
                 <form
@@ -214,6 +218,7 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                                     period: value as MaintenancePeriodKind,
                                 })
                             }
+                            className="w-full"
                             aria-invalid={!!fieldErrors.period}
                         />
                     </FormField>
