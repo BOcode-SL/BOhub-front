@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Eye, Folder, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,13 +11,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton';
 import { listClientOptions } from '@/lib/clients';
 import {
+    PROJECT_PRIORITY_BADGE_CLASS,
     PROJECT_PRIORITY_LABELS,
     PROJECT_STATUSES,
+    PROJECT_STATUS_BADGE_CLASS,
     PROJECT_STATUS_LABELS,
     PROJECT_TYPE_LABELS,
     createProject,
     deleteProject,
     listProjects,
+    syncProjectsFromJiraBatch,
     updateProject,
     type Project,
     type ProjectInput,
@@ -41,10 +45,8 @@ function parsePerPage(value: string | null): number {
     return 15;
 }
 
-function formatDates(start: string | null, end: string | null): string {
-    if (!start && !end) return '—';
-    if (start && end) return `${start} → ${end}`;
-    return start || end || '—';
+function formatEndDate(end: string | null): string {
+    return end || '—';
 }
 
 export function ProjectsPage() {
@@ -76,6 +78,19 @@ export function ProjectsPage() {
         let cancelled = false;
         void listClientOptions().then((rows) => {
             if (!cancelled) setClients(rows);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // ponytail: background Jira sync — refetch list only when rows changed
+    useEffect(() => {
+        let cancelled = false;
+        void syncProjectsFromJiraBatch().then((result) => {
+            if (!cancelled && result && result.updated > 0) {
+                setReloadTick((n) => n + 1);
+            }
         });
         return () => {
             cancelled = true;
@@ -302,7 +317,7 @@ export function ProjectsPage() {
                                 <TableHead>Tipo</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead>Prioridad</TableHead>
-                                <TableHead>Fechas</TableHead>
+                                <TableHead>Fin</TableHead>
                                 <TableHead className="w-12" />
                             </TableRow>
                         </TableHeader>
@@ -348,14 +363,23 @@ export function ProjectsPage() {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">{project.client?.name ?? '—'}</TableCell>
                                     <TableCell className="text-muted-foreground">{PROJECT_TYPE_LABELS[project.type]}</TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {PROJECT_STATUS_LABELS[project.status]}
+                                    <TableCell>
+                                        <Badge variant="outline" className={PROJECT_STATUS_BADGE_CLASS[project.status]}>
+                                            {PROJECT_STATUS_LABELS[project.status]}
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {PROJECT_PRIORITY_LABELS[project.priority]}
+                                    <TableCell>
+                                        <Badge
+                                            variant="outline"
+                                            className={PROJECT_PRIORITY_BADGE_CLASS[project.priority]}
+                                        >
+                                            {PROJECT_PRIORITY_LABELS[project.priority]}
+                                        </Badge>
                                     </TableCell>
-                                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                                        {formatDates(project.startDate, project.endDate)}
+                                    <TableCell>
+                                        <Badge variant="outline" className="whitespace-nowrap">
+                                            {formatEndDate(project.endDate)}
+                                        </Badge>
                                     </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
@@ -451,7 +475,10 @@ export function ProjectsPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Eliminar proyecto</DialogTitle>
-                        <DialogDescription>¿Eliminar «{deleteTarget?.name}»? Esta acción hace soft delete.</DialogDescription>
+                        <DialogDescription>
+                            ¿Eliminar «{deleteTarget?.name}» de BOhub? Soft delete local. La tarea vinculada en Jira no se
+                            elimina ni se modifica.
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button

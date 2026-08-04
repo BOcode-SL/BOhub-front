@@ -97,7 +97,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 
 ## Feature notes
 
-- **Projects**: detail — employee: Resumen + Config; admin: + Horas + Pagos. Create requires Jira space + create|link. Sync on open; status/priority read-only when linked. `VITE_JIRA_BASE_URL` optional link fallback (no token).
+- **Projects**: detail — employee: Resumen + Config; admin: + Horas + Pagos. Create requires Jira space + create|link. Sync on open + background batch on Home/list (60s throttle). Status/priority read-only when linked. `VITE_JIRA_BASE_URL` optional link fallback (no token).
 - **Billing**: external invoice fields are generic (not Odoo-branded). Summary default = current quarter.
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.

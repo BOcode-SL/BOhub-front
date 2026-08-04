@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getHomeDashboard, type HomeDeadline, type HomeTopProject } from '@/lib/dashboard';
 import { toastError } from '@/lib/toast';
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projects';
@@ -22,6 +22,7 @@ export type HomeDashboard = {
     deadlines: HomeDeadline[];
     deadlinesCount: number;
     loading: boolean;
+    refresh: () => void;
 };
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
@@ -43,6 +44,8 @@ export function useHomeDashboard(): HomeDashboard {
     const [deadlines, setDeadlines] = useState<HomeDeadline[]>([]);
     const [deadlinesCount, setDeadlinesCount] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [reloadTick, setReloadTick] = useState(0);
+    const refresh = useCallback(() => setReloadTick((n) => n + 1), []);
 
     useEffect(() => {
         const ac = new AbortController();
@@ -82,7 +85,7 @@ export function useHomeDashboard(): HomeDashboard {
             cancelled = true;
             ac.abort();
         };
-    }, []);
+    }, [reloadTick]);
 
     const statusSlices = useMemo(
         (): StatusSlice[] =>
@@ -105,5 +108,6 @@ export function useHomeDashboard(): HomeDashboard {
         deadlines,
         deadlinesCount,
         loading,
+        refresh,
     };
 }

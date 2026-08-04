@@ -132,6 +132,23 @@ export const PROJECT_PRIORITY_LABELS: Record<ProjectPriority, string> = {
     urgent: 'Urgente',
 };
 
+/** Soft badge tints for dark BOcode UI (list/detail tables). */
+export const PROJECT_STATUS_BADGE_CLASS: Record<ProjectStatus, string> = {
+    todo: 'border-transparent bg-muted text-muted-foreground',
+    in_progress: 'border-transparent bg-primary/20 text-primary',
+    in_review: 'border-transparent bg-sky-500/20 text-sky-300',
+    blocked: 'border-transparent bg-destructive/20 text-destructive',
+    done: 'border-transparent bg-slate-500/25 text-slate-300',
+    maintenance: 'border-transparent bg-amber-500/20 text-amber-300',
+};
+
+export const PROJECT_PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {
+    low: 'border-transparent bg-muted text-muted-foreground',
+    medium: 'border-transparent bg-sky-500/20 text-sky-300',
+    high: 'border-transparent bg-amber-500/20 text-amber-300',
+    urgent: 'border-transparent bg-destructive/20 text-destructive',
+};
+
 export async function listProjects(
     params: {
         search?: string;
@@ -202,6 +219,47 @@ export async function listProjectActivities(
 
 export async function syncProjectJira(id: number): Promise<Project> {
     return request<Project>(`/api/projects/${id}/sync-jira`, { method: 'POST' });
+}
+
+export type JiraBatchSyncResult = {
+    synced: number;
+    updated: number;
+    failed: number;
+    skipped?: boolean;
+};
+
+const JIRA_BATCH_THROTTLE_KEY = 'bohub_jira_batch_at';
+const JIRA_BATCH_THROTTLE_MS = 60_000;
+
+/** True if Home/list batch synced within the last minute (skip redundant detail sync). */
+export function wasJiraBatchRecent(): boolean {
+    if (typeof sessionStorage === 'undefined') return false;
+    const at = Number(sessionStorage.getItem(JIRA_BATCH_THROTTLE_KEY) || 0);
+    return Number.isFinite(at) && Date.now() - at < JIRA_BATCH_THROTTLE_MS;
+}
+
+/** Fire-and-forget friendly. Throttled 60s via sessionStorage. Failures → null (silent). */
+export async function syncProjectsFromJiraBatch(opts?: {
+    force?: boolean;
+}): Promise<JiraBatchSyncResult | null> {
+    if (!opts?.force && typeof sessionStorage !== 'undefined') {
+        const at = Number(sessionStorage.getItem(JIRA_BATCH_THROTTLE_KEY) || 0);
+        if (Number.isFinite(at) && Date.now() - at < JIRA_BATCH_THROTTLE_MS) {
+            return null;
+        }
+    }
+    try {
+        const result = await request<JiraBatchSyncResult>('/api/projects/sync-jira-batch', {
+            method: 'POST',
+        });
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(JIRA_BATCH_THROTTLE_KEY, String(Date.now()));
+        }
+        return result;
+    } catch {
+        // ponytail: background sync — don't toast flaky Jira
+        return null;
+    }
 }
 
 export async function createProject(body: ProjectInput): Promise<Project> {

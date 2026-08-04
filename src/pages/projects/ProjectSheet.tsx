@@ -262,13 +262,13 @@ export function ProjectSheet({
                             <div className="grid gap-1">
                                 <span className="text-muted-foreground">Estado</span>
                                 <p className="rounded-md border border-border bg-muted px-3 py-2">
-                                    {PROJECT_STATUS_LABELS[form.status]} · Jira
+                                    {PROJECT_STATUS_LABELS[form.status]}
                                 </p>
                             </div>
                             <div className="grid gap-1">
                                 <span className="text-muted-foreground">Prioridad</span>
                                 <p className="rounded-md border border-border bg-muted px-3 py-2">
-                                    {PROJECT_PRIORITY_LABELS[form.priority]} · Jira
+                                    {PROJECT_PRIORITY_LABELS[form.priority]}
                                 </p>
                             </div>
                         </div>
