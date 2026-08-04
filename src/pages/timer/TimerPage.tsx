@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton';
 import { listProjectOptions } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { cn } from '@/lib/utils';
+import { EntitySelect } from '@/components/entity-select';
+import { ToolbarField, toolbarControlClass } from '@/components/toolbar-field';
 import {
     createHour,
     deleteHour,
@@ -30,9 +33,6 @@ import { TimerTabs } from './TimerTabs';
 
 // ponytail: keep recharts off the Mis horas / Equipo path until Analytics opens
 const TimerAnalytics = lazy(() => import('./TimerAnalytics').then((m) => ({ default: m.TimerAnalytics })));
-
-const selectClass =
-    'h-9 w-full rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 function today(): string {
     return new Date().toISOString().slice(0, 10);
@@ -395,20 +395,15 @@ export function TimerPage() {
                 <div className="grid w-full max-w-xl gap-3 sm:grid-cols-2">
                     <div className="grid gap-2">
                         <Label htmlFor="live-project">Proyecto</Label>
-                        <select
+                        <EntitySelect
                             id="live-project"
-                            value={liveProjectId}
-                            onChange={(e) => setLiveProjectId(e.target.value ? Number(e.target.value) : '')}
-                            className={selectClass}
+                            items={projects}
+                            value={liveProjectId || null}
+                            onValueChange={(value) => setLiveProjectId(value ?? '')}
+                            allowClear
+                            placeholder="Seleccionar…"
                             disabled={busy || saveOpen}
-                        >
-                            <option value="">Seleccionar…</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="live-desc">Descripción</Label>
@@ -494,86 +489,69 @@ export function TimerPage() {
                     description={tab === 'team' ? 'Horas registradas por el equipo.' : 'Historistro de tus horas trabajadas.'}
                     icon={Clock}
                     above={<TimerTabs tab={tab} isAdmin={isAdmin} onChange={switchTab} />}
+                    actions={
+                        tab === 'mine' ? (
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setManualProjectId('');
+                                    setManualHours('0');
+                                    setManualMinutes('30');
+                                    setManualSeconds('0');
+                                    setManualDate(today());
+                                    setManualDesc('');
+                                    setManualOpen(true);
+                                }}
+                            >
+                                <Plus />
+                                Añadir
+                            </Button>
+                        ) : null
+                    }
                     toolbar={
-                        <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end sm:justify-between">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span className="shrink-0">Proyecto</span>
-                                    <select
-                                        value={filters.projectId}
-                                        onChange={(e) =>
-                                            patchFilters({
-                                                projectId: e.target.value ? Number(e.target.value) : '',
-                                            })
-                                        }
-                                        className={selectClass + ' w-auto min-w-40'}
-                                    >
-                                        <option value="">Todos</option>
-                                        {projects.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                {tab === 'team' && (
-                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <span className="shrink-0">Usuario</span>
-                                        <select
-                                            value={filters.userId}
-                                            onChange={(e) =>
-                                                patchFilters({
-                                                    userId: e.target.value ? Number(e.target.value) : '',
-                                                })
-                                            }
-                                            className={selectClass + ' w-auto min-w-40'}
-                                        >
-                                            <option value="">Todos</option>
-                                            {teamUsers.map((u) => (
-                                                <option key={u.id} value={u.id}>
-                                                    {u.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                )}
-                                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span className="shrink-0">Desde</span>
-                                    <Input
-                                        type="date"
-                                        value={filters.from}
-                                        onChange={(e) => patchFilters({ from: e.target.value })}
-                                        className="h-9 w-auto bg-input/30"
+                        <div className="flex flex-wrap items-end gap-2 py-1">
+                            <ToolbarField id="timer-project" label="Proyecto">
+                                <EntitySelect
+                                    id="timer-project"
+                                    items={projects}
+                                    value={filters.projectId || null}
+                                    onValueChange={(value) => patchFilters({ projectId: value ?? '' })}
+                                    allowClear
+                                    placeholder="Todos"
+                                    className="min-w-40"
+                                />
+                            </ToolbarField>
+                            {tab === 'team' && (
+                                <ToolbarField id="timer-user" label="Usuario">
+                                    <EntitySelect
+                                        id="timer-user"
+                                        items={teamUsers}
+                                        value={filters.userId || null}
+                                        onValueChange={(value) => patchFilters({ userId: value ?? '' })}
+                                        allowClear
+                                        placeholder="Todos"
+                                        className="min-w-40"
                                     />
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span className="shrink-0">Hasta</span>
-                                    <Input
-                                        type="date"
-                                        value={filters.to}
-                                        onChange={(e) => patchFilters({ to: e.target.value })}
-                                        className="h-9 w-auto bg-input/30"
-                                    />
-                                </label>
-                            </div>
-                            {tab === 'mine' && (
-                                <Button
-                                    type="button"
-                                    className="w-full sm:w-auto"
-                                    onClick={() => {
-                                        setManualProjectId('');
-                                        setManualHours('0');
-                                        setManualMinutes('30');
-                                        setManualSeconds('0');
-                                        setManualDate(today());
-                                        setManualDesc('');
-                                        setManualOpen(true);
-                                    }}
-                                >
-                                    <Plus />
-                                    Añadir
-                                </Button>
+                                </ToolbarField>
                             )}
+                            <ToolbarField id="timer-from" label="Desde">
+                                <Input
+                                    id="timer-from"
+                                    type="date"
+                                    value={filters.from}
+                                    onChange={(e) => patchFilters({ from: e.target.value })}
+                                    className={cn(toolbarControlClass, 'w-auto')}
+                                />
+                            </ToolbarField>
+                            <ToolbarField id="timer-to" label="Hasta">
+                                <Input
+                                    id="timer-to"
+                                    type="date"
+                                    value={filters.to}
+                                    onChange={(e) => patchFilters({ to: e.target.value })}
+                                    className={cn(toolbarControlClass, 'w-auto')}
+                                />
+                            </ToolbarField>
                         </div>
                     }
                 >
@@ -605,20 +583,14 @@ export function TimerPage() {
                     <p className="font-mono text-3xl font-semibold text-primary tabular-nums">{formatDuration(frozenSeconds)}</p>
                     <div className="grid gap-3">
                         <div className="grid gap-2">
-                            <Label>Proyecto *</Label>
-                            <select
-                                value={saveProjectId}
-                                required
-                                onChange={(e) => setSaveProjectId(e.target.value ? Number(e.target.value) : '')}
-                                className={selectClass}
-                            >
-                                <option value="">Selecciona proyecto…</option>
-                                {projects.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <Label htmlFor="save-project">Proyecto *</Label>
+                            <EntitySelect
+                                id="save-project"
+                                items={projects}
+                                value={saveProjectId || null}
+                                onValueChange={(value) => setSaveProjectId(value ?? '')}
+                                placeholder="Selecciona proyecto…"
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Descripción</Label>
@@ -654,20 +626,14 @@ export function TimerPage() {
                     </DialogHeader>
                     <form id="manual-hour-form" className="grid gap-3" onSubmit={(e) => void handleManual(e)}>
                         <div className="grid gap-2">
-                            <Label>Proyecto</Label>
-                            <select
-                                required
-                                value={manualProjectId}
-                                onChange={(e) => setManualProjectId(e.target.value ? Number(e.target.value) : '')}
-                                className={selectClass}
-                            >
-                                <option value="">Seleccionar…</option>
-                                {projects.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <Label htmlFor="manual-project">Proyecto</Label>
+                            <EntitySelect
+                                id="manual-project"
+                                items={projects}
+                                value={manualProjectId || null}
+                                onValueChange={(value) => setManualProjectId(value ?? '')}
+                                placeholder="Seleccionar…"
+                            />
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="grid gap-2">

@@ -25,12 +25,11 @@ import {
     type MaintenanceStatus,
 } from '@/lib/maintenance';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { EntitySelect } from '@/components/entity-select';
+import { ToolbarField, ToolbarSelect } from '@/components/toolbar-field';
 import { MaintenanceSheet } from '@/pages/maintenance/MaintenanceSheet';
 
 const PER_PAGE = 15;
-const selectClass =
-    'h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
-
 function parsePage(v: string | null) {
     const n = Number(v);
     return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
@@ -170,124 +169,112 @@ export function MaintenancePage() {
                 title="Mantenimientos"
                 description="Cola de contratos de soporte por vencimiento. Historial intacto."
                 icon={Wrench}
+                actions={
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            setSheetMode('add');
+                            setEditing(null);
+                            setSheetOpen(true);
+                        }}
+                    >
+                        <Plus />
+                        Añadir mantenimiento
+                    </Button>
+                }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-                        <div className="flex flex-wrap items-end gap-2">
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                Estado
-                                <select
-                                    value={urlStatus || (urlScope === 'open' ? 'open' : '')}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        if (v === 'open') {
-                                            patch({ status: null, scope: 'open' });
-                                        } else if (v === '') {
-                                            patch({ status: null, scope: null });
-                                        } else {
-                                            patch({ status: v, scope: null });
-                                        }
-                                    }}
-                                    className={selectClass + ' min-w-40'}
-                                >
-                                    <option value="open">Abiertos (prog. + activos)</option>
-                                    <option value="">Todos</option>
-                                    {MAINTENANCE_STATUSES.map((s) => (
-                                        <option key={s} value={s}>
-                                            {MAINTENANCE_STATUS_LABELS[s]}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                Periodo
-                                <select
-                                    value={urlPeriod}
-                                    onChange={(e) => patch({ period: e.target.value || null })}
-                                    className={selectClass + ' min-w-36'}
-                                >
-                                    <option value="">Todos</option>
-                                    {MAINTENANCE_PERIODS.map((p) => (
-                                        <option key={p} value={p}>
-                                            {MAINTENANCE_PERIOD_LABELS[p]}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                Cliente
-                                <select
-                                    value={urlClient}
-                                    onChange={(e) => patch({ client_id: e.target.value || null })}
-                                    className={selectClass + ' min-w-40'}
-                                >
-                                    <option value="">Todos</option>
-                                    {clients.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                Proyecto
-                                <select
-                                    value={urlProject}
-                                    onChange={(e) => patch({ project_id: e.target.value || null })}
-                                    className={selectClass + ' min-w-40'}
-                                >
-                                    <option value="">Todos</option>
-                                    {projects.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <div className="flex gap-1 pb-0.5">
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-                                        'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-                                        urlEnding === '7'
-                                            ? 'bg-sidebar-accent font-medium text-primary'
-                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                    )}
-                                    onClick={() => patch({ ending_within: urlEnding === '7' ? null : '7' })}
-                                >
-                                    Vence en 7d
-                                </button>
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-                                        'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-                                        urlEnding === '30'
-                                            ? 'bg-sidebar-accent font-medium text-primary'
-                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                    )}
-                                    onClick={() => patch({ ending_within: urlEnding === '30' ? null : '30' })}
-                                >
-                                    Vence en 30d
-                                </button>
-                            </div>
-                        </div>
-                        <Button
-                            type="button"
-                            className="w-full sm:w-auto"
-                            onClick={() => {
-                                setSheetMode('add');
-                                setEditing(null);
-                                setSheetOpen(true);
+                    <div className="flex flex-wrap items-end gap-2 py-1">
+                        <ToolbarSelect
+                            id="maint-status"
+                            label="Estado"
+                            items={[
+                                { label: 'Abiertos (prog. + activos)', value: 'open' },
+                                { label: 'Todos', value: null },
+                                ...MAINTENANCE_STATUSES.map((status) => ({
+                                    label: MAINTENANCE_STATUS_LABELS[status],
+                                    value: status,
+                                })),
+                            ]}
+                            value={urlStatus || (urlScope === 'open' ? 'open' : null)}
+                            onValueChange={(value) => {
+                                if (value === 'open') {
+                                    patch({ status: null, scope: 'open' });
+                                } else if (value == null) {
+                                    patch({ status: null, scope: null });
+                                } else {
+                                    patch({ status: value, scope: null });
+                                }
                             }}
-                        >
-                            <Plus />
-                            Añadir mantenimiento
-                        </Button>
+                            className="min-w-40"
+                        />
+
+                        <ToolbarSelect
+                            id="maint-period"
+                            label="Periodo"
+                            items={[
+                                { label: 'Todos', value: null },
+                                ...MAINTENANCE_PERIODS.map((period) => ({
+                                    label: MAINTENANCE_PERIOD_LABELS[period],
+                                    value: period,
+                                })),
+                            ]}
+                            value={urlPeriod || null}
+                            onValueChange={(value) => patch({ period: value })}
+                            className="min-w-36"
+                        />
+
+                        <ToolbarField id="maint-client" label="Cliente">
+                            <EntitySelect
+                                id="maint-client"
+                                items={clients}
+                                value={urlClient ? Number(urlClient) : null}
+                                onValueChange={(value) => patch({ client_id: value == null ? null : String(value) })}
+                                allowClear
+                                placeholder="Todos"
+                                className="min-w-40"
+                            />
+                        </ToolbarField>
+
+                        <ToolbarField id="maint-project" label="Proyecto">
+                            <EntitySelect
+                                id="maint-project"
+                                items={projects}
+                                value={urlProject ? Number(urlProject) : null}
+                                onValueChange={(value) => patch({ project_id: value == null ? null : String(value) })}
+                                allowClear
+                                placeholder="Todos"
+                                className="min-w-40"
+                            />
+                        </ToolbarField>
+
+                        <div className="flex gap-1 pb-0.5">
+                            <button
+                                type="button"
+                                className={cn(
+                                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                                    urlEnding === '7'
+                                        ? 'bg-sidebar-accent font-medium text-primary'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                )}
+                                onClick={() => patch({ ending_within: urlEnding === '7' ? null : '7' })}
+                            >
+                                Vence en 7d
+                            </button>
+                            <button
+                                type="button"
+                                className={cn(
+                                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                                    urlEnding === '30'
+                                        ? 'bg-sidebar-accent font-medium text-primary'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                )}
+                                onClick={() => patch({ ending_within: urlEnding === '30' ? null : '30' })}
+                            >
+                                Vence en 30d
+                            </button>
+                        </div>
                     </div>
                 }
             >

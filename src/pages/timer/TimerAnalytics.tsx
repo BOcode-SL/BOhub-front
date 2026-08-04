@@ -11,6 +11,7 @@ import {
     type ChartConfig,
 } from '@/components/ui/chart';
 import { ListPageShell } from '@/components/list-page-shell';
+import { EntitySelect } from '@/components/entity-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listProjects, type Project } from '@/lib/projects';
 import { toastError } from '@/lib/toast';
@@ -21,9 +22,6 @@ import {
     type HoursAnalyticsProject,
 } from '@/lib/timer';
 import { CHART_FALLBACK_COLORS, daysInMonth, formatHoursFromSeconds, monthLabelEs, normalizeHexColor } from '@/lib/time';
-
-const selectClass =
-    'h-9 rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 type SeriesMeta = {
     key: string;
@@ -188,21 +186,20 @@ export function TimerAnalytics({ above }: Props) {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="shrink-0">Proyecto</span>
-                        <select
-                            value={projectFilter}
-                            onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : '')}
-                            className={selectClass + ' min-w-48'}
-                        >
-                            <option value="">Todos</option>
-                            {projectOptions.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <label htmlFor="analytics-project" className="shrink-0">
+                            Proyecto
+                        </label>
+                        <EntitySelect
+                            id="analytics-project"
+                            items={projectOptions}
+                            value={projectFilter || null}
+                            onValueChange={(value) => setProjectFilter(value ?? '')}
+                            allowClear
+                            placeholder="Todos"
+                            className="min-w-48"
+                        />
+                    </div>
                 </div>
             }
         >

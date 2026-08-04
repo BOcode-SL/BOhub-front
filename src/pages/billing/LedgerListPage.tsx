@@ -26,13 +26,11 @@ import {
     type LedgerStatus,
 } from '@/lib/billing';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { useAuth } from '@/auth/AuthContext';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
-const selectClass =
-    'h-9 rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
-
 function parsePage(v: string | null) {
     const n = Number(v);
     return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
@@ -236,8 +234,23 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 description={description}
                 icon={icon}
                 above={<BillingTabs />}
+                actions={
+                    canMutate ? (
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                setSheetMode('add');
+                                setEditing(null);
+                                setSheetOpen(true);
+                            }}
+                        >
+                            <Plus />
+                            {addLabel}
+                        </Button>
+                    ) : null
+                }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
                         <div className="relative min-w-0 flex-1">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -248,52 +261,29 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 aria-label={searchAriaLabel}
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Estado</span>
-                                <select
-                                    value={urlStatus}
-                                    onChange={(e) => patch({ status: e.target.value || null, page: '1' })}
-                                    className={selectClass}
-                                    aria-label="Filtrar estado"
-                                >
-                                    <option value="">Todos</option>
-                                    {LEDGER_STATUSES.map((s) => (
-                                        <option key={s} value={s}>
-                                            {LEDGER_STATUS_LABELS[s]}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Por página</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => patch({ per_page: e.target.value, page: '1' })}
-                                    className={selectClass}
-                                    aria-label="Por página"
-                                >
-                                    {PER_PAGE_OPTIONS.map((n) => (
-                                        <option key={n} value={n}>
-                                            {n}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            {canMutate && (
-                                <Button
-                                    type="button"
-                                    className="w-full sm:w-auto"
-                                    onClick={() => {
-                                        setSheetMode('add');
-                                        setEditing(null);
-                                        setSheetOpen(true);
-                                    }}
-                                >
-                                    <Plus />
-                                    {addLabel}
-                                </Button>
-                            )}
+                        <div className="flex flex-wrap items-end gap-2">
+                            <ToolbarSelect
+                                id="ledger-status"
+                                label="Estado"
+                                items={[
+                                    { label: 'Todos', value: null },
+                                    ...LEDGER_STATUSES.map((status) => ({
+                                        label: LEDGER_STATUS_LABELS[status],
+                                        value: status,
+                                    })),
+                                ]}
+                                value={urlStatus || null}
+                                onValueChange={(value) => patch({ status: value, page: '1' })}
+                            />
+                            <ToolbarSelect
+                                id="ledger-per-page"
+                                label="Por página"
+                                items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+                                value={String(perPage)}
+                                onValueChange={(value) => {
+                                    if (value) patch({ per_page: value, page: '1' });
+                                }}
+                            />
                         </div>
                     </div>
                 }

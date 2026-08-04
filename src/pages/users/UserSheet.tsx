@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AppSelect } from '@/components/app-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -144,18 +145,15 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                     )}
                     <div className="space-y-2">
                         <Label htmlFor="user-role">Rol *</Label>
-                        <select
+                        <AppSelect
                             id="user-role"
+                            items={USER_ROLES.map((role) => ({
+                                label: USER_ROLE_LABELS[role],
+                                value: role,
+                            }))}
                             value={form.role}
-                            onChange={(e) => setField('role', e.target.value as UserRole)}
-                            className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        >
-                            {USER_ROLES.map((r) => (
-                                <option key={r} value={r}>
-                                    {USER_ROLE_LABELS[r]}
-                                </option>
-                            ))}
-                        </select>
+                            onValueChange={(value) => setField('role', value as UserRole)}
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="user-avatar">URL avatar</Label>

@@ -63,6 +63,30 @@ toastError('Selecciona un proyecto.')
 
 Mount `<Toaster />` once in `App.tsx`. Prefer toasts in parent `handleSave` / `handleDelete`. Do **not** add inline `role="alert"` banners for API feedback.
 
+## Selects
+
+Never use native `<select>`.
+
+| Component | When |
+| --- | --- |
+| `AppSelect` | Short enums: status, role, type, priority, period, year, quarter, per_page, verifactu… |
+| `ToolbarSelect` | Same as AppSelect + muted `FieldLabel` above (list toolbars) |
+| `EntitySelect` | Cliente / proyecto (and similar): Combobox with search, SelectTrigger look |
+
+```tsx
+import { AppSelect } from '@/components/app-select'
+import { EntitySelect } from '@/components/entity-select'
+import { ToolbarSelect } from '@/components/toolbar-field'
+
+const items = [
+  { label: 'Todos', value: null },
+  { label: 'Activo', value: 'active' },
+]
+
+<AppSelect items={items} value={status} onValueChange={setStatus} />
+<EntitySelect value={clientId} onValueChange={setClientId} items={clients} allowClear placeholder="Todos" />
+```
+
 ## Emails
 
 Only **Plantillas** + **Mensajes**. No settings tab (SMTP is server `.env`).

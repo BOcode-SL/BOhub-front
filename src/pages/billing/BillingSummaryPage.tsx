@@ -6,10 +6,8 @@ import { ListPageShell } from '@/components/list-page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { currentQuarter, formatMoney, getBillingSummary, type BillingSummary } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
+import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
-
-const selectClass =
-    'h-9 rounded-md border border-border bg-input/30 px-2 text-sm text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 function parseYear(v: string | null): number {
     const n = Number(v);
@@ -75,34 +73,31 @@ export function BillingSummaryPage() {
             icon={ReceiptEuro}
             above={<BillingTabs />}
             toolbar={
-                <div className="flex flex-wrap items-center gap-2 py-1">
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        Año
-                        <select value={year} onChange={(e) => setPeriod(Number(e.target.value), quarter)} className={selectClass}>
-                            {years.map((y) => (
-                                <option key={y} value={y}>
-                                    {y}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        Trimestre
-                        <select
-                            value={quarter === 'all' ? 'all' : String(quarter)}
-                            onChange={(e) => {
-                                const v = e.target.value;
-                                setPeriod(year, v === 'all' ? 'all' : (Number(v) as 1 | 2 | 3 | 4));
-                            }}
-                            className={selectClass}
-                        >
-                            <option value="1">T1</option>
-                            <option value="2">T2</option>
-                            <option value="3">T3</option>
-                            <option value="4">T4</option>
-                            <option value="all">Todo el año</option>
-                        </select>
-                    </label>
+                <div className="flex flex-wrap items-end gap-2 py-1">
+                    <ToolbarSelect
+                        id="billing-year"
+                        label="Año"
+                        items={years.map((y) => ({ label: String(y), value: String(y) }))}
+                        value={String(year)}
+                        onValueChange={(value) => {
+                            if (value) setPeriod(Number(value), quarter);
+                        }}
+                    />
+                    <ToolbarSelect
+                        id="billing-quarter"
+                        label="Trimestre"
+                        items={[
+                            { label: 'T1', value: '1' },
+                            { label: 'T2', value: '2' },
+                            { label: 'T3', value: '3' },
+                            { label: 'T4', value: '4' },
+                            { label: 'Todo el año', value: 'all' },
+                        ]}
+                        value={quarter === 'all' ? 'all' : String(quarter)}
+                        onValueChange={(value) => {
+                            if (value) setPeriod(year, value === 'all' ? 'all' : (Number(value) as 1 | 2 | 3 | 4));
+                        }}
+                    />
                     <Button
                         type="button"
                         variant="ghost"

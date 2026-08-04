@@ -23,12 +23,11 @@ import {
     type ProjectsMeta,
 } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { EntitySelect } from '@/components/entity-select';
+import { ToolbarField, ToolbarSelect } from '@/components/toolbar-field';
 import { ProjectSheet } from '@/pages/projects/ProjectSheet';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
-const selectClass =
-    'h-9 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
-
 function parsePage(value: string | null): number {
     const n = Number(value);
     return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
@@ -215,8 +214,14 @@ export function ProjectsPage() {
                 title="Proyectos"
                 description="Proyectos ligados a clientes."
                 icon={Folder}
+                actions={
+                    <Button type="button" onClick={openAdd}>
+                        <Plus />
+                        Añadir proyecto
+                    </Button>
+                }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
                         <div className="relative min-w-0 flex-1">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -227,79 +232,63 @@ export function ProjectsPage() {
                                 aria-label="Buscar proyectos"
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Estado</span>
-                                <select
-                                    value={urlStatus}
-                                    onChange={(e) =>
+                        <div className="flex flex-wrap items-end gap-2">
+                            <ToolbarSelect
+                                id="projects-status"
+                                label="Estado"
+                                items={[
+                                    { label: 'Todos', value: null },
+                                    ...PROJECT_STATUSES.map((status) => ({
+                                        label: PROJECT_STATUS_LABELS[status],
+                                        value: status,
+                                    })),
+                                ]}
+                                value={urlStatus || null}
+                                onValueChange={(value) =>
+                                    patchParams({
+                                        status: value,
+                                        page: '1',
+                                        per_page: String(perPage),
+                                        search: urlSearch || null,
+                                        client_id: urlClientId || null,
+                                    })
+                                }
+                            />
+                            <ToolbarField id="projects-client" label="Cliente">
+                                <EntitySelect
+                                    id="projects-client"
+                                    items={clients}
+                                    value={urlClientId ? Number(urlClientId) : null}
+                                    onValueChange={(value) =>
                                         patchParams({
-                                            status: e.target.value || null,
-                                            page: '1',
-                                            per_page: String(perPage),
-                                            search: urlSearch || null,
-                                            client_id: urlClientId || null,
-                                        })
-                                    }
-                                    className={selectClass}
-                                >
-                                    <option value="">Todos</option>
-                                    {PROJECT_STATUSES.map((s) => (
-                                        <option key={s} value={s}>
-                                            {PROJECT_STATUS_LABELS[s]}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Cliente</span>
-                                <select
-                                    value={urlClientId}
-                                    onChange={(e) =>
-                                        patchParams({
-                                            client_id: e.target.value || null,
+                                            client_id: value == null ? null : String(value),
                                             page: '1',
                                             per_page: String(perPage),
                                             search: urlSearch || null,
                                             status: urlStatus || null,
                                         })
                                     }
-                                    className={selectClass}
-                                >
-                                    <option value="">Todos</option>
-                                    {clients.map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Por página</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) =>
-                                        patchParams({
-                                            per_page: e.target.value,
-                                            page: '1',
-                                            search: urlSearch || null,
-                                            status: urlStatus || null,
-                                            client_id: urlClientId || null,
-                                        })
-                                    }
-                                    className={selectClass}
-                                >
-                                    {PER_PAGE_OPTIONS.map((n) => (
-                                        <option key={n} value={n}>
-                                            {n}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <Button type="button" onClick={openAdd} className="w-full sm:w-auto">
-                                <Plus />
-                                Añadir proyecto
-                            </Button>
+                                    allowClear
+                                    placeholder="Todos"
+                                    className="min-w-40"
+                                />
+                            </ToolbarField>
+                            <ToolbarSelect
+                                id="projects-per-page"
+                                label="Por página"
+                                items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+                                value={String(perPage)}
+                                onValueChange={(value) => {
+                                    if (!value) return;
+                                    patchParams({
+                                        per_page: value,
+                                        page: '1',
+                                        search: urlSearch || null,
+                                        status: urlStatus || null,
+                                        client_id: urlClientId || null,
+                                    });
+                                }}
+                            />
                         </div>
                     </div>
                 }

@@ -21,6 +21,7 @@ import {
     type UsersMeta,
 } from '@/lib/users';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { ToolbarSelect } from '@/components/toolbar-field';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
 
@@ -193,8 +194,21 @@ export function UsersPage() {
                 title="Usuarios"
                 description="Cuentas internas y roles de acceso"
                 icon={UserCog}
+                actions={
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            setSheetMode('add');
+                            setEditing(null);
+                            setSheetOpen(true);
+                        }}
+                    >
+                        <Plus />
+                        Añadir usuario
+                    </Button>
+                }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
                         <div className="relative min-w-0 flex-1">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -205,34 +219,15 @@ export function UsersPage() {
                                 aria-label="Buscar usuarios"
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="shrink-0">Por página</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => setPerPage(Number(e.target.value))}
-                                    className="h-9 rounded-md border border-border bg-input/30 px-2 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    {PER_PAGE_OPTIONS.map((n) => (
-                                        <option key={n} value={n}>
-                                            {n}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <Button
-                                type="button"
-                                onClick={() => {
-                                    setSheetMode('add');
-                                    setEditing(null);
-                                    setSheetOpen(true);
-                                }}
-                                className="w-full sm:w-auto"
-                            >
-                                <Plus />
-                                Añadir usuario
-                            </Button>
-                        </div>
+                        <ToolbarSelect
+                            id="users-per-page"
+                            label="Por página"
+                            items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+                            value={String(perPage)}
+                            onValueChange={(value) => {
+                                if (value) setPerPage(Number(value));
+                            }}
+                        />
                     </div>
                 }
             >

@@ -73,7 +73,8 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 5. Tabs (billing/emails/timer): same chip style as EmailTabs.
 6. Empty / loading states on every list. **User feedback (API errors + mutation success)** → shadcn Base Toast via `lib/toast.ts` (`toastError` / `toastSuccess`). Do **not** use inline `role="alert"` banners for API feedback.
 7. Debounce search (~300ms) + **AbortSignal** on fetches.
-8. No Emails “Configuración” UI — SMTP is backend `.env` only.
+8. **Selects**: never native `<select>`. Short enums/filters → `AppSelect` / `ToolbarSelect`. Cliente/proyecto (searchable) → `EntitySelect` (Combobox).
+9. No Emails “Configuración” UI — SMTP is backend `.env` only.
 
 ## `lib/` API map
 

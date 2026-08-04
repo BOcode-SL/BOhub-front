@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AppSelect } from '@/components/app-select';
+import { EntitySelect } from '@/components/entity-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,9 +18,6 @@ import {
 import { toastError } from '@/lib/toast';
 import { getClient } from '@/lib/clients';
 import { getProject, listProjectOptions } from '@/lib/projects';
-
-const selectClass =
-    'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
 
 function today(): string {
     return new Date().toISOString().slice(0, 10);
@@ -171,26 +170,19 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                 >
                     <div className="grid gap-2">
                         <Label htmlFor="m-project">Proyecto</Label>
-                        <select
+                        <EntitySelect
                             id="m-project"
-                            required
-                            value={form.projectId || ''}
-                            onChange={(e) =>
+                            value={form.projectId || null}
+                            onValueChange={(id) =>
                                 setForm((f) => ({
                                     ...f,
-                                    projectId: e.target.value ? Number(e.target.value) : 0,
+                                    projectId: id ?? 0,
                                 }))
                             }
-                            className={selectClass}
+                            items={projects}
+                            placeholder="Seleccionar…"
                             disabled={mode === 'edit'}
-                        >
-                            <option value="">Seleccionar…</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
 
                     <div className="grid gap-2">
@@ -202,22 +194,19 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
 
                     <div className="grid gap-2">
                         <Label htmlFor="m-period">Periodo</Label>
-                        <select
+                        <AppSelect
                             id="m-period"
+                            items={MAINTENANCE_PERIODS.map((period) => ({
+                                label: MAINTENANCE_PERIOD_LABELS[period],
+                                value: period,
+                            }))}
                             value={form.period}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                                 setPeriodOrStart({
-                                    period: e.target.value as MaintenancePeriodKind,
+                                    period: value as MaintenancePeriodKind,
                                 })
                             }
-                            className={selectClass}
-                        >
-                            {MAINTENANCE_PERIODS.map((p) => (
-                                <option key={p} value={p}>
-                                    {MAINTENANCE_PERIOD_LABELS[p]}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

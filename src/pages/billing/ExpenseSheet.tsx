@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AppSelect } from '@/components/app-select';
+import { EntitySelect } from '@/components/entity-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,9 +17,6 @@ import {
 } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
-
-const selectClass =
-    'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
 
 type ProjectOpt = { id: number; name: string };
 
@@ -187,19 +186,14 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
 
                     <div className="grid gap-2">
                         <Label htmlFor="exp-project">Proyecto</Label>
-                        <select
+                        <EntitySelect
                             id="exp-project"
-                            value={form.projectId ?? ''}
-                            onChange={(e) => setField('projectId', e.target.value ? Number(e.target.value) : null)}
-                            className={selectClass}
-                        >
-                            <option value="">Sin proyecto</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                            value={form.projectId ?? null}
+                            onValueChange={(id) => setField('projectId', id)}
+                            items={projects}
+                            allowClear
+                            placeholder="Sin proyecto"
+                        />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
@@ -250,18 +244,15 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="exp-status">Estado</Label>
-                            <select
+                            <AppSelect
                                 id="exp-status"
+                                items={LEDGER_STATUSES.map((status) => ({
+                                    label: LEDGER_STATUS_LABELS[status],
+                                    value: status,
+                                }))}
                                 value={form.status}
-                                onChange={(e) => setField('status', e.target.value as LedgerStatus)}
-                                className={selectClass}
-                            >
-                                {LEDGER_STATUSES.map((s) => (
-                                    <option key={s} value={s}>
-                                        {LEDGER_STATUS_LABELS[s]}
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(value) => setField('status', value as LedgerStatus)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="exp-date">Fecha gasto</Label>

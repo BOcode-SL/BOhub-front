@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AppSelect } from '@/components/app-select';
+import { EntitySelect } from '@/components/entity-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,9 +22,6 @@ import {
     type ProjectType,
 } from '@/lib/projects';
 import { toastError } from '@/lib/toast';
-
-const selectClass =
-    'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
 
 const emptyForm: ProjectInput = {
     clientId: 0,
@@ -188,70 +187,54 @@ export function ProjectSheet({
 
                     <div className="grid gap-2">
                         <Label htmlFor="project-client">Cliente</Label>
-                        <select
+                        <EntitySelect
                             id="project-client"
-                            value={form.clientId || ''}
-                            onChange={(e) => setField('clientId', Number(e.target.value))}
-                            required
-                            className={selectClass}
-                        >
-                            <option value="">Seleccionar…</option>
-                            {clients.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
+                            value={form.clientId || null}
+                            onValueChange={(id) => setField('clientId', id ?? 0)}
+                            items={clients}
+                            placeholder="Seleccionar…"
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="project-type">Tipo</Label>
-                            <select
+                            <AppSelect
                                 id="project-type"
+                                items={PROJECT_TYPES.map((type) => ({
+                                    label: PROJECT_TYPE_LABELS[type],
+                                    value: type,
+                                }))}
                                 value={form.type}
-                                onChange={(e) => setField('type', e.target.value as ProjectType)}
-                                className={selectClass}
-                            >
-                                {PROJECT_TYPES.map((t) => (
-                                    <option key={t} value={t}>
-                                        {PROJECT_TYPE_LABELS[t]}
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(value) => setField('type', value as ProjectType)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="project-status">Estado</Label>
-                            <select
+                            <AppSelect
                                 id="project-status"
+                                items={PROJECT_STATUSES.map((status) => ({
+                                    label: PROJECT_STATUS_LABELS[status],
+                                    value: status,
+                                }))}
                                 value={form.status}
-                                onChange={(e) => setField('status', e.target.value as ProjectStatus)}
-                                className={selectClass}
-                            >
-                                {PROJECT_STATUSES.map((s) => (
-                                    <option key={s} value={s}>
-                                        {PROJECT_STATUS_LABELS[s]}
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(value) => setField('status', value as ProjectStatus)}
+                            />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="project-priority">Prioridad</Label>
-                            <select
+                            <AppSelect
                                 id="project-priority"
+                                items={PROJECT_PRIORITIES.map((priority) => ({
+                                    label: PROJECT_PRIORITY_LABELS[priority],
+                                    value: priority,
+                                }))}
                                 value={form.priority}
-                                onChange={(e) => setField('priority', e.target.value as ProjectPriority)}
-                                className={selectClass}
-                            >
-                                {PROJECT_PRIORITIES.map((p) => (
-                                    <option key={p} value={p}>
-                                        {PROJECT_PRIORITY_LABELS[p]}
-                                    </option>
-                                ))}
-                            </select>
+                                onValueChange={(value) => setField('priority', value as ProjectPriority)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="project-color">Color</Label>
