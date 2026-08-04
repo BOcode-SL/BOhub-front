@@ -14,10 +14,22 @@ type Props = {
     onPageChange: (page: number) => void;
     onEdit?: (hour: Hour) => void;
     onDelete?: (hour: Hour) => void;
+    hideProject?: boolean;
 };
 
-export function HoursTable({ hours, meta, loading, showUser, showActions, page, onPageChange, onEdit, onDelete }: Props) {
-    const colCount = 4 + (showUser ? 1 : 0) + (showActions ? 1 : 0);
+export function HoursTable({
+    hours,
+    meta,
+    loading,
+    showUser,
+    showActions,
+    page,
+    onPageChange,
+    onEdit,
+    onDelete,
+    hideProject = false,
+}: Props) {
+    const colCount = 4 + (showUser ? 1 : 0) + (showActions ? 1 : 0) - (hideProject ? 1 : 0);
     const lastPage = meta?.last_page ?? 1;
     const currentPage = meta?.current_page ?? page;
 
@@ -29,7 +41,7 @@ export function HoursTable({ hours, meta, loading, showUser, showActions, page, 
                         <TableRow className="hover:bg-transparent">
                             <TableHead>Fecha</TableHead>
                             {showUser && <TableHead>Usuario</TableHead>}
-                            <TableHead>Proyecto</TableHead>
+                            {!hideProject && <TableHead>Proyecto</TableHead>}
                             <TableHead>Duración</TableHead>
                             <TableHead>Descripción</TableHead>
                             {showActions && <TableHead className="w-28" />}
@@ -58,9 +70,11 @@ export function HoursTable({ hours, meta, loading, showUser, showActions, page, 
                             <TableRow key={h.id}>
                                 <TableCell className="text-muted-foreground">{h.workedOn}</TableCell>
                                 {showUser && <TableCell className="text-foreground">{h.user?.name ?? '—'}</TableCell>}
-                                <TableCell className="font-medium text-foreground">
-                                    {h.project?.name ?? `#${h.projectId}`}
-                                </TableCell>
+                                {!hideProject && (
+                                    <TableCell className="font-medium text-foreground">
+                                        {h.project?.name ?? `#${h.projectId}`}
+                                    </TableCell>
+                                )}
                                 <TableCell className="font-mono font-medium text-primary">
                                     {formatDuration(h.durationSeconds)}
                                 </TableCell>

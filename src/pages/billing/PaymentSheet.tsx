@@ -71,15 +71,16 @@ type Props = {
     payment: Payment | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: PaymentInput) => Promise<void>;
+    lockedProjectId?: number;
 };
 
-export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Props) {
+export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lockedProjectId }: Props) {
     const [form, setForm] = useState<PaymentInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open || lockedProjectId) return;
         let cancelled = false;
         void listProjectOptions()
             .then((rows) => {
@@ -91,21 +92,21 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [open, lockedProjectId]);
 
     useEffect(() => {
         if (!open) return;
         if (mode !== 'edit' || !payment) {
-            setForm(empty);
+            setForm({ ...empty, projectId: lockedProjectId ?? null });
             return;
         }
-        setForm(toForm(payment));
+        setForm({ ...toForm(payment), projectId: lockedProjectId ?? payment.projectId });
         // list omits baseAmount — hydrate show() once
         if (payment.baseAmount !== undefined) return;
         let cancelled = false;
         void getPayment(payment.id)
             .then((full) => {
-                if (!cancelled) setForm(toForm(full));
+                if (!cancelled) setForm({ ...toForm(full), projectId: lockedProjectId ?? full.projectId });
             })
             .catch((err) => {
                 if (!cancelled) toastError(err);
@@ -113,7 +114,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
         return () => {
             cancelled = true;
         };
-    }, [open, mode, payment]);
+    }, [open, mode, payment, lockedProjectId]);
 
     function setField<K extends keyof PaymentInput>(key: K, value: PaymentInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -126,7 +127,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
         setSaving(true);
         try {
             await onSubmit({
-                projectId: form.projectId || null,
+                projectId: lockedProjectId ?? form.projectId ?? null,
                 baseAmount: Number(form.baseAmount),
                 ivaRate: Number(form.ivaRate) || 0,
                 irpfRate: Number(form.irpfRate) || 0,
@@ -167,17 +168,19 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-project">Proyecto</Label>
-                        <EntitySelect
-                            id="pay-project"
-                            value={form.projectId ?? null}
-                            onValueChange={(id) => setField('projectId', id)}
-                            items={projects}
-                            allowClear
-                            placeholder="Sin proyecto"
-                        />
-                    </div>
+                    {!lockedProjectId && (
+                        <div className="grid gap-2">
+                            <Label htmlFor="pay-project">Proyecto</Label>
+                            <EntitySelect
+                                id="pay-project"
+                                value={form.projectId ?? null}
+                                onValueChange={(id) => setField('projectId', id)}
+                                items={projects}
+                                allowClear
+                                placeholder="Sin proyecto"
+                            />
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-3">
                         <div className="grid gap-2">
@@ -337,9 +340,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
                                     value: status,
                                 }))}
                                 value={form.verifactuStatus ?? 'unknown'}
-                                onValueChange={(value) =>
-                                    setField('verifactuStatus', value as VerifactuStatus)
-                                }
+                                onValueChange={(value) => setField('verifactuStatus', value as VerifactuStatus)}
                             />
                         </div>
                     </fieldset>

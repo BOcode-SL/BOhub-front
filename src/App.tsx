@@ -30,7 +30,7 @@ export default function App() {
     return (
         <AuthProvider>
             <TooltipProvider>
-                <Toaster>
+                <Toaster >
                     <BrowserRouter>
                         <Routes>
                         <Route element={<PublicOnlyRoute />}>

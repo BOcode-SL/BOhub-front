@@ -7,33 +7,32 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { listClientOptions } from '@/lib/clients';
+import { listJiraProjects, searchJiraIssues, type JiraIssue, type JiraProject } from '@/lib/jira';
 import {
-    PROJECT_PRIORITIES,
     PROJECT_PRIORITY_LABELS,
-    PROJECT_STATUSES,
     PROJECT_STATUS_LABELS,
     PROJECT_TYPES,
     PROJECT_TYPE_LABELS,
     getProject,
     type Project,
     type ProjectInput,
-    type ProjectPriority,
-    type ProjectStatus,
     type ProjectType,
 } from '@/lib/projects';
 import { toastError } from '@/lib/toast';
+
+/** Defaults aligned with Jira board: POR HACER + Medium */
+const DEFAULT_STATUS = 'todo' as const;
+const DEFAULT_PRIORITY = 'medium' as const;
 
 const emptyForm: ProjectInput = {
     clientId: 0,
     name: '',
     type: 'web',
-    status: 'todo',
-    priority: 'medium',
+    status: DEFAULT_STATUS,
+    priority: DEFAULT_PRIORITY,
     color: '#ccff00',
-    icon: '',
     description: '',
-    startDate: '',
-    endDate: '',
+    jiraMode: 'create',
 };
 
 function toForm(p: Project): ProjectInput {
@@ -44,10 +43,7 @@ function toForm(p: Project): ProjectInput {
         status: p.status,
         priority: p.priority,
         color: p.color ?? '#ccff00',
-        icon: p.icon ?? '',
         description: p.description ?? '',
-        startDate: p.startDate ?? '',
-        endDate: p.endDate ?? '',
     };
 }
 
@@ -60,7 +56,6 @@ type ProjectSheetProps = {
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: ProjectInput) => Promise<void>;
     defaultClientId?: number;
-    /** When parent already loaded options, skip fetch */
     clientOptions?: ClientOption[];
 };
 
@@ -75,6 +70,8 @@ export function ProjectSheet({
 }: ProjectSheetProps) {
     const [form, setForm] = useState<ProjectInput>(emptyForm);
     const [clients, setClients] = useState<ClientOption[]>(clientOptionsProp ?? []);
+    const [jiraProjects, setJiraProjects] = useState<JiraProject[]>([]);
+    const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -97,19 +94,47 @@ export function ProjectSheet({
     }, [open, clientOptionsProp]);
 
     useEffect(() => {
+        if (!open || mode !== 'add') return;
+        const controller = new AbortController();
+        void listJiraProjects(controller.signal)
+            .then(setJiraProjects)
+            .catch((err) => {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
+            });
+        return () => controller.abort();
+    }, [open, mode]);
+
+    // Asignar: load issues for selected space (empty q = recientes del espacio)
+    useEffect(() => {
+        if (!open || mode !== 'add' || form.jiraMode !== 'link' || !form.jiraProjectKey) {
+            setJiraIssues([]);
+            return;
+        }
+        const controller = new AbortController();
+        void searchJiraIssues(form.jiraProjectKey, '', controller.signal)
+            .then(setJiraIssues)
+            .catch((err) => {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
+            });
+        return () => controller.abort();
+    }, [open, mode, form.jiraMode, form.jiraProjectKey]);
+
+    useEffect(() => {
         if (!open) return;
 
         if (mode !== 'edit' || !project) {
             setForm({
                 ...emptyForm,
                 clientId: defaultClientId ?? 0,
+                jiraMode: 'create',
             });
             return;
         }
 
         setForm(toForm(project));
 
-        // list rows omit description/icon — hydrate only when missing
         if (project.description !== undefined) return;
 
         let cancelled = false;
@@ -136,20 +161,43 @@ export function ProjectSheet({
             toastError('Selecciona un cliente.');
             return;
         }
+        if (mode === 'add' && !form.jiraProjectKey) {
+            toastError('Selecciona un espacio de Jira.');
+            return;
+        }
+        if (mode === 'add' && form.jiraMode === 'link' && !form.jiraIssueKey) {
+            toastError('Selecciona un issue de Jira.');
+            return;
+        }
         setSaving(true);
         try {
-            await onSubmit({
-                clientId: form.clientId,
-                name: form.name.trim(),
-                type: form.type,
-                status: form.status,
-                priority: form.priority,
-                color: form.color?.trim() || '#ccff00',
-                icon: form.icon?.toString().trim() || null,
-                description: form.description?.toString().trim() || null,
-                startDate: form.startDate?.toString().trim() || null,
-                endDate: form.endDate?.toString().trim() || null,
-            });
+            if (mode === 'add') {
+                await onSubmit({
+                    clientId: form.clientId,
+                    name: form.name.trim(),
+                    type: form.type,
+                    status: DEFAULT_STATUS,
+                    priority: DEFAULT_PRIORITY,
+                    color: form.color?.trim() || '#ccff00',
+                    description: form.description?.toString().trim() || null,
+                    icon: null,
+                    startDate: null,
+                    endDate: null,
+                    jiraProjectKey: form.jiraProjectKey,
+                    jiraMode: form.jiraMode ?? 'create',
+                    jiraIssueKey: form.jiraMode === 'link' ? form.jiraIssueKey : null,
+                });
+            } else {
+                await onSubmit({
+                    clientId: form.clientId,
+                    name: form.name.trim(),
+                    type: form.type,
+                    status: form.status,
+                    priority: form.priority,
+                    color: form.color?.trim() || '#ccff00',
+                    description: form.description?.toString().trim() || null,
+                });
+            }
             onOpenChange(false);
         } catch (err) {
             toastError(err);
@@ -196,98 +244,51 @@ export function ProjectSheet({
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-type">Tipo</Label>
-                            <AppSelect
-                                id="project-type"
-                                items={PROJECT_TYPES.map((type) => ({
-                                    label: PROJECT_TYPE_LABELS[type],
-                                    value: type,
-                                }))}
-                                value={form.type}
-                                onValueChange={(value) => setField('type', value as ProjectType)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-status">Estado</Label>
-                            <AppSelect
-                                id="project-status"
-                                items={PROJECT_STATUSES.map((status) => ({
-                                    label: PROJECT_STATUS_LABELS[status],
-                                    value: status,
-                                }))}
-                                value={form.status}
-                                onValueChange={(value) => setField('status', value as ProjectStatus)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-priority">Prioridad</Label>
-                            <AppSelect
-                                id="project-priority"
-                                items={PROJECT_PRIORITIES.map((priority) => ({
-                                    label: PROJECT_PRIORITY_LABELS[priority],
-                                    value: priority,
-                                }))}
-                                value={form.priority}
-                                onValueChange={(value) => setField('priority', value as ProjectPriority)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-color">Color</Label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="project-color"
-                                    type="color"
-                                    value={form.color || '#ccff00'}
-                                    onChange={(e) => setField('color', e.target.value)}
-                                    className="h-9 w-12 cursor-pointer rounded-md border border-border bg-card"
-                                />
-                                <Input
-                                    value={form.color || ''}
-                                    onChange={(e) => setField('color', e.target.value)}
-                                    className="bg-card font-mono text-sm"
-                                    maxLength={7}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="grid gap-2">
-                        <Label htmlFor="project-icon">Icono (opcional)</Label>
-                        <Input
-                            id="project-icon"
-                            maxLength={80}
-                            value={form.icon ?? ''}
-                            onChange={(e) => setField('icon', e.target.value)}
-                            placeholder="p. ej. folder"
-                            className="bg-card"
+                        <Label htmlFor="project-type">Tipo</Label>
+                        <AppSelect
+                            id="project-type"
+                            items={PROJECT_TYPES.map((type) => ({
+                                label: PROJECT_TYPE_LABELS[type],
+                                value: type,
+                            }))}
+                            value={form.type}
+                            onValueChange={(value) => setField('type', value as ProjectType)}
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-start">Inicio</Label>
-                            <Input
-                                id="project-start"
-                                type="date"
-                                value={form.startDate ?? ''}
-                                onChange={(e) => setField('startDate', e.target.value)}
-                                className="bg-card"
-                            />
+                    {mode === 'edit' && project?.jiraLinked && (
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="grid gap-1">
+                                <span className="text-muted-foreground">Estado</span>
+                                <p className="rounded-md border border-border bg-muted px-3 py-2">
+                                    {PROJECT_STATUS_LABELS[form.status]} · Jira
+                                </p>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="text-muted-foreground">Prioridad</span>
+                                <p className="rounded-md border border-border bg-muted px-3 py-2">
+                                    {PROJECT_PRIORITY_LABELS[form.priority]} · Jira
+                                </p>
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="project-end">Fin</Label>
+                    )}
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="project-color">Color</Label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                id="project-color"
+                                type="color"
+                                value={form.color || '#ccff00'}
+                                onChange={(e) => setField('color', e.target.value)}
+                                className="h-9 w-12 cursor-pointer rounded-md border border-border bg-card"
+                            />
                             <Input
-                                id="project-end"
-                                type="date"
-                                value={form.endDate ?? ''}
-                                onChange={(e) => setField('endDate', e.target.value)}
-                                min={form.startDate || undefined}
-                                className="bg-card"
+                                value={form.color || ''}
+                                onChange={(e) => setField('color', e.target.value)}
+                                className="bg-card font-mono text-sm"
+                                maxLength={7}
                             />
                         </div>
                     </div>
@@ -303,6 +304,73 @@ export function ProjectSheet({
                             placeholder={mode === 'add' ? 'Opcional' : undefined}
                         />
                     </div>
+
+                    {mode === 'add' && (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="project-jira-space">Espacio</Label>
+                                <AppSelect
+                                    id="project-jira-space"
+                                    items={jiraProjects.map((space) => ({
+                                        label: `${space.name} (${space.key})`,
+                                        value: space.key,
+                                    }))}
+                                    value={form.jiraProjectKey ?? ''}
+                                    onValueChange={(value) => {
+                                        setField('jiraProjectKey', value ?? undefined);
+                                        setField('jiraIssueKey', null);
+                                    }}
+                                    placeholder="Seleccionar espacio…"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label>Tarea Jira</Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={form.jiraMode === 'create' ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => {
+                                            setField('jiraMode', 'create');
+                                            setField('jiraIssueKey', null);
+                                        }}
+                                    >
+                                        Crear
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={form.jiraMode === 'link' ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setField('jiraMode', 'link')}
+                                    >
+                                        Asignar
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {form.jiraMode === 'link' && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="project-jira-issue">Issue</Label>
+                                    <AppSelect
+                                        id="project-jira-issue"
+                                        items={jiraIssues.map((issue) => ({
+                                            label: `${issue.key} · ${issue.summary}`,
+                                            value: issue.key,
+                                        }))}
+                                        value={form.jiraIssueKey ?? ''}
+                                        onValueChange={(value) => setField('jiraIssueKey', value)}
+                                        placeholder={
+                                            form.jiraProjectKey
+                                                ? 'Seleccionar issue…'
+                                                : 'Elige un espacio primero'
+                                        }
+                                        disabled={!form.jiraProjectKey}
+                                    />
+                                </div>
+                            )}
+                        </>
+                    )}
                 </form>
 
                 <SheetFooter>

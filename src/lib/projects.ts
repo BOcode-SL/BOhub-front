@@ -28,6 +28,11 @@ export type Project = {
     createdBy?: number | null;
     createdAt?: string;
     updatedAt?: string;
+    jiraProjectKey?: string | null;
+    jiraIssueKey?: string | null;
+    jiraProjectUrl?: string | null;
+    jiraIssueUrl?: string | null;
+    jiraLinked?: boolean;
 };
 
 export type ProjectInput = {
@@ -41,6 +46,49 @@ export type ProjectInput = {
     description?: string | null;
     startDate?: string | null;
     endDate?: string | null;
+    jiraProjectKey?: string;
+    jiraMode?: 'create' | 'link';
+    jiraIssueKey?: string | null;
+    unlinkJira?: boolean;
+};
+
+export type ProjectSummary = {
+    daysRemaining: number | null;
+    jiraProjectKey: string | null;
+    jiraIssueKey: string | null;
+    jiraProjectUrl: string | null;
+    jiraIssueUrl: string | null;
+    jiraBaseUrl: string | null;
+    jiraLinked: boolean;
+};
+
+export type ProjectHoursSummary = {
+    totalSeconds: number;
+    pricePerHour: number | string | null;
+};
+
+export type ProjectBillingSummary = {
+    paymentsTotal: number | string;
+    paymentsNet: number | string;
+    expensesTotal: number | string;
+    netBenefit: number | string;
+};
+
+export type ProjectActivity = {
+    id: number;
+    projectId: number;
+    userId: number | null;
+    user?: { id: number; name: string } | null;
+    source: 'local';
+    event: string;
+    occurredAt: string;
+    message: string;
+    meta?: Record<string, unknown> | null;
+};
+
+export type PaginatedProjectActivities = {
+    data: ProjectActivity[];
+    meta: ProjectsMeta;
 };
 
 export type ProjectsMeta = {
@@ -127,6 +175,33 @@ export function invalidateProjectOptionsCache(): void {
 
 export async function getProject(id: number): Promise<Project> {
     return request<Project>(`/api/projects/${id}`, {});
+}
+
+export async function getProjectSummary(id: number, signal?: AbortSignal): Promise<ProjectSummary> {
+    return request<ProjectSummary>(`/api/projects/${id}/summary`, { signal });
+}
+
+export async function getHoursSummary(id: number, signal?: AbortSignal): Promise<ProjectHoursSummary> {
+    return request<ProjectHoursSummary>(`/api/projects/${id}/hours-summary`, { signal });
+}
+
+export async function getBillingSummary(id: number, signal?: AbortSignal): Promise<ProjectBillingSummary> {
+    return request<ProjectBillingSummary>(`/api/projects/${id}/billing-summary`, { signal });
+}
+
+export async function listProjectActivities(
+    id: number,
+    params: { page?: number; perPage?: number } = {},
+    signal?: AbortSignal,
+): Promise<PaginatedProjectActivities> {
+    const q = new URLSearchParams();
+    if (params.page) q.set('page', String(params.page));
+    if (params.perPage) q.set('per_page', String(params.perPage));
+    return request<PaginatedProjectActivities>(`/api/projects/${id}/activities${q.size ? `?${q}` : ''}`, { signal });
+}
+
+export async function syncProjectJira(id: number): Promise<Project> {
+    return request<Project>(`/api/projects/${id}/sync-jira`, { method: 'POST' });
 }
 
 export async function createProject(body: ProjectInput): Promise<Project> {

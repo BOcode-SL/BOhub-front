@@ -60,15 +60,16 @@ type Props = {
     expense: Expense | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: ExpenseInput) => Promise<void>;
+    lockedProjectId?: number;
 };
 
-export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Props) {
+export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lockedProjectId }: Props) {
     const [form, setForm] = useState<ExpenseInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open || lockedProjectId) return;
         let cancelled = false;
         void listProjectOptions()
             .then((rows) => {
@@ -80,20 +81,20 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [open, lockedProjectId]);
 
     useEffect(() => {
         if (!open) return;
         if (mode !== 'edit' || !expense) {
-            setForm(empty);
+            setForm({ ...empty, projectId: lockedProjectId ?? null });
             return;
         }
-        setForm(toForm(expense));
+        setForm({ ...toForm(expense), projectId: lockedProjectId ?? expense.projectId });
         if (expense.baseAmount !== undefined) return;
         let cancelled = false;
         void getExpense(expense.id)
             .then((full) => {
-                if (!cancelled) setForm(toForm(full));
+                if (!cancelled) setForm({ ...toForm(full), projectId: lockedProjectId ?? full.projectId });
             })
             .catch((err) => {
                 if (!cancelled) toastError(err);
@@ -101,7 +102,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
         return () => {
             cancelled = true;
         };
-    }, [open, mode, expense]);
+    }, [open, mode, expense, lockedProjectId]);
 
     function setField<K extends keyof ExpenseInput>(key: K, value: ExpenseInput[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -114,7 +115,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
         setSaving(true);
         try {
             await onSubmit({
-                projectId: form.projectId || null,
+                projectId: lockedProjectId ?? form.projectId ?? null,
                 description: form.description.trim(),
                 recipient: form.recipient?.toString().trim() || null,
                 category: form.category?.toString().trim() || null,
@@ -184,17 +185,19 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
                         </div>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="exp-project">Proyecto</Label>
-                        <EntitySelect
-                            id="exp-project"
-                            value={form.projectId ?? null}
-                            onValueChange={(id) => setField('projectId', id)}
-                            items={projects}
-                            allowClear
-                            placeholder="Sin proyecto"
-                        />
-                    </div>
+                    {!lockedProjectId && (
+                        <div className="grid gap-2">
+                            <Label htmlFor="exp-project">Proyecto</Label>
+                            <EntitySelect
+                                id="exp-project"
+                                value={form.projectId ?? null}
+                                onValueChange={(id) => setField('projectId', id)}
+                                items={projects}
+                                allowClear
+                                placeholder="Sin proyecto"
+                            />
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-3">
                         <div className="grid gap-2">

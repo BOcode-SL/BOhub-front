@@ -47,7 +47,7 @@ src/
 | `/dashboard`                  | Home (widgets + charts)                     | admin, employee |
 | `/dashboard/clients`          | Clients CRUD                                | admin, employee |
 | `/dashboard/projects`         | Projects list                               | admin, employee |
-| `/dashboard/projects/:id`     | Project detail                              | admin, employee |
+| `/dashboard/projects/:id`     | Project detail (Resumen/Config; Horas+Pagos = admin) | admin, employee |
 | `/dashboard/billing`          | Billing summary (quarter default)           | admin, billing  |
 | `/dashboard/billing/income`   | Payments (billing = read-only)              | admin, billing  |
 | `/dashboard/billing/expenses` | Expenses (billing = read-only)              | admin, billing  |
@@ -84,7 +84,8 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 | `toast.ts`       | `toastSuccess` / `toastError` (shadcn Base Toast) |
 | `users.ts`       | users CRUD + role labels             |
 | `clients.ts`     | clients CRUD                         |
-| `projects.ts`    | projects + options cache             |
+| `projects.ts`    | projects, summary/sync, options cache |
+| `jira.ts`        | Jira spaces/search/changelog (no token) |
 | `billing.ts`     | payments, expenses, summary          |
 | `dashboard.ts`   | home aggregates                      |
 | `timer.ts`       | hours, team hours, timers, analytics |
@@ -96,6 +97,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 
 ## Feature notes
 
+- **Projects**: detail — employee: Resumen + Config; admin: + Horas + Pagos. Create requires Jira space + create|link. Sync on open; status/priority read-only when linked. `VITE_JIRA_BASE_URL` optional link fallback (no token).
 - **Billing**: external invoice fields are generic (not Odoo-branded). Summary default = current quarter.
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.
