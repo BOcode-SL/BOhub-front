@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { deleteTemplate, emailsErrorMessage, getTemplate, listTemplates, type EmailTemplate, type PageMeta } from '@/lib/emails';
+import { deleteTemplate, getTemplate, listTemplates, type EmailTemplate, type PageMeta } from '@/lib/emails';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { EmailTabs } from '@/pages/emails/EmailTabs';
 import { TemplateFormSheet } from '@/pages/emails/TemplateFormSheet';
 import { SendEmailSheet } from '@/pages/emails/SendEmailSheet';
@@ -21,7 +22,6 @@ export function EmailsPage() {
     const [rows, setRows] = useState<EmailTemplate[]>([]);
     const [meta, setMeta] = useState<PageMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [tick, setTick] = useState(0);
 
     const [formOpen, setFormOpen] = useState(false);
@@ -46,7 +46,6 @@ export function EmailsPage() {
     useEffect(() => {
         const ac = new AbortController();
         setLoading(true);
-        setError(null);
         void listTemplates({
             page,
             perPage: PER_PAGE,
@@ -58,8 +57,7 @@ export function EmailsPage() {
                 setMeta(res.meta);
             })
             .catch((err) => {
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(emailsErrorMessage(err));
+                toastError(err);
                 setRows([]);
             })
             .finally(() => {
@@ -75,7 +73,7 @@ export function EmailsPage() {
             setFormMode('edit');
             setFormOpen(true);
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         }
     }
 
@@ -85,7 +83,7 @@ export function EmailsPage() {
             setSendTemplate(full);
             setSendOpen(true);
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         }
     }
 
@@ -94,7 +92,7 @@ export function EmailsPage() {
             const full = await getTemplate(row.id);
             setPreview(full);
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         }
     }
 
@@ -105,8 +103,9 @@ export function EmailsPage() {
             await deleteTemplate(deleteTarget.id);
             setDeleteTarget(null);
             setTick((t) => t + 1);
+            toastSuccess('Plantilla eliminada');
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -149,15 +148,6 @@ export function EmailsPage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>

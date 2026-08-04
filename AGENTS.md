@@ -71,7 +71,7 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 3. **Buttons**: PH-aligned CVA — default **h-9**, `rounded-md`, `hover:bg-primary/90`, solid destructive.
 4. Table wrap: `rounded-md border`.
 5. Tabs (billing/emails/timer): same chip style as EmailTabs.
-6. Empty / loading / error states on every list.
+6. Empty / loading states on every list. **User feedback (API errors + mutation success)** → shadcn Base Toast via `lib/toast.ts` (`toastError` / `toastSuccess`). Do **not** use inline `role="alert"` banners for API feedback.
 7. Debounce search (~300ms) + **AbortSignal** on fetches.
 8. No Emails “Configuración” UI — SMTP is backend `.env` only.
 
@@ -80,6 +80,7 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 | File             | Domain                               |
 | ---------------- | ------------------------------------ |
 | `api.ts`         | `request()`, CSRF, auth helpers      |
+| `toast.ts`       | `toastSuccess` / `toastError` (shadcn Base Toast) |
 | `users.ts`       | users CRUD + role labels             |
 | `clients.ts`     | clients CRUD                         |
 | `projects.ts`    | projects + options cache             |

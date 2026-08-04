@@ -15,12 +15,12 @@ import {
     deleteUser,
     listUsers,
     updateUser,
-    userErrorMessage,
     USER_ROLE_LABELS,
     type HubUser,
     type UserInput,
     type UsersMeta,
 } from '@/lib/users';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
 
@@ -54,7 +54,6 @@ export function UsersPage() {
     const [users, setUsers] = useState<HubUser[]>([]);
     const [meta, setMeta] = useState<UsersMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
     const [editing, setEditing] = useState<HubUser | null>(null);
@@ -90,7 +89,6 @@ export function UsersPage() {
 
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const res = await listUsers(
                     {
@@ -105,8 +103,7 @@ export function UsersPage() {
                 setMeta(res.meta);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(userErrorMessage(err));
+                toastError(err);
                 setUsers([]);
                 setMeta(null);
             } finally {
@@ -123,7 +120,6 @@ export function UsersPage() {
 
     async function reload() {
         setLoading(true);
-        setError(null);
         try {
             const res = await listUsers({
                 search: urlSearch || undefined,
@@ -133,7 +129,7 @@ export function UsersPage() {
             setUsers(res.data);
             setMeta(res.meta);
         } catch (err) {
-            setError(userErrorMessage(err));
+            toastError(err);
         } finally {
             setLoading(false);
         }
@@ -162,8 +158,10 @@ export function UsersPage() {
     async function handleSave(data: UserInput) {
         if (sheetMode === 'edit' && editing) {
             await updateUser(editing.id, data);
+            toastSuccess('Usuario actualizado');
         } else {
             await createUser(data);
+            toastSuccess('Usuario creado');
         }
         await reload();
     }
@@ -174,9 +172,10 @@ export function UsersPage() {
         try {
             await deleteUser(deleteTarget.id);
             setDeleteTarget(null);
+            toastSuccess('Usuario eliminado');
             await reload();
         } catch (err) {
-            setError(userErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -237,15 +236,6 @@ export function UsersPage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>

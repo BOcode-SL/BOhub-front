@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { dashboardErrorMessage, getHomeDashboard, type HomeDeadline, type HomeTopProject } from '@/lib/dashboard';
+import { getHomeDashboard, type HomeDeadline, type HomeTopProject } from '@/lib/dashboard';
+import { toastError } from '@/lib/toast';
 import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projects';
 
 export type StatusSlice = {
@@ -21,7 +22,6 @@ export type HomeDashboard = {
     deadlines: HomeDeadline[];
     deadlinesCount: number;
     loading: boolean;
-    error: string | null;
 };
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
@@ -43,7 +43,6 @@ export function useHomeDashboard(): HomeDashboard {
     const [deadlines, setDeadlines] = useState<HomeDeadline[]>([]);
     const [deadlinesCount, setDeadlinesCount] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const ac = new AbortController();
@@ -51,7 +50,6 @@ export function useHomeDashboard(): HomeDashboard {
 
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const data = await getHomeDashboard(ac.signal);
                 if (cancelled) return;
@@ -65,8 +63,7 @@ export function useHomeDashboard(): HomeDashboard {
                 setDeadlinesCount(data.deadlinesCount);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(dashboardErrorMessage(err));
+                toastError(err);
                 setClientsCount(0);
                 setProjectsCount(0);
                 setProjectsInProgress(0);
@@ -108,6 +105,5 @@ export function useHomeDashboard(): HomeDashboard {
         deadlines,
         deadlinesCount,
         loading,
-        error,
     };
 }

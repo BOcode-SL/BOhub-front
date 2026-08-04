@@ -10,11 +10,11 @@ import {
     PROJECT_TYPE_LABELS,
     deleteProject,
     getProject,
-    projectErrorMessage,
     updateProject,
     type Project,
     type ProjectInput,
 } from '@/lib/projects';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { ProjectSheet } from '@/pages/projects/ProjectSheet';
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
@@ -33,28 +33,30 @@ export function ProjectDetailPage() {
 
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (!Number.isFinite(projectId) || projectId < 1) {
-            setError('Proyecto no válido');
+            toastError('Proyecto no válido');
+            setLoadFailed(true);
             setLoading(false);
             return;
         }
         let cancelled = false;
         setLoading(true);
-        setError(null);
+        setLoadFailed(false);
         void getProject(projectId)
             .then((p) => {
                 if (!cancelled) setProject(p);
             })
             .catch((err) => {
                 if (!cancelled) {
-                    setError(projectErrorMessage(err));
+                    toastError(err);
                     setProject(null);
+                    setLoadFailed(true);
                 }
             })
             .finally(() => {
@@ -67,12 +69,13 @@ export function ProjectDetailPage() {
 
     async function load() {
         setLoading(true);
-        setError(null);
+        setLoadFailed(false);
         try {
             setProject(await getProject(projectId));
         } catch (err) {
-            setError(projectErrorMessage(err));
+            toastError(err);
             setProject(null);
+            setLoadFailed(true);
         } finally {
             setLoading(false);
         }
@@ -80,6 +83,7 @@ export function ProjectDetailPage() {
 
     async function handleSave(data: ProjectInput) {
         await updateProject(projectId, data);
+        toastSuccess('Proyecto actualizado');
         await load();
     }
 
@@ -87,9 +91,10 @@ export function ProjectDetailPage() {
         setDeleting(true);
         try {
             await deleteProject(projectId);
+            toastSuccess('Proyecto eliminado');
             navigate('/dashboard/projects');
         } catch (err) {
-            setError(projectErrorMessage(err));
+            toastError(err);
             setDeleting(false);
         }
     }
@@ -103,12 +108,10 @@ export function ProjectDetailPage() {
         );
     }
 
-    if (error && !project) {
+    if (loadFailed && !project) {
         return (
             <div className="flex flex-col gap-4">
-                <p role="alert" className="text-sm text-destructive-foreground">
-                    {error}
-                </p>
+                <p className="text-sm text-muted-foreground">No se pudo cargar el proyecto.</p>
                 <Button variant="outline" className="w-fit cursor-pointer" render={<Link to="/dashboard/projects" />}>
                     <ArrowLeft />
                     Volver a proyectos
@@ -153,15 +156,6 @@ export function ProjectDetailPage() {
                     </Button>
                 </div>
             </div>
-
-            {error && (
-                <p
-                    role="alert"
-                    className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                >
-                    {error}
-                </p>
-            )}
 
             <dl className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:p-6">
                 <Row

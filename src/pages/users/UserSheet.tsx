@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { USER_ROLES, USER_ROLE_LABELS, userErrorMessage, type HubUser, type UserInput, type UserRole } from '@/lib/users';
+import { USER_ROLES, USER_ROLE_LABELS, type HubUser, type UserInput, type UserRole } from '@/lib/users';
+import { toastError } from '@/lib/toast';
 
 const emptyForm: UserInput = {
     name: '',
@@ -34,12 +35,10 @@ type UserSheetProps = {
 export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserSheetProps) {
     const [form, setForm] = useState<UserInput>(emptyForm);
     const [passwordConfirm, setPasswordConfirm] = useState('');
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
         setPasswordConfirm('');
         setForm(mode === 'edit' && user ? toForm(user) : emptyForm);
     }, [open, mode, user]);
@@ -50,17 +49,16 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
 
         const pwd = form.password ?? '';
         if (mode === 'add' || pwd.length > 0) {
             if (pwd.length < 8) {
-                setError('La contraseña debe tener al menos 8 caracteres.');
+                toastError('La contraseña debe tener al menos 8 caracteres.');
                 return;
             }
         }
         if ((mode === 'add' || pwd.length > 0) && pwd !== passwordConfirm) {
-            setError('Las contraseñas no coinciden.');
+            toastError('Las contraseñas no coinciden.');
             return;
         }
 
@@ -78,7 +76,7 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
             await onSubmit(payload);
             onOpenChange(false);
         } catch (err) {
-            setError(userErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -171,12 +169,6 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                             className="bg-background"
                         />
                     </div>
-
-                    {error && (
-                        <p role="alert" className="text-sm text-destructive">
-                            {error}
-                        </p>
-                    )}
                 </form>
 
                 <SheetFooter>

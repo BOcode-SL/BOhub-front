@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AuthProvider } from '@/auth/AuthContext';
 import { AdminRoute, BillingRoute, OpsRoute, ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards';
 import { AppLayout } from '@/components/layout/app-layout';
+import { Toaster } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LoginPage } from '@/pages/LoginPage';
 import { ClientsPage } from '@/pages/clients/ClientsPage';
@@ -29,8 +30,9 @@ export default function App() {
     return (
         <AuthProvider>
             <TooltipProvider>
-                <BrowserRouter>
-                    <Routes>
+                <Toaster>
+                    <BrowserRouter>
+                        <Routes>
                         <Route element={<PublicOnlyRoute />}>
                             <Route path="/login" element={<LoginPage />} />
                         </Route>
@@ -66,8 +68,9 @@ export default function App() {
                         <Route path="/app" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
-                </BrowserRouter>
+                        </Routes>
+                    </BrowserRouter>
+                </Toaster>
             </TooltipProvider>
         </AuthProvider>
     );

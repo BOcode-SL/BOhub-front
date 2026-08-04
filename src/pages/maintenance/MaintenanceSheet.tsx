@@ -8,12 +8,12 @@ import {
     MAINTENANCE_PERIODS,
     MAINTENANCE_PERIOD_LABELS,
     getMaintenance,
-    maintenanceErrorMessage,
     suggestEndsOn,
     type MaintenanceInput,
     type MaintenancePeriod,
     type MaintenancePeriodKind,
 } from '@/lib/maintenance';
+import { toastError } from '@/lib/toast';
 import { getClient } from '@/lib/clients';
 import { getProject, listProjectOptions } from '@/lib/projects';
 
@@ -60,15 +60,18 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [clientLabel, setClientLabel] = useState('Elige un proyecto');
     const [endsTouched, setEndsTouched] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
-        void listProjectOptions().then((rows) => {
-            if (!cancelled) setProjects(rows);
-        });
+        void listProjectOptions()
+            .then((rows) => {
+                if (!cancelled) setProjects(rows);
+            })
+            .catch((err) => {
+                if (!cancelled) toastError(err);
+            });
         return () => {
             cancelled = true;
         };
@@ -103,7 +106,6 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
         setEndsTouched(false);
         if (mode !== 'edit' || !period) {
             setForm(emptyForm());
@@ -134,11 +136,10 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.projectId) {
-            setError('Selecciona un proyecto.');
+            toastError('Selecciona un proyecto.');
             return;
         }
         setSaving(true);
-        setError(null);
         try {
             await onSubmit({
                 projectId: form.projectId,
@@ -149,7 +150,7 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
             });
             onOpenChange(false);
         } catch (err) {
-            setError(maintenanceErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -168,15 +169,6 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                     className="flex flex-1 flex-col gap-4 px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
-
                     <div className="grid gap-2">
                         <Label htmlFor="m-project">Proyecto</Label>
                         <select

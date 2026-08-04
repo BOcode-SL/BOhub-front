@@ -13,10 +13,10 @@ import {
 import { ListPageShell } from '@/components/list-page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listProjects, type Project } from '@/lib/projects';
+import { toastError } from '@/lib/toast';
 import {
     formatDuration,
     getHoursAnalytics,
-    timerErrorMessage,
     type HoursAnalyticsBucket,
     type HoursAnalyticsProject,
 } from '@/lib/timer';
@@ -45,7 +45,6 @@ export function TimerAnalytics({ above }: Props) {
     const [projects, setProjects] = useState<HoursAnalyticsProject[]>([]);
     const [buckets, setBuckets] = useState<HoursAnalyticsBucket[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const ac = new AbortController();
@@ -60,7 +59,6 @@ export function TimerAnalytics({ above }: Props) {
         let cancelled = false;
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const res = await getHoursAnalytics(
                     {
@@ -76,8 +74,7 @@ export function TimerAnalytics({ above }: Props) {
                 }
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(timerErrorMessage(err));
+                toastError(err);
                 setProjects([]);
                 setBuckets([]);
             } finally {
@@ -209,15 +206,6 @@ export function TimerAnalytics({ above }: Props) {
                 </div>
             }
         >
-            {error && (
-                <p
-                    role="alert"
-                    className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                >
-                    {error}
-                </p>
-            )}
-
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
                     {

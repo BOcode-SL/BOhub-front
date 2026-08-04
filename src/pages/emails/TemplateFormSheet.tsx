@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { createTemplate, detectVariables, emailsErrorMessage, updateTemplate, type EmailTemplate } from '@/lib/emails';
+import { createTemplate, detectVariables, updateTemplate, type EmailTemplate } from '@/lib/emails';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 type Props = {
     open: boolean;
@@ -21,12 +22,10 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
     const [htmlBody, setHtmlBody] = useState('');
     const [variables, setVariables] = useState<string[]>([]);
     const [manualVar, setManualVar] = useState('');
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
         if (mode === 'edit' && template) {
             setName(template.name);
             setDescription(template.description ?? '');
@@ -66,7 +65,6 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         setSaving(true);
-        setError(null);
         try {
             const payload = {
                 name: name.trim(),
@@ -77,12 +75,14 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
             };
             if (mode === 'edit' && template) {
                 await updateTemplate(template.id, payload);
+                toastSuccess('Plantilla actualizada');
             } else {
                 await createTemplate(payload);
+                toastSuccess('Plantilla creada');
             }
             onSaved();
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -178,11 +178,6 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
                                     sandbox=""
                                 />
                             </div>
-                        )}
-                        {error && (
-                            <p className="text-sm text-destructive" role="alert">
-                                {error}
-                            </p>
                         )}
                     </div>
 

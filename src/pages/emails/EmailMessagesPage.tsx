@@ -12,7 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
     cancelMessage,
-    emailsErrorMessage,
     getMessage,
     listMessages,
     STATUS_LABELS,
@@ -21,6 +20,7 @@ import {
     type EmailMessageStatus,
     type PageMeta,
 } from '@/lib/emails';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { EmailTabs } from '@/pages/emails/EmailTabs';
 
 const PER_PAGE = 15;
@@ -59,7 +59,6 @@ export function EmailMessagesPage() {
     const [rows, setRows] = useState<EmailMessage[]>([]);
     const [meta, setMeta] = useState<PageMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [tick, setTick] = useState(0);
 
     const [preview, setPreview] = useState<EmailMessage | null>(null);
@@ -77,15 +76,13 @@ export function EmailMessagesPage() {
         // ponytail: tab+page batched via changeTab → 1 request
         const ac = new AbortController();
         setLoading(true);
-        setError(null);
         void listMessages({ page, perPage: PER_PAGE, tab, signal: ac.signal })
             .then((res) => {
                 setRows(res.data);
                 setMeta(res.meta);
             })
             .catch((err) => {
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(emailsErrorMessage(err));
+                toastError(err);
                 setRows([]);
             })
             .finally(() => {
@@ -103,12 +100,11 @@ export function EmailMessagesPage() {
         try {
             setPreview(await getMessage(row.id));
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         }
     }
 
     function openEdit(row: EmailMessage) {
-        setError(null);
         setEditMsg(row);
         setEditTo(row.to);
         setEditCc(row.cc ?? '');
@@ -128,15 +124,14 @@ export function EmailMessagesPage() {
         const to = editTo.trim();
         const subject = editSubject.trim();
         if (!to || !subject || !editDate || !editTime) {
-            setError('Para, asunto, fecha y hora son obligatorios.');
+            toastError('Para, asunto, fecha y hora son obligatorios.');
             return;
         }
         setSaving(true);
-        setError(null);
         try {
             const dt = new Date(`${editDate}T${editTime}`);
             if (Number.isNaN(dt.getTime()) || dt <= new Date()) {
-                setError('La fecha programada debe ser futura');
+                toastError('La fecha programada debe ser futura');
                 setSaving(false);
                 return;
             }
@@ -148,8 +143,9 @@ export function EmailMessagesPage() {
             });
             setEditMsg(null);
             setTick((t) => t + 1);
+            toastSuccess('Programación actualizada');
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -162,8 +158,9 @@ export function EmailMessagesPage() {
             await cancelMessage(cancelTarget.id);
             setCancelTarget(null);
             setTick((t) => t + 1);
+            toastSuccess('Programación cancelada');
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         } finally {
             setCancelling(false);
         }
@@ -203,15 +200,6 @@ export function EmailMessagesPage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>
@@ -391,14 +379,6 @@ export function EmailMessagesPage() {
                         <SheetDescription>Solo destinatario, asunto y fecha (sin body/adjuntos).</SheetDescription>
                     </SheetHeader>
                     <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
-                        {error && (
-                            <p
-                                role="alert"
-                                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                            >
-                                {error}
-                            </p>
-                        )}
                         <div className="space-y-1.5">
                             <Label htmlFor="edit-to">Para *</Label>
                             <Input

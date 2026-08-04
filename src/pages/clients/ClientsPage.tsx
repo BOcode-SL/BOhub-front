@@ -15,11 +15,11 @@ import {
     deleteClient,
     listClients,
     updateClient,
-    clientErrorMessage,
     type Client,
     type ClientInput,
     type ClientsMeta,
 } from '@/lib/clients';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
 
@@ -48,7 +48,6 @@ export function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [meta, setMeta] = useState<ClientsMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
     const [editing, setEditing] = useState<Client | null>(null);
@@ -85,7 +84,6 @@ export function ClientsPage() {
 
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const res = await listClients(
                     {
@@ -100,8 +98,7 @@ export function ClientsPage() {
                 setMeta(res.meta);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(clientErrorMessage(err));
+                toastError(err);
                 setClients([]);
                 setMeta(null);
             } finally {
@@ -118,7 +115,6 @@ export function ClientsPage() {
 
     async function reload() {
         setLoading(true);
-        setError(null);
         try {
             const res = await listClients({
                 search: urlSearch || undefined,
@@ -128,7 +124,7 @@ export function ClientsPage() {
             setClients(res.data);
             setMeta(res.meta);
         } catch (err) {
-            setError(clientErrorMessage(err));
+            toastError(err);
         } finally {
             setLoading(false);
         }
@@ -169,8 +165,10 @@ export function ClientsPage() {
     async function handleSave(data: ClientInput) {
         if (sheetMode === 'edit' && editing) {
             await updateClient(editing.id, data);
+            toastSuccess('Cliente actualizado');
         } else {
             await createClient(data);
+            toastSuccess('Cliente creado');
         }
         await reload();
     }
@@ -181,9 +179,10 @@ export function ClientsPage() {
         try {
             await deleteClient(deleteTarget.id);
             setDeleteTarget(null);
+            toastSuccess('Cliente eliminado');
             await reload();
         } catch (err) {
-            setError(clientErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -236,15 +235,6 @@ export function ClientsPage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>

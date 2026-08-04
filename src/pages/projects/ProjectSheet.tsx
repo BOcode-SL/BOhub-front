@@ -13,13 +13,13 @@ import {
     PROJECT_TYPES,
     PROJECT_TYPE_LABELS,
     getProject,
-    projectErrorMessage,
     type Project,
     type ProjectInput,
     type ProjectPriority,
     type ProjectStatus,
     type ProjectType,
 } from '@/lib/projects';
+import { toastError } from '@/lib/toast';
 
 const selectClass =
     'h-9 w-full cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
@@ -76,7 +76,6 @@ export function ProjectSheet({
 }: ProjectSheetProps) {
     const [form, setForm] = useState<ProjectInput>(emptyForm);
     const [clients, setClients] = useState<ClientOption[]>(clientOptionsProp ?? []);
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -90,8 +89,8 @@ export function ProjectSheet({
             .then((rows) => {
                 if (!cancelled) setClients(rows);
             })
-            .catch(() => {
-                if (!cancelled) setClients([]);
+            .catch((err) => {
+                if (!cancelled) toastError(err);
             });
         return () => {
             cancelled = true;
@@ -100,7 +99,6 @@ export function ProjectSheet({
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
 
         if (mode !== 'edit' || !project) {
             setForm({
@@ -121,7 +119,7 @@ export function ProjectSheet({
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) setError(projectErrorMessage(err));
+                if (!cancelled) toastError(err);
             });
 
         return () => {
@@ -135,9 +133,8 @@ export function ProjectSheet({
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
         if (!form.clientId) {
-            setError('Selecciona un cliente.');
+            toastError('Selecciona un cliente.');
             return;
         }
         setSaving(true);
@@ -156,7 +153,7 @@ export function ProjectSheet({
             });
             onOpenChange(false);
         } catch (err) {
-            setError(projectErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -177,15 +174,6 @@ export function ProjectSheet({
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
-
                     <div className="grid gap-2">
                         <Label htmlFor="project-name">Nombre</Label>
                         <Input

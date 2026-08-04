@@ -9,7 +9,6 @@ import {
     LEDGER_STATUS_LABELS,
     VERIFACTU_STATUSES,
     VERIFACTU_STATUS_LABELS,
-    billingErrorMessage,
     calcTotal,
     getPayment,
     type LedgerStatus,
@@ -17,6 +16,7 @@ import {
     type PaymentInput,
     type VerifactuStatus,
 } from '@/lib/billing';
+import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
 
 const selectClass =
@@ -77,15 +77,18 @@ type Props = {
 export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<PaymentInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
-        void listProjectOptions().then((rows) => {
-            if (!cancelled) setProjects(rows);
-        });
+        void listProjectOptions()
+            .then((rows) => {
+                if (!cancelled) setProjects(rows);
+            })
+            .catch((err) => {
+                if (!cancelled) toastError(err);
+            });
         return () => {
             cancelled = true;
         };
@@ -93,7 +96,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
         if (mode !== 'edit' || !payment) {
             setForm(empty);
             return;
@@ -107,7 +109,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) setError(billingErrorMessage(err));
+                if (!cancelled) toastError(err);
             });
         return () => {
             cancelled = true;
@@ -122,7 +124,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
         setSaving(true);
         try {
             await onSubmit({
@@ -146,7 +147,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
             });
             onOpenChange(false);
         } catch (err) {
-            setError(billingErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -167,15 +168,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit }: Pr
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
-
                     <div className="grid gap-2">
                         <Label htmlFor="pay-project">Proyecto</Label>
                         <select

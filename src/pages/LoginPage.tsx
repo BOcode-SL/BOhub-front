@@ -3,6 +3,7 @@ import { Eye, EyeOff, LogIn, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../lib/api';
+import { toastError } from '@/lib/toast';
 import { homePathForRole } from '@/lib/users';
 
 export function LoginPage() {
@@ -14,22 +15,20 @@ export function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     async function onSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
         setSubmitting(true);
 
         try {
             const authed = await login(email.trim(), password);
             navigate(homePathForRole(authed.role), { replace: true });
         } catch (err) {
-            if (err instanceof ApiError) {
-                setError(err.status === 401 ? 'Credenciales inválidas. Revisa email y contraseña.' : err.message);
+            if (err instanceof ApiError && err.status === 401) {
+                toastError('Credenciales inválidas. Revisa email y contraseña.');
             } else {
-                setError('No se pudo iniciar sesión.');
+                toastError(err, 'No se pudo iniciar sesión.');
             }
         } finally {
             setSubmitting(false);
@@ -118,15 +117,6 @@ export function LoginPage() {
                             </div>
                         </div>
                     </div>
-
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
 
                     <button
                         type="submit"

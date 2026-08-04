@@ -17,12 +17,12 @@ import {
     createProject,
     deleteProject,
     listProjects,
-    projectErrorMessage,
     updateProject,
     type Project,
     type ProjectInput,
     type ProjectsMeta,
 } from '@/lib/projects';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { ProjectSheet } from '@/pages/projects/ProjectSheet';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
@@ -62,7 +62,6 @@ export function ProjectsPage() {
     const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
     const [meta, setMeta] = useState<ProjectsMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [reloadTick, setReloadTick] = useState(0);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
@@ -110,7 +109,6 @@ export function ProjectsPage() {
 
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const res = await listProjects(
                     {
@@ -127,8 +125,7 @@ export function ProjectsPage() {
                 setMeta(res.meta);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(projectErrorMessage(err));
+                toastError(err);
                 setProjects([]);
                 setMeta(null);
             } finally {
@@ -183,8 +180,10 @@ export function ProjectsPage() {
     async function handleSave(data: ProjectInput) {
         if (sheetMode === 'edit' && editing) {
             await updateProject(editing.id, data);
+            toastSuccess('Proyecto actualizado');
         } else {
             await createProject(data);
+            toastSuccess('Proyecto creado');
         }
         reload();
     }
@@ -195,9 +194,10 @@ export function ProjectsPage() {
         try {
             await deleteProject(deleteTarget.id);
             setDeleteTarget(null);
+            toastSuccess('Proyecto eliminado');
             reload();
         } catch (err) {
-            setError(projectErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -304,15 +304,6 @@ export function ProjectsPage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>

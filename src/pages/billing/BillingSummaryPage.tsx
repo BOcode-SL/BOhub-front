@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
-import { billingErrorMessage, currentQuarter, formatMoney, getBillingSummary, type BillingSummary } from '@/lib/billing';
+import { currentQuarter, formatMoney, getBillingSummary, type BillingSummary } from '@/lib/billing';
+import { toastError } from '@/lib/toast';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 
 const selectClass =
@@ -31,7 +32,6 @@ export function BillingSummaryPage() {
 
     const [summary, setSummary] = useState<BillingSummary | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!urlHasPeriod) {
@@ -42,15 +42,13 @@ export function BillingSummaryPage() {
         const ac = new AbortController();
         let cancelled = false;
         setLoading(true);
-        setError(null);
         void getBillingSummary({ year, quarter }, ac.signal)
             .then((s) => {
                 if (!cancelled) setSummary(s);
             })
             .catch((err) => {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(billingErrorMessage(err));
+                toastError(err);
                 setSummary(null);
             })
             .finally(() => {
@@ -119,15 +117,6 @@ export function BillingSummaryPage() {
                 </div>
             }
         >
-            {error && (
-                <p
-                    role="alert"
-                    className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                >
-                    {error}
-                </p>
-            )}
-
             {loading && !summary && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {Array.from({ length: 4 }).map((_, i) => (

@@ -8,6 +8,7 @@ import { ListPageShell } from '@/components/list-page-shell';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listProjectOptions } from '@/lib/projects';
+import { toastError, toastSuccess } from '@/lib/toast';
 import {
     createHour,
     deleteHour,
@@ -19,7 +20,6 @@ import {
     patchTimer,
     saveTimer,
     startTimer,
-    timerErrorMessage,
     updateHour,
     type ActiveTimer,
     type Hour,
@@ -57,7 +57,6 @@ export function TimerPage() {
     const [liveProjectId, setLiveProjectId] = useState<number | ''>('');
     const [liveDesc, setLiveDesc] = useState('');
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const [tab, setTab] = useState<Tab>('mine');
     const [hours, setHours] = useState<Hour[]>([]);
@@ -119,7 +118,7 @@ export function TimerPage() {
     }
 
     useEffect(() => {
-        void refreshTimer().catch((err) => setError(timerErrorMessage(err)));
+        void refreshTimer().catch((err) => toastError(err));
     }, []);
 
     // ponytail: local 1s tick only; API resync on pause/resume/focus/visibility — not each second
@@ -192,8 +191,7 @@ export function TimerPage() {
                 }
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(timerErrorMessage(err));
+                toastError(err);
             } finally {
                 if (!cancelled) setListLoading(false);
             }
@@ -207,11 +205,10 @@ export function TimerPage() {
 
     async function runAction(fn: () => Promise<void>) {
         setBusy(true);
-        setError(null);
         try {
             await fn();
         } catch (err) {
-            setError(timerErrorMessage(err));
+            toastError(err);
         } finally {
             setBusy(false);
         }
@@ -263,7 +260,6 @@ export function TimerPage() {
 
     function handleStop() {
         if (!timer) return;
-        setError(null);
         setFrozenSeconds(displaySeconds);
         setSaveProjectId(liveProjectId || timer.projectId || '');
         setSaveDesc(liveDesc || timer.description || '');
@@ -274,7 +270,7 @@ export function TimerPage() {
     async function confirmSave() {
         if (!timer) return;
         if (!saveProjectId) {
-            setError('Selecciona un proyecto para guardar.');
+            toastError('Selecciona un proyecto para guardar.');
             return;
         }
         await runAction(async () => {
@@ -287,6 +283,7 @@ export function TimerPage() {
             setDisplaySeconds(0);
             setSaveOpen(false);
             reloadList();
+            toastSuccess('Horas guardadas');
         });
     }
 
@@ -303,16 +300,15 @@ export function TimerPage() {
     async function handleManual(e: FormEvent) {
         e.preventDefault();
         if (!manualProjectId) {
-            setError('Selecciona un proyecto.');
+            toastError('Selecciona un proyecto.');
             return;
         }
         const duration = (Number(manualHours) || 0) * 3600 + (Number(manualMinutes) || 0) * 60 + (Number(manualSeconds) || 0);
         if (duration < 1) {
-            setError('La duración debe ser mayor que 0.');
+            toastError('La duración debe ser mayor que 0.');
             return;
         }
         setManualSaving(true);
-        setError(null);
         try {
             await createHour({
                 projectId: Number(manualProjectId),
@@ -325,8 +321,9 @@ export function TimerPage() {
             setManualDesc('');
             setManualOpen(false);
             reloadList();
+            toastSuccess('Horas guardadas');
         } catch (err) {
-            setError(timerErrorMessage(err));
+            toastError(err);
         } finally {
             setManualSaving(false);
         }
@@ -334,7 +331,6 @@ export function TimerPage() {
 
     function openEdit(h: Hour) {
         setEditHour(h);
-        setError(null);
         const total = h.durationSeconds;
         setEditHours(String(Math.floor(total / 3600)));
         setEditMinutes(String(Math.floor((total % 3600) / 60)));
@@ -346,11 +342,10 @@ export function TimerPage() {
         if (!editHour) return;
         const duration = (Number(editHours) || 0) * 3600 + (Number(editMinutes) || 0) * 60;
         if (duration < 1) {
-            setError('La duración debe ser mayor que 0.');
+            toastError('La duración debe ser mayor que 0.');
             return;
         }
         setBusy(true);
-        setError(null);
         try {
             await updateHour(editHour.id, {
                 hours: Number(editHours) || 0,
@@ -361,8 +356,9 @@ export function TimerPage() {
             });
             setEditHour(null);
             reloadList();
+            toastSuccess('Horas actualizadas');
         } catch (err) {
-            setError(timerErrorMessage(err));
+            toastError(err);
         } finally {
             setBusy(false);
         }
@@ -375,8 +371,9 @@ export function TimerPage() {
             await deleteHour(deleteTarget.id);
             setDeleteTarget(null);
             reloadList();
+            toastSuccess('Horas eliminadas');
         } catch (err) {
-            setError(timerErrorMessage(err));
+            toastError(err);
         } finally {
             setBusy(false);
         }
@@ -387,15 +384,6 @@ export function TimerPage() {
 
     return (
         <div className="flex flex-col gap-8">
-            {error && (
-                <p
-                    role="alert"
-                    className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                >
-                    {error}
-                </p>
-            )}
-
             <section className="flex flex-col items-center gap-6 rounded-xl border border-border bg-card px-4 py-8 sm:px-8">
                 <p
                     className="font-mono text-5xl font-semibold tracking-tight text-primary tabular-nums sm:text-6xl md:text-7xl"
@@ -579,7 +567,6 @@ export function TimerPage() {
                                         setManualSeconds('0');
                                         setManualDate(today());
                                         setManualDesc('');
-                                        setError(null);
                                         setManualOpen(true);
                                     }}
                                 >
@@ -616,14 +603,6 @@ export function TimerPage() {
                         <DialogDescription>Duración congelada. Guarda o descarta la sesión.</DialogDescription>
                     </DialogHeader>
                     <p className="font-mono text-3xl font-semibold text-primary tabular-nums">{formatDuration(frozenSeconds)}</p>
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
                     <div className="grid gap-3">
                         <div className="grid gap-2">
                             <Label>Proyecto *</Label>
@@ -673,14 +652,6 @@ export function TimerPage() {
                         <DialogTitle>Añadir horas</DialogTitle>
                         <DialogDescription>Alta manual de tiempo.</DialogDescription>
                     </DialogHeader>
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
                     <form id="manual-hour-form" className="grid gap-3" onSubmit={(e) => void handleManual(e)}>
                         <div className="grid gap-2">
                             <Label>Proyecto</Label>
@@ -770,14 +741,6 @@ export function TimerPage() {
                         <DialogTitle>Editar horas</DialogTitle>
                         <DialogDescription>{editHour?.project?.name ?? 'Entrada'}</DialogDescription>
                     </DialogHeader>
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
                     <div className="grid gap-3">
                         <div className="grid grid-cols-2 gap-2">
                             <div className="grid gap-2">

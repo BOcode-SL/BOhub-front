@@ -7,13 +7,13 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
-    billingErrorMessage,
     calcTotal,
     getExpense,
     type Expense,
     type ExpenseInput,
     type LedgerStatus,
 } from '@/lib/billing';
+import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
 
 const selectClass =
@@ -66,15 +66,18 @@ type Props = {
 export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<ExpenseInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
-        void listProjectOptions().then((rows) => {
-            if (!cancelled) setProjects(rows);
-        });
+        void listProjectOptions()
+            .then((rows) => {
+                if (!cancelled) setProjects(rows);
+            })
+            .catch((err) => {
+                if (!cancelled) toastError(err);
+            });
         return () => {
             cancelled = true;
         };
@@ -82,7 +85,6 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
         if (mode !== 'edit' || !expense) {
             setForm(empty);
             return;
@@ -95,7 +97,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) setError(billingErrorMessage(err));
+                if (!cancelled) toastError(err);
             });
         return () => {
             cancelled = true;
@@ -110,7 +112,6 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
         setSaving(true);
         try {
             await onSubmit({
@@ -130,7 +131,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
             });
             onOpenChange(false);
         } catch (err) {
-            setError(billingErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -149,15 +150,6 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit }: Pr
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
-                    {error && (
-                        <p
-                            role="alert"
-                            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                        >
-                            {error}
-                        </p>
-                    )}
-
                     <div className="grid gap-2">
                         <Label htmlFor="exp-desc">Descripción</Label>
                         <Input

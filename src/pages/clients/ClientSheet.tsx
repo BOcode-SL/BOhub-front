@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { type Client, type ClientInput, clientErrorMessage, getClient } from '@/lib/clients';
+import { type Client, type ClientInput, getClient } from '@/lib/clients';
+import { toastError } from '@/lib/toast';
 
 const emptyForm: ClientInput = {
     name: '',
@@ -42,12 +43,10 @@ type ClientSheetProps = {
 
 export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: ClientSheetProps) {
     const [form, setForm] = useState<ClientInput>(emptyForm);
-    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (!open) return;
-        setError(null);
 
         if (mode !== 'edit' || !client) {
             setForm(emptyForm);
@@ -63,7 +62,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) setError(clientErrorMessage(err));
+                if (!cancelled) toastError(err);
             });
 
         return () => {
@@ -77,7 +76,6 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        setError(null);
         setSaving(true);
         try {
             await onSubmit({
@@ -93,7 +91,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
             });
             onOpenChange(false);
         } catch (err) {
-            setError(clientErrorMessage(err));
+            toastError(err);
         } finally {
             setSaving(false);
         }
@@ -202,12 +200,6 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             className="bg-background min-h-24"
                         />
                     </div>
-
-                    {error && (
-                        <p role="alert" className="text-sm text-destructive">
-                            {error}
-                        </p>
-                    )}
                 </form>
 
                 <SheetFooter>

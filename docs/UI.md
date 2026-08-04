@@ -49,6 +49,20 @@ Special layout (stats + pie + deadlines + top hours). Treat as **canonical dashb
 - Live hero: large mono duration + controls (BOtimer spirit).
 - Lists / Analytics: Card / ListPageShell consistent with rest of app.
 
+## Feedback (toast)
+
+User-facing API errors and mutation success use **shadcn Base Toast** (`components/ui/toast` + `lib/toast.ts`):
+
+```ts
+import { toastSuccess, toastError } from '@/lib/toast'
+
+toastSuccess('Cliente creado')
+toastError(err) // AbortError → no-op
+toastError('Selecciona un proyecto.')
+```
+
+Mount `<Toaster />` once in `App.tsx`. Prefer toasts in parent `handleSave` / `handleDelete`. Do **not** add inline `role="alert"` banners for API feedback.
+
 ## Emails
 
 Only **Plantillas** + **Mensajes**. No settings tab (SMTP is server `.env`).

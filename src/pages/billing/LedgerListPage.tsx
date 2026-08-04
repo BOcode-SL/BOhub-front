@@ -21,11 +21,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
-    billingErrorMessage,
     formatMoney,
     type BillingMeta,
     type LedgerStatus,
 } from '@/lib/billing';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -61,6 +61,9 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     titleColumnHeader: string;
     deleteTitle: string;
     paginationAriaLabel: string;
+    successCreate: string;
+    successUpdate: string;
+    successDelete: string;
     list: (
         params: {
             search?: string;
@@ -98,7 +101,6 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [rows, setRows] = useState<TRow[]>([]);
     const [meta, setMeta] = useState<BillingMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [tick, setTick] = useState(0);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
@@ -124,6 +126,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         titleColumnHeader,
         deleteTitle,
         paginationAriaLabel,
+        successCreate,
+        successUpdate,
+        successDelete,
     } = config;
 
     useEffect(() => {
@@ -154,7 +159,6 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         let cancelled = false;
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const res = await list(
                     {
@@ -170,8 +174,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 setMeta(res.meta);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(billingErrorMessage(err));
+                toastError(err);
                 setRows([]);
                 setMeta(null);
             } finally {
@@ -197,8 +200,13 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     }
 
     async function handleSave(data: TInput) {
-        if (sheetMode === 'edit' && editing) await update(editing.id, data);
-        else await create(data);
+        if (sheetMode === 'edit' && editing) {
+            await update(editing.id, data);
+            toastSuccess(successUpdate);
+        } else {
+            await create(data);
+            toastSuccess(successCreate);
+        }
         setTick((n) => n + 1);
     }
 
@@ -208,9 +216,10 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         try {
             await remove(deleteTarget.id);
             setDeleteTarget(null);
+            toastSuccess(successDelete);
             setTick((n) => n + 1);
         } catch (err) {
-            setError(billingErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -289,15 +298,6 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>

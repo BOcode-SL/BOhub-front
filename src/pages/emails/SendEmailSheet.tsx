@@ -5,13 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-    emailsErrorMessage,
     MAX_ATTACHMENT_SIZE,
     MAX_ATTACHMENTS,
     sendEmail,
     substituteVars,
     type EmailTemplate,
 } from '@/lib/emails';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 type Props = {
     open: boolean;
@@ -30,7 +30,6 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
     const [time, setTime] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [dragging, setDragging] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
@@ -45,7 +44,6 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
         setDate('');
         setTime('');
         setFiles([]);
-        setError(null);
     }, [open, template]);
 
     const deferredVars = useDeferredValue(vars);
@@ -58,11 +56,11 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
         const next = [...files];
         for (const f of Array.from(list)) {
             if (next.length >= MAX_ATTACHMENTS) {
-                setError(`Máximo ${MAX_ATTACHMENTS} adjuntos`);
+                toastError(`Máximo ${MAX_ATTACHMENTS} adjuntos`);
                 break;
             }
             if (f.size > MAX_ATTACHMENT_SIZE) {
-                setError(`«${f.name}» supera 10MB`);
+                toastError(`«${f.name}» supera 10MB`);
                 continue;
             }
             next.push(f);
@@ -73,27 +71,26 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!template) return;
-        setError(null);
 
         const missing = (template.variables ?? []).filter((v) => !vars[v]?.trim());
         if (missing.length) {
-            setError(`Faltan variables: ${missing.join(', ')}`);
+            toastError(`Faltan variables: ${missing.join(', ')}`);
             return;
         }
         if (!to.trim()) {
-            setError('Destinatario requerido');
+            toastError('Destinatario requerido');
             return;
         }
 
         let scheduledAt: string | undefined;
         if (schedule) {
             if (!date || !time) {
-                setError('Fecha y hora de programación requeridas');
+                toastError('Fecha y hora de programación requeridas');
                 return;
             }
             const dt = new Date(`${date}T${time}`);
             if (Number.isNaN(dt.getTime()) || dt <= new Date()) {
-                setError('La fecha programada debe ser futura');
+                toastError('La fecha programada debe ser futura');
                 return;
             }
             scheduledAt = dt.toISOString();
@@ -110,9 +107,10 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                 scheduledAt,
                 attachments: files,
             });
+            toastSuccess(schedule ? 'Correo programado' : 'Correo enviado');
             onSent();
         } catch (err) {
-            setError(emailsErrorMessage(err));
+            toastError(err);
         } finally {
             setSending(false);
         }
@@ -268,12 +266,6 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                                 sandbox=""
                             />
                         </div>
-
-                        {error && (
-                            <p className="text-sm text-destructive" role="alert">
-                                {error}
-                            </p>
-                        )}
                     </div>
 
                     <SheetFooter>

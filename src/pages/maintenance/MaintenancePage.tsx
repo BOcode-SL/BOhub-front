@@ -18,13 +18,13 @@ import {
     createMaintenance,
     deleteMaintenance,
     listMaintenances,
-    maintenanceErrorMessage,
     updateMaintenance,
     type MaintenanceInput,
     type MaintenanceMeta,
     type MaintenancePeriod,
     type MaintenanceStatus,
 } from '@/lib/maintenance';
+import { toastError, toastSuccess } from '@/lib/toast';
 import { MaintenanceSheet } from '@/pages/maintenance/MaintenanceSheet';
 
 const PER_PAGE = 15;
@@ -52,7 +52,6 @@ export function MaintenancePage() {
     const [rows, setRows] = useState<MaintenancePeriod[]>([]);
     const [meta, setMeta] = useState<MaintenanceMeta | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [tick, setTick] = useState(0);
 
     const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
@@ -81,7 +80,6 @@ export function MaintenancePage() {
         let cancelled = false;
         async function run() {
             setLoading(true);
-            setError(null);
             try {
                 const ending = endingRaw === '7' || endingRaw === '30' ? (Number(endingRaw) as 7 | 30) : undefined;
                 const res = await listMaintenances(
@@ -103,8 +101,7 @@ export function MaintenancePage() {
                 setMeta(res.meta);
             } catch (err) {
                 if (cancelled) return;
-                if (err instanceof DOMException && err.name === 'AbortError') return;
-                setError(maintenanceErrorMessage(err));
+                toastError(err);
                 setRows([]);
                 setMeta(null);
             } finally {
@@ -136,8 +133,10 @@ export function MaintenancePage() {
     async function handleSave(data: MaintenanceInput) {
         if (sheetMode === 'edit' && editing) {
             await updateMaintenance(editing.id, data);
+            toastSuccess('Periodo actualizado');
         } else {
             await createMaintenance(data);
+            toastSuccess('Periodo creado');
         }
         setTick((n) => n + 1);
     }
@@ -153,9 +152,10 @@ export function MaintenancePage() {
         try {
             await deleteMaintenance(deleteTarget.id);
             setDeleteTarget(null);
+            toastSuccess('Periodo eliminado');
             setTick((n) => n + 1);
         } catch (err) {
-            setError(maintenanceErrorMessage(err));
+            toastError(err);
         } finally {
             setDeleting(false);
         }
@@ -291,15 +291,6 @@ export function MaintenancePage() {
                     </div>
                 }
             >
-                {error && (
-                    <p
-                        role="alert"
-                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
-                    >
-                        {error}
-                    </p>
-                )}
-
                 <div className="overflow-x-auto rounded-md border">
                     <Table>
                         <TableHeader>
