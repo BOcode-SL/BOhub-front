@@ -358,17 +358,23 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     </div>
 
                     <fieldset className="grid gap-3 rounded-lg border border-border p-3">
-                        <legend className="flex items-center justify-between px-1 text-sm font-medium text-foreground">
-                            <span>Plazos de pago</span>
-                            <Button type="button" variant="ghost" size="icon-sm" onClick={addInstallment}>
-                                <Plus />
-                            </Button>
-                        </legend>
+                        <legend className="px-1 text-sm font-medium text-foreground">Plazos de pago</legend>
                         {(form.installments ?? []).length === 0 && (
                             <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
                         )}
                         {(form.installments ?? []).map((inst, idx) => (
-                            <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                            <div key={idx} className="grid gap-2 border-t border-border pt-3 first:border-0 first:pt-0">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-muted-foreground">Plazo {idx + 1}</span>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        onClick={() => removeInstallment(idx)}
+                                    >
+                                        <Trash2 className="size-4" />
+                                    </Button>
+                                </div>
                                 <div className="grid gap-1.5">
                                     <Label htmlFor={`inst-${idx}-amt`} className="text-xs">
                                         Importe
@@ -407,17 +413,12 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                         className="h-8 text-sm"
                                     />
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    onClick={() => removeInstallment(idx)}
-                                    className="mt-5"
-                                >
-                                    <Trash2 className="size-4" />
-                                </Button>
                             </div>
                         ))}
+                        <Button type="button" variant="outline" size="sm" onClick={addInstallment} className="w-full">
+                            <Plus />
+                            Añadir plazo
+                        </Button>
                     </fieldset>
 
                     <div className="grid gap-2">
