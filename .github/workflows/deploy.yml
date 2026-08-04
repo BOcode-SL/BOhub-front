@@ -1,0 +1,43 @@
+name: Deploy BOhub front
+
+on:
+    push:
+        branches: [main]
+
+jobs:
+    deploy:
+        name: Build & FTP
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install
+              run: pnpm install --frozen-lockfile
+
+            - name: Build
+              env:
+                  VITE_ENV: Production
+                  VITE_API_URL_PROD: ${{ secrets.VITE_API_URL_PROD }}
+                  VITE_JIRA_BASE_URL: ${{ secrets.VITE_JIRA_BASE_URL }}
+              run: pnpm run build
+
+            - name: FTP sync
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+              with:
+                  server: ${{ secrets.FTP_HOST }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  port: ${{ secrets.FTP_PORT }}
+                  server-dir: ${{ secrets.FTP_REMOTE_PATH }}
+                  local-dir: ./dist/
