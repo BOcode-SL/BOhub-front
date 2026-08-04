@@ -142,6 +142,7 @@ export function EmailMessagesPage() {
   }
 
   function openEdit(row: EmailMessage) {
+    setError(null)
     setEditMsg(row)
     setEditTo(row.to)
     setEditCc(row.cc ?? '')
@@ -433,6 +434,14 @@ export function EmailMessagesPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
+            {error && (
+              <p
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+              >
+                {error}
+              </p>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="edit-to">Para *</Label>
               <Input

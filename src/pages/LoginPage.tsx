@@ -93,6 +93,7 @@ export function LoginPage() {
                 type="email"
                 autoComplete="username"
                 required
+                maxLength={255}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"

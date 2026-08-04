@@ -275,6 +275,7 @@ export function MaintenanceSheet({
                   setEndsTouched(true)
                   setForm((f) => ({ ...f, endsOn: e.target.value }))
                 }}
+                min={form.startsOn || undefined}
                 className="bg-card"
               />
             </div>

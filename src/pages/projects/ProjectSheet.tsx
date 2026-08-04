@@ -330,6 +330,7 @@ export function ProjectSheet({
                 type="date"
                 value={form.endDate ?? ''}
                 onChange={(e) => setField('endDate', e.target.value)}
+                min={form.startDate || undefined}
                 className="bg-card"
               />
             </div>

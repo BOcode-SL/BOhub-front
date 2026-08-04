@@ -153,6 +153,7 @@ export function SendEmailSheet({
               <Input
                 id="send-to"
                 type="email"
+                maxLength={255}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 required
@@ -163,6 +164,7 @@ export function SendEmailSheet({
               <Input
                 id="send-cc"
                 type="email"
+                maxLength={255}
                 value={cc}
                 onChange={(e) => setCc(e.target.value)}
               />
@@ -171,6 +173,7 @@ export function SendEmailSheet({
               <Label htmlFor="send-subject">Asunto</Label>
               <Input
                 id="send-subject"
+                maxLength={200}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 required

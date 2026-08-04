@@ -285,6 +285,7 @@ export function PaymentSheet({
               <Label htmlFor="pay-method">Método</Label>
               <Input
                 id="pay-method"
+                maxLength={80}
                 value={form.paymentMethod ?? ''}
                 onChange={(e) => setField('paymentMethod', e.target.value)}
                 className="bg-card"
@@ -319,6 +320,7 @@ export function PaymentSheet({
             <Label htmlFor="pay-ref">Referencia</Label>
             <Input
               id="pay-ref"
+              maxLength={120}
               value={form.reference ?? ''}
               onChange={(e) => setField('reference', e.target.value)}
               className="bg-card"
@@ -333,6 +335,7 @@ export function PaymentSheet({
               <Label htmlFor="pay-ext-system">Sistema (opcional)</Label>
               <Input
                 id="pay-ext-system"
+                maxLength={80}
                 value={form.externalSystem ?? ''}
                 onChange={(e) => setField('externalSystem', e.target.value)}
                 className="bg-card"
@@ -343,6 +346,7 @@ export function PaymentSheet({
               <Label htmlFor="pay-inv-num">Nº factura</Label>
               <Input
                 id="pay-inv-num"
+                maxLength={120}
                 value={form.invoiceNumber ?? ''}
                 onChange={(e) => setField('invoiceNumber', e.target.value)}
                 className="bg-card"
@@ -352,6 +356,7 @@ export function PaymentSheet({
               <Label htmlFor="pay-ext-id">ID externo</Label>
               <Input
                 id="pay-ext-id"
+                maxLength={120}
                 value={form.externalInvoiceId ?? ''}
                 onChange={(e) => setField('externalInvoiceId', e.target.value)}
                 className="bg-card"

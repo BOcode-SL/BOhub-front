@@ -272,6 +272,7 @@ export function TimerPage() {
 
   function handleStop() {
     if (!timer) return
+    setError(null)
     setFrozenSeconds(displaySeconds)
     setSaveProjectId(liveProjectId || timer.projectId || '')
     setSaveDesc(liveDesc || timer.description || '')
@@ -314,6 +315,14 @@ export function TimerPage() {
       setError('Selecciona un proyecto.')
       return
     }
+    const duration =
+      (Number(manualHours) || 0) * 3600 +
+      (Number(manualMinutes) || 0) * 60 +
+      (Number(manualSeconds) || 0)
+    if (duration < 1) {
+      setError('La duración debe ser mayor que 0.')
+      return
+    }
     setManualSaving(true)
     setError(null)
     try {
@@ -337,6 +346,7 @@ export function TimerPage() {
 
   function openEdit(h: Hour) {
     setEditHour(h)
+    setError(null)
     const total = h.durationSeconds
     setEditHours(String(Math.floor(total / 3600)))
     setEditMinutes(String(Math.floor((total % 3600) / 60)))
@@ -346,6 +356,12 @@ export function TimerPage() {
 
   async function saveEdit() {
     if (!editHour) return
+    const duration =
+      (Number(editHours) || 0) * 3600 + (Number(editMinutes) || 0) * 60
+    if (duration < 1) {
+      setError('La duración debe ser mayor que 0.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -600,6 +616,7 @@ export function TimerPage() {
                     setManualSeconds('0')
                     setManualDate(today())
                     setManualDesc('')
+                    setError(null)
                     setManualOpen(true)
                   }}
                 >
@@ -640,6 +657,14 @@ export function TimerPage() {
           <p className="font-mono text-3xl font-semibold text-primary tabular-nums">
             {formatDuration(frozenSeconds)}
           </p>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+            >
+              {error}
+            </p>
+          )}
           <div className="grid gap-3">
             <div className="grid gap-2">
               <Label>Proyecto *</Label>
@@ -708,6 +733,14 @@ export function TimerPage() {
             <DialogTitle>Añadir horas</DialogTitle>
             <DialogDescription>Alta manual de tiempo.</DialogDescription>
           </DialogHeader>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+            >
+              {error}
+            </p>
+          )}
           <form
             id="manual-hour-form"
             className="grid gap-3"
@@ -820,6 +853,14 @@ export function TimerPage() {
               {editHour?.project?.name ?? 'Entrada'}
             </DialogDescription>
           </DialogHeader>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
+            >
+              {error}
+            </p>
+          )}
           <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-2">
