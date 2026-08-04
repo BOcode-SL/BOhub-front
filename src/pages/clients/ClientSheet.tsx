@@ -114,6 +114,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={255}
                             value={form.name}
                             onChange={(e) => setField('name', e.target.value)}
+                            placeholder="Nombre o razón social"
                             className="bg-background"
                         />
                     </div>
@@ -124,6 +125,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={50}
                             value={form.taxId ?? ''}
                             onChange={(e) => setField('taxId', e.target.value)}
+                            placeholder="B12345678"
                             className="bg-background"
                         />
                     </div>
@@ -135,6 +137,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={255}
                             value={form.email ?? ''}
                             onChange={(e) => setField('email', e.target.value)}
+                            placeholder="contacto@empresa.com"
                             className="bg-background"
                         />
                     </div>
@@ -145,7 +148,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={50}
                             value={form.phone ?? ''}
                             onChange={(e) => setField('phone', e.target.value)}
-                            placeholder="+34 …"
+                            placeholder="600 000 000"
                             className="bg-background"
                         />
                     </div>
@@ -156,6 +159,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={255}
                             value={form.address ?? ''}
                             onChange={(e) => setField('address', e.target.value)}
+                            placeholder="Calle, número, piso…"
                             className="bg-background"
                         />
                     </div>
@@ -167,6 +171,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                                 maxLength={120}
                                 value={form.city ?? ''}
                                 onChange={(e) => setField('city', e.target.value)}
+                                placeholder="Madrid"
                                 className="bg-background"
                             />
                         </div>
@@ -177,6 +182,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                                 maxLength={20}
                                 value={form.postalCode ?? ''}
                                 onChange={(e) => setField('postalCode', e.target.value)}
+                                placeholder="28001"
                                 className="bg-background"
                             />
                         </div>
@@ -188,6 +194,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             maxLength={120}
                             value={form.country ?? ''}
                             onChange={(e) => setField('country', e.target.value)}
+                            placeholder="España"
                             className="bg-background"
                         />
                     </div>
@@ -197,6 +204,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             id="client-notes"
                             value={form.notes ?? ''}
                             onChange={(e) => setField('notes', e.target.value)}
+                            placeholder="Notas internas…"
                             className="bg-background min-h-24"
                         />
                     </div>
