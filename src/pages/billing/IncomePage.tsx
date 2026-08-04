@@ -8,7 +8,7 @@ export function IncomePage() {
     const config = useMemo<LedgerListConfig<Payment, PaymentInput>>(
         () => ({
             title: 'Ingresos',
-            description: 'Facturas emitidas (ledger). Metadata de factura externa + PDF stub.',
+            description: 'Facturas emitidas del periodo.',
             icon: ReceiptEuro,
             searchPlaceholder: 'Buscar referencia o nº factura…',
             searchAriaLabel: 'Buscar ingresos',

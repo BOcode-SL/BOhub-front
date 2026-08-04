@@ -1,7 +1,6 @@
 import { ReceiptEuro } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { currentQuarter, formatMoney, getBillingSummary, type BillingSummary } from '@/lib/billing';
@@ -64,12 +63,10 @@ export function BillingSummaryPage() {
         setSearchParams({ year: String(nextYear), quarter: String(nextQuarter) });
     }
 
-    const periodLabel = quarter === 'all' ? `Año ${year}` : `T${quarter} ${year}`;
-
     return (
         <ListPageShell
             title="Resumen"
-            description={`Ledger interno · periodo ${periodLabel}. Registra facturas creadas en tu app de facturación.`}
+            description="Ingresos y gastos del periodo."
             icon={ReceiptEuro}
             above={<BillingTabs />}
             toolbar={
@@ -98,17 +95,6 @@ export function BillingSummaryPage() {
                             if (value) setPeriod(year, value === 'all' ? 'all' : (Number(value) as 1 | 2 | 3 | 4));
                         }}
                     />
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPeriod(new Date().getFullYear(), currentQuarter())}
-                    >
-                        Trimestre actual
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setPeriod(year, 'all')}>
-                        Todo el año
-                    </Button>
                 </div>
             }
         >
