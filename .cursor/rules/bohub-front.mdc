@@ -11,5 +11,4 @@ Before coding, read **`AGENTS.md`**, then `docs/UI.md` / `docs/ARCHITECTURE.md` 
 - Lists: `ListPageShell` (see ClientsPage); don’t regress Home
 - API via `src/lib/*.ts` + AbortSignal
 - Tokens BOcode; buttons h-9 / primary lime
-- No emails settings UI; no campaigns
 - `pnpm run build` after UI changes

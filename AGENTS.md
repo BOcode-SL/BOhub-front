@@ -35,28 +35,32 @@ src/
   lib/                    # API clients (one file per domain)
   pages/
     home/                 # dashboard home (reference UI)
-    clients|projects|billing|timer|emails|maintenance/
+    clients|projects|billing|timer|emails|maintenance|users|settings/
   index.css               # design tokens
 ```
 
 ## Routes (all under `/dashboard`)
 
-| Path                          | Page                                        |
-| ----------------------------- | ------------------------------------------- |
-| `/login`                      | Login                                       |
-| `/dashboard`                  | Home (widgets + charts)                     |
-| `/dashboard/clients`          | Clients CRUD                                |
-| `/dashboard/projects`         | Projects list                               |
-| `/dashboard/projects/:id`     | Project detail                              |
-| `/dashboard/billing`          | Billing summary (quarter default)           |
-| `/dashboard/billing/income`   | Payments                                    |
-| `/dashboard/billing/expenses` | Expenses                                    |
-| `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics |
-| `/dashboard/emails`           | Templates                                   |
-| `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     |
-| `/dashboard/maintenance`      | Maintenance periods                         |
+| Path                          | Page                                        | Roles            |
+| ----------------------------- | ------------------------------------------- | ---------------- |
+| `/login`                      | Login                                       | public           |
+| `/dashboard`                  | Home (widgets + charts)                     | admin, employee  |
+| `/dashboard/clients`          | Clients CRUD                                | admin, employee  |
+| `/dashboard/projects`         | Projects list                               | admin, employee  |
+| `/dashboard/projects/:id`     | Project detail                              | admin, employee  |
+| `/dashboard/billing`          | Billing summary (quarter default)           | admin, billing   |
+| `/dashboard/billing/income`   | Payments (billing = read-only)              | admin, billing   |
+| `/dashboard/billing/expenses` | Expenses (billing = read-only)              | admin, billing   |
+| `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics | admin, employee  |
+| `/dashboard/emails`           | Templates                                   | admin            |
+| `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin            |
+| `/dashboard/users`            | Users CRUD                                  | admin            |
+| `/dashboard/maintenance`      | Maintenance periods                         | admin, employee  |
+| `/dashboard/settings`         | Configuración (placeholder)                 | any auth         |
 
-Legacy: `/app` → `/dashboard`.
+Legacy: `/app` → `/dashboard`. Post-login: `billing` → `/dashboard/billing`; resto → `/dashboard`.
+
+Roles: `admin` | `employee` | `billing`.
 
 Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + CSRF (`/sanctum/csrf-cookie`, `X-XSRF-TOKEN`) in `lib/api.ts`. No `bohub_token` / Bearer. After API cutover, users must re-login.
 
@@ -70,13 +74,13 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 6. Empty / loading / error states on every list.
 7. Debounce search (~300ms) + **AbortSignal** on fetches.
 8. No Emails “Configuración” UI — SMTP is backend `.env` only.
-9. No campaigns UI.
 
 ## `lib/` API map
 
 | File             | Domain                               |
 | ---------------- | ------------------------------------ |
-| `api.ts`         | `request()`, token, errors           |
+| `api.ts`         | `request()`, CSRF, auth helpers      |
+| `users.ts`       | users CRUD + role labels             |
 | `clients.ts`     | clients CRUD                         |
 | `projects.ts`    | projects + options cache             |
 | `billing.ts`     | payments, expenses, summary          |

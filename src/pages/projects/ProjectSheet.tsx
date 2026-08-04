@@ -201,9 +201,10 @@ export function ProjectSheet({
             <Label htmlFor="project-name">Nombre</Label>
             <Input
               id="project-name"
+              required
+              maxLength={255}
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              required
               className="bg-card"
             />
           </div>
@@ -303,6 +304,7 @@ export function ProjectSheet({
             <Label htmlFor="project-icon">Icono (opcional)</Label>
             <Input
               id="project-icon"
+              maxLength={80}
               value={form.icon ?? ''}
               onChange={(e) => setField('icon', e.target.value)}
               placeholder="p. ej. folder"

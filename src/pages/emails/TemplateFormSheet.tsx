@@ -131,6 +131,7 @@ export function TemplateFormSheet({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                maxLength={200}
               />
             </div>
             <div className="space-y-1.5">
@@ -139,6 +140,7 @@ export function TemplateFormSheet({
                 id="tpl-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                maxLength={500}
               />
             </div>
             <div className="space-y-1.5">
@@ -148,6 +150,7 @@ export function TemplateFormSheet({
                 value={subject}
                 onChange={(e) => onSubjectChange(e.target.value)}
                 required
+                maxLength={200}
               />
             </div>
             <div className="space-y-1.5">
@@ -158,6 +161,7 @@ export function TemplateFormSheet({
                 onChange={(e) => onHtmlChange(e.target.value)}
                 className="min-h-[180px] font-mono text-xs"
                 required
+                maxLength={100000}
               />
             </div>
             <div className="space-y-2">

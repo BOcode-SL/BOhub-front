@@ -281,9 +281,13 @@ export function TimerPage() {
 
   async function confirmSave() {
     if (!timer) return
+    if (!saveProjectId) {
+      setError('Selecciona un proyecto para guardar.')
+      return
+    }
     await runAction(async () => {
       await saveTimer(timer.id, {
-        projectId: saveProjectId ? Number(saveProjectId) : null,
+        projectId: Number(saveProjectId),
         description: saveDesc.trim() || null,
         workedOn: saveDate,
       })
@@ -638,9 +642,10 @@ export function TimerPage() {
           </p>
           <div className="grid gap-3">
             <div className="grid gap-2">
-              <Label>Proyecto</Label>
+              <Label>Proyecto *</Label>
               <select
                 value={saveProjectId}
+                required
                 onChange={(e) =>
                   setSaveProjectId(
                     e.target.value ? Number(e.target.value) : '',
@@ -648,7 +653,7 @@ export function TimerPage() {
                 }
                 className={selectClass}
               >
-                <option value="">Sin proyecto</option>
+                <option value="">Selecciona proyecto…</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -822,6 +827,7 @@ export function TimerPage() {
                 <Input
                   type="number"
                   min={0}
+                  max={24}
                   value={editHours}
                   onChange={(e) => setEditHours(e.target.value)}
                   className="bg-card"

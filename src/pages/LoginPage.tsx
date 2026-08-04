@@ -3,6 +3,7 @@ import { Eye, EyeOff, LogIn, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ApiError } from '../lib/api'
+import { homePathForRole } from '@/lib/users'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -22,8 +23,8 @@ export function LoginPage() {
     setSubmitting(true)
 
     try {
-      await login(email.trim(), password)
-      navigate('/dashboard', { replace: true })
+      const authed = await login(email.trim(), password)
+      navigate(homePathForRole(authed.role), { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
@@ -77,7 +78,6 @@ export function LoginPage() {
         <form
           onSubmit={onSubmit}
           className="relative space-y-6 px-6 pt-6 pb-8 sm:px-8"
-          noValidate
         >
           <div className="space-y-5">
             <div className="space-y-2">

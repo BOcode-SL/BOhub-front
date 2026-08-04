@@ -135,6 +135,7 @@ export function ClientSheet({
             <Input
               id="client-name"
               required
+              maxLength={255}
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
               className="bg-background"
@@ -144,6 +145,7 @@ export function ClientSheet({
             <Label htmlFor="client-tax">NIF / CIF</Label>
             <Input
               id="client-tax"
+              maxLength={50}
               value={form.taxId ?? ''}
               onChange={(e) => setField('taxId', e.target.value)}
               className="bg-background"
@@ -154,6 +156,7 @@ export function ClientSheet({
             <Input
               id="client-email"
               type="email"
+              maxLength={255}
               value={form.email ?? ''}
               onChange={(e) => setField('email', e.target.value)}
               className="bg-background"
@@ -163,6 +166,7 @@ export function ClientSheet({
             <Label htmlFor="client-phone">Teléfono</Label>
             <Input
               id="client-phone"
+              maxLength={50}
               value={form.phone ?? ''}
               onChange={(e) => setField('phone', e.target.value)}
               placeholder="+34 …"
@@ -173,6 +177,7 @@ export function ClientSheet({
             <Label htmlFor="client-address">Dirección</Label>
             <Input
               id="client-address"
+              maxLength={255}
               value={form.address ?? ''}
               onChange={(e) => setField('address', e.target.value)}
               className="bg-background"
@@ -183,6 +188,7 @@ export function ClientSheet({
               <Label htmlFor="client-city">Ciudad</Label>
               <Input
                 id="client-city"
+                maxLength={120}
                 value={form.city ?? ''}
                 onChange={(e) => setField('city', e.target.value)}
                 className="bg-background"
@@ -192,6 +198,7 @@ export function ClientSheet({
               <Label htmlFor="client-postal">C.P.</Label>
               <Input
                 id="client-postal"
+                maxLength={20}
                 value={form.postalCode ?? ''}
                 onChange={(e) => setField('postalCode', e.target.value)}
                 className="bg-background"
@@ -202,6 +209,7 @@ export function ClientSheet({
             <Label htmlFor="client-country">País</Label>
             <Input
               id="client-country"
+              maxLength={120}
               value={form.country ?? ''}
               onChange={(e) => setField('country', e.target.value)}
               className="bg-background"

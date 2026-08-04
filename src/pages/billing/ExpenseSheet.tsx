@@ -184,6 +184,7 @@ export function ExpenseSheet({
             <Input
               id="exp-desc"
               required
+              maxLength={255}
               value={form.description}
               onChange={(e) => setField('description', e.target.value)}
               className="bg-card"
@@ -195,6 +196,7 @@ export function ExpenseSheet({
               <Label htmlFor="exp-recipient">Proveedor</Label>
               <Input
                 id="exp-recipient"
+                maxLength={255}
                 value={form.recipient ?? ''}
                 onChange={(e) => setField('recipient', e.target.value)}
                 className="bg-card"
@@ -206,6 +208,7 @@ export function ExpenseSheet({
                 id="exp-cat"
                 value={form.category ?? ''}
                 onChange={(e) => setField('category', e.target.value)}
+                maxLength={120}
                 className="bg-card"
               />
             </div>
@@ -253,6 +256,8 @@ export function ExpenseSheet({
                 id="exp-iva"
                 type="number"
                 step="0.01"
+                min={0}
+                max={100}
                 value={form.ivaRate}
                 onChange={(e) => setField('ivaRate', e.target.value)}
                 className="bg-card"
@@ -264,6 +269,8 @@ export function ExpenseSheet({
                 id="exp-irpf"
                 type="number"
                 step="0.01"
+                min={0}
+                max={100}
                 value={form.irpfRate}
                 onChange={(e) => setField('irpfRate', e.target.value)}
                 className="bg-card"
@@ -312,6 +319,8 @@ export function ExpenseSheet({
               onChange={(e) => setField('invoiceUrl', e.target.value)}
               className="bg-card"
               placeholder="https://…"
+              maxLength={500}
+              type="url"
             />
           </div>
 

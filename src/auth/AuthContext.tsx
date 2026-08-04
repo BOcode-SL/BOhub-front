@@ -4,7 +4,7 @@ import { ApiError, login as apiLogin, logout as apiLogout, me as apiMe, type Aut
 type AuthContextValue = {
     user: AuthUser | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<AuthUser>;
     logout: () => Promise<void>;
     refreshMe: () => Promise<void>;
 };
@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = useCallback(async (email: string, password: string) => {
         const data = await apiLogin(email, password);
         setUser(data.user);
+        return data.user;
     }, []);
 
     const logout = useCallback(async () => {

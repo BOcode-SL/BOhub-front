@@ -1,6 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@/auth/AuthContext'
-import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from '@/auth/RouteGuards'
+import {
+  AdminRoute,
+  BillingRoute,
+  OpsRoute,
+  ProtectedRoute,
+  PublicOnlyRoute,
+} from '@/auth/RouteGuards'
 import { AppLayout } from '@/components/layout/app-layout'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoginPage } from '@/pages/LoginPage'
@@ -15,6 +21,8 @@ import { MaintenancePage } from '@/pages/maintenance/MaintenancePage'
 import { HomePage } from '@/pages/home/HomePage'
 import { EmailsPage } from '@/pages/emails/EmailsPage'
 import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage'
+import { UsersPage } from '@/pages/users/UsersPage'
+import { SettingsPage } from '@/pages/settings/SettingsPage'
 
 /** Bookmarks: /app and /app/* → /dashboard/* */
 function LegacyAppRedirect() {
@@ -35,19 +43,28 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<AppLayout />}>
-                <Route index element={<HomePage />} />
-                <Route path="clients" element={<ClientsPage />} />
-                <Route path="projects" element={<ProjectsPage />} />
-                <Route path="projects/:id" element={<ProjectDetailPage />} />
-                <Route path="billing" element={<BillingSummaryPage />} />
-                <Route path="billing/income" element={<IncomePage />} />
-                <Route path="billing/expenses" element={<ExpensesPage />} />
-                <Route path="timer" element={<TimerPage />} />
+                <Route element={<OpsRoute />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="clients" element={<ClientsPage />} />
+                  <Route path="projects" element={<ProjectsPage />} />
+                  <Route path="projects/:id" element={<ProjectDetailPage />} />
+                  <Route path="timer" element={<TimerPage />} />
+                  <Route path="maintenance" element={<MaintenancePage />} />
+                </Route>
+
+                <Route element={<BillingRoute />}>
+                  <Route path="billing" element={<BillingSummaryPage />} />
+                  <Route path="billing/income" element={<IncomePage />} />
+                  <Route path="billing/expenses" element={<ExpensesPage />} />
+                </Route>
+
                 <Route element={<AdminRoute />}>
                   <Route path="emails" element={<EmailsPage />} />
                   <Route path="emails/messages" element={<EmailMessagesPage />} />
+                  <Route path="users" element={<UsersPage />} />
                 </Route>
-                <Route path="maintenance" element={<MaintenancePage />} />
+
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
 

@@ -238,6 +238,8 @@ export function PaymentSheet({
                 id="pay-iva"
                 type="number"
                 step="0.01"
+                min={0}
+                max={100}
                 value={form.ivaRate}
                 onChange={(e) => setField('ivaRate', e.target.value)}
                 className="bg-card"
@@ -249,6 +251,8 @@ export function PaymentSheet({
                 id="pay-irpf"
                 type="number"
                 step="0.01"
+                min={0}
+                max={100}
                 value={form.irpfRate}
                 onChange={(e) => setField('irpfRate', e.target.value)}
                 className="bg-card"
@@ -357,6 +361,8 @@ export function PaymentSheet({
               <Label htmlFor="pay-ext-url">URL factura externa</Label>
               <Input
                 id="pay-ext-url"
+                type="url"
+                maxLength={500}
                 value={form.externalUrl ?? ''}
                 onChange={(e) => setField('externalUrl', e.target.value)}
                 className="bg-card"
@@ -386,6 +392,8 @@ export function PaymentSheet({
             <Label htmlFor="pay-pdf">URL PDF (stub)</Label>
             <Input
               id="pay-pdf"
+              type="url"
+              maxLength={500}
               value={form.invoiceUrl ?? ''}
               onChange={(e) => setField('invoiceUrl', e.target.value)}
               className="bg-card"

@@ -158,6 +158,12 @@ export function EmailMessagesPage() {
 
   async function saveEdit() {
     if (!editMsg) return
+    const to = editTo.trim()
+    const subject = editSubject.trim()
+    if (!to || !subject || !editDate || !editTime) {
+      setError('Para, asunto, fecha y hora son obligatorios.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -168,9 +174,9 @@ export function EmailMessagesPage() {
         return
       }
       await updateScheduledMessage(editMsg.id, {
-        to: editTo.trim(),
+        to,
         cc: editCc.trim() || null,
-        subject: editSubject.trim(),
+        subject,
         scheduledAt: dt.toISOString(),
       })
       setEditMsg(null)
@@ -428,10 +434,12 @@ export function EmailMessagesPage() {
           </SheetHeader>
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-to">Para</Label>
+              <Label htmlFor="edit-to">Para *</Label>
               <Input
                 id="edit-to"
                 type="email"
+                required
+                maxLength={255}
                 value={editTo}
                 onChange={(e) => setEditTo(e.target.value)}
               />
@@ -441,33 +449,38 @@ export function EmailMessagesPage() {
               <Input
                 id="edit-cc"
                 type="email"
+                maxLength={255}
                 value={editCc}
                 onChange={(e) => setEditCc(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-subject">Asunto</Label>
+              <Label htmlFor="edit-subject">Asunto *</Label>
               <Input
                 id="edit-subject"
+                required
+                maxLength={200}
                 value={editSubject}
                 onChange={(e) => setEditSubject(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label htmlFor="edit-date">Fecha</Label>
+                <Label htmlFor="edit-date">Fecha *</Label>
                 <Input
                   id="edit-date"
                   type="date"
+                  required
                   value={editDate}
                   onChange={(e) => setEditDate(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="edit-time">Hora</Label>
+                <Label htmlFor="edit-time">Hora *</Label>
                 <Input
                   id="edit-time"
                   type="time"
+                  required
                   value={editTime}
                   onChange={(e) => setEditTime(e.target.value)}
                 />

@@ -3,6 +3,7 @@ export type AuthUser = {
   name: string
   email: string
   role: string
+  avatarUrl?: string | null
 }
 
 export class ApiError extends Error {

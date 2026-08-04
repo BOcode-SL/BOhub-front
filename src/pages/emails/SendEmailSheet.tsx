@@ -206,19 +206,21 @@ export function SendEmailSheet({
             {schedule && (
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="send-date">Fecha</Label>
+                  <Label htmlFor="send-date">Fecha *</Label>
                   <Input
                     id="send-date"
                     type="date"
+                    required={schedule}
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="send-time">Hora</Label>
+                  <Label htmlFor="send-time">Hora *</Label>
                   <Input
                     id="send-time"
                     type="time"
+                    required={schedule}
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                   />

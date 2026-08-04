@@ -1,20 +1,11 @@
-import { ChevronsUpDown, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import {
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from '@/components/ui/sidebar'
 
 function initials(name: string): string {
@@ -26,7 +17,6 @@ function initials(name: string): string {
 
 export function NavUser() {
   const { user, logout } = useAuth()
-  const { isMobile } = useSidebar()
   const navigate = useNavigate()
 
   if (!user) return null
@@ -39,21 +29,17 @@ export function NavUser() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton
-                size="lg"
-                className="h-12 cursor-pointer transition-colors duration-200 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary/40 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              />
-            }
-          >
+        <div className="flex w-full flex-col gap-2 px-2 py-1">
+          <div className="flex items-center gap-2 rounded-md px-1 py-1.5">
             <Avatar className="size-8 rounded-lg">
+              {user.avatarUrl ? (
+                <AvatarImage src={user.avatarUrl} alt="" />
+              ) : null}
               <AvatarFallback className="rounded-lg bg-muted font-semibold text-foreground">
                 {initials(user.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium text-foreground">
                 {user.name}
               </span>
@@ -61,39 +47,18 @@ export function NavUser() {
                 {user.email}
               </span>
             </div>
-            <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="min-w-56 rounded-lg"
-            side={isMobile ? 'bottom' : 'right'}
-            align="end"
-            sideOffset={4}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full cursor-pointer"
+            onClick={() => void handleLogout()}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-muted font-semibold text-foreground">
-                    {initials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="cursor-pointer focus:bg-sidebar-accent"
-              onClick={() => void handleLogout()}
-            >
-              <LogOut aria-hidden />
-              Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <LogOut aria-hidden />
+            Cerrar sesión
+          </Button>
+        </div>
       </SidebarMenuItem>
     </SidebarMenu>
   )
