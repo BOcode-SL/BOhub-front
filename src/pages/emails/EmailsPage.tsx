@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, MoreHorizontal, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ListPageShell } from '@/components/list-page-shell';
@@ -31,7 +31,6 @@ export function EmailsPage() {
     const [sendOpen, setSendOpen] = useState(false);
     const [sendTemplate, setSendTemplate] = useState<EmailTemplate | null>(null);
 
-    const [preview, setPreview] = useState<EmailTemplate | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
     const [deleting, setDeleting] = useState(false);
 
@@ -82,15 +81,6 @@ export function EmailsPage() {
             const full = await getTemplate(row.id);
             setSendTemplate(full);
             setSendOpen(true);
-        } catch (err) {
-            toastError(err);
-        }
-    }
-
-    async function openPreview(row: EmailTemplate) {
-        try {
-            const full = await getTemplate(row.id);
-            setPreview(full);
         } catch (err) {
             toastError(err);
         }
@@ -211,13 +201,6 @@ export function EmailsPage() {
                                                       </DropdownMenuItem>
                                                       <DropdownMenuItem
                                                           className="cursor-pointer"
-                                                          onClick={() => void openPreview(row)}
-                                                      >
-                                                          <Eye className="size-4" />
-                                                          Vista previa
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem
-                                                          className="cursor-pointer"
                                                           onClick={() => void openEdit(row)}
                                                       >
                                                           <Pencil className="size-4" />
@@ -296,26 +279,6 @@ export function EmailsPage() {
                 onOpenChange={setSendOpen}
                 onSent={() => setSendOpen(false)}
             />
-
-            <Dialog
-                open={!!preview}
-                onOpenChange={(o) => {
-                    if (!o) setPreview(null);
-                }}
-            >
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>{preview?.name ?? 'Vista previa'}</DialogTitle>
-                        <DialogDescription>{preview?.subject}</DialogDescription>
-                    </DialogHeader>
-                    <iframe
-                        title="Vista previa plantilla"
-                        className="h-[360px] w-full rounded-md border border-border bg-white"
-                        srcDoc={preview?.htmlBody ?? ''}
-                        sandbox=""
-                    />
-                </DialogContent>
-            </Dialog>
 
             <Dialog
                 open={!!deleteTarget}

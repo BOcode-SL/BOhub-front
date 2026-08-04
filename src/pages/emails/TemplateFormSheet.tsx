@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useDeferredValue, useEffect, useState, type FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { createTemplate, detectVariables, updateTemplate, type EmailTemplate } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { EmailHtmlPane } from '@/pages/emails/EmailHtmlPane';
+import { cn } from '@/lib/utils';
 
 type Props = {
     open: boolean;
@@ -26,6 +28,10 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
     const [manualVar, setManualVar] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+
+    const deferredHtml = useDeferredValue(htmlBody);
+    const deferredSubject = useDeferredValue(subject);
+    const showPreview = deferredHtml.trim().length > 0;
 
     useEffect(() => {
         if (!open) return;
@@ -119,112 +125,127 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
-                <SheetHeader>
-                    <SheetTitle>{mode === 'edit' ? 'Editar plantilla' : 'Nueva plantilla'}</SheetTitle>
-                    <SheetDescription>HTML con variables tipo [NOMBRE]. Sin WYSIWYG.</SheetDescription>
-                </SheetHeader>
-
-                <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
-                        <FormField id="tpl-name" label="Nombre" error={fieldErrors.name}>
-                            <Input
-                                id="tpl-name"
-                                value={name}
-                                onChange={(e) => {
-                                    setName(e.target.value);
-                                    clearFieldError('name');
-                                }}
-                                required
-                                maxLength={200}
-                                aria-invalid={!!fieldErrors.name}
-                            />
-                        </FormField>
-                        <FormField id="tpl-desc" label="Descripción" error={fieldErrors.description}>
-                            <Input
-                                id="tpl-desc"
-                                value={description}
-                                onChange={(e) => {
-                                    setDescription(e.target.value);
-                                    clearFieldError('description');
-                                }}
-                                maxLength={500}
-                                aria-invalid={!!fieldErrors.description}
-                            />
-                        </FormField>
-                        <FormField id="tpl-subject" label="Asunto" error={fieldErrors.subject}>
-                            <Input
-                                id="tpl-subject"
-                                value={subject}
-                                onChange={(e) => onSubjectChange(e.target.value)}
-                                required
-                                maxLength={200}
-                                aria-invalid={!!fieldErrors.subject}
-                            />
-                        </FormField>
-                        <FormField id="tpl-html" label="HTML" error={fieldErrors.htmlBody}>
-                            <Textarea
-                                id="tpl-html"
-                                value={htmlBody}
-                                onChange={(e) => onHtmlChange(e.target.value)}
-                                className="min-h-[180px] font-mono text-xs"
-                                required
-                                maxLength={100000}
-                                aria-invalid={!!fieldErrors.htmlBody}
-                            />
-                        </FormField>
-                        <div className="space-y-2">
-                            <Label>Variables</Label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {variables.length === 0 && (
-                                    <span className="text-xs text-muted-foreground">Ninguna detectada</span>
-                                )}
-                                {variables.map((v) => (
-                                    <button
-                                        key={v}
-                                        type="button"
-                                        className="cursor-pointer rounded-md bg-muted px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-destructive/20"
-                                        onClick={() => setVariables(variables.filter((x) => x !== v))}
-                                        title="Quitar"
-                                    >
-                                        [{v}] ×
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={manualVar}
-                                    onChange={(e) => setManualVar(e.target.value.toUpperCase())}
-                                    placeholder="AÑADIR_VAR"
-                                    className="font-mono text-xs"
-                                />
-                                <Button type="button" variant="outline" className="cursor-pointer" onClick={addManualVar}>
-                                    Añadir
-                                </Button>
-                            </div>
+            <SheetContent
+                className={cn(
+                    'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                    showPreview
+                        ? 'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]'
+                        : 'data-[side=right]:sm:max-w-lg',
+                )}
+            >
+                <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+                    {showPreview ? (
+                        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
+                            <EmailHtmlPane html={deferredHtml} subject={deferredSubject} className="h-full shadow-lg" />
                         </div>
-                        {htmlBody && (
-                            <div className="space-y-1.5">
-                                <Label>Preview</Label>
-                                <iframe
-                                    title="Preview plantilla"
-                                    className="h-40 w-full rounded-md border border-border bg-white"
-                                    srcDoc={htmlBody}
-                                    sandbox=""
-                                />
-                            </div>
+                    ) : null}
+                    <div
+                        className={cn(
+                            'flex min-h-0 min-w-0 flex-col overflow-hidden',
+                            showPreview ? 'w-full md:w-[450px] md:shrink-0 lg:w-[500px]' : 'w-full flex-1',
                         )}
-                    </div>
+                    >
+                        <SheetHeader>
+                            <SheetTitle>{mode === 'edit' ? 'Editar plantilla' : 'Nueva plantilla'}</SheetTitle>
+                            <SheetDescription>HTML con variables.</SheetDescription>
+                        </SheetHeader>
 
-                    <SheetFooter>
-                        <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" className="cursor-pointer" disabled={saving}>
-                            {saving ? 'Guardando…' : 'Guardar'}
-                        </Button>
-                    </SheetFooter>
-                </form>
+                        <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
+                            <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+                                <FormField id="tpl-name" label="Nombre" error={fieldErrors.name}>
+                                    <Input
+                                        id="tpl-name"
+                                        value={name}
+                                        onChange={(e) => {
+                                            setName(e.target.value);
+                                            clearFieldError('name');
+                                        }}
+                                        required
+                                        maxLength={200}
+                                        aria-invalid={!!fieldErrors.name}
+                                    />
+                                </FormField>
+                                <FormField id="tpl-desc" label="Descripción" error={fieldErrors.description}>
+                                    <Input
+                                        id="tpl-desc"
+                                        value={description}
+                                        onChange={(e) => {
+                                            setDescription(e.target.value);
+                                            clearFieldError('description');
+                                        }}
+                                        maxLength={500}
+                                        aria-invalid={!!fieldErrors.description}
+                                    />
+                                </FormField>
+                                <FormField id="tpl-subject" label="Asunto" error={fieldErrors.subject}>
+                                    <Input
+                                        id="tpl-subject"
+                                        value={subject}
+                                        onChange={(e) => onSubjectChange(e.target.value)}
+                                        required
+                                        maxLength={200}
+                                        aria-invalid={!!fieldErrors.subject}
+                                    />
+                                </FormField>
+                                <FormField id="tpl-html" label="HTML" error={fieldErrors.htmlBody}>
+                                    <Textarea
+                                        id="tpl-html"
+                                        value={htmlBody}
+                                        onChange={(e) => onHtmlChange(e.target.value)}
+                                        className="min-h-[180px] font-mono text-xs"
+                                        required
+                                        maxLength={100000}
+                                        aria-invalid={!!fieldErrors.htmlBody}
+                                    />
+                                </FormField>
+                                <div className="space-y-2">
+                                    <Label>Variables</Label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {variables.length === 0 && (
+                                            <span className="text-xs text-muted-foreground">Ninguna detectada</span>
+                                        )}
+                                        {variables.map((v) => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className="cursor-pointer rounded-md bg-muted px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-destructive/20"
+                                                onClick={() => setVariables(variables.filter((x) => x !== v))}
+                                                title="Quitar"
+                                            >
+                                                [{v}] ×
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={manualVar}
+                                            onChange={(e) => setManualVar(e.target.value.toUpperCase())}
+                                            placeholder="AÑADIR_VAR"
+                                            className="font-mono text-xs"
+                                        />
+                                        <Button type="button" variant="outline" className="cursor-pointer" onClick={addManualVar}>
+                                            Añadir
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <SheetFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="cursor-pointer"
+                                    onClick={() => onOpenChange(false)}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" className="cursor-pointer" disabled={saving}>
+                                    {saving ? 'Guardando…' : 'Guardar'}
+                                </Button>
+                            </SheetFooter>
+                        </form>
+                    </div>
+                </div>
             </SheetContent>
         </Sheet>
     );

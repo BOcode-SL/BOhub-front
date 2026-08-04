@@ -14,6 +14,8 @@ import {
     type EmailTemplate,
 } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { EmailHtmlPane } from '@/pages/emails/EmailHtmlPane';
+import { cn } from '@/lib/utils';
 
 type Props = {
     open: boolean;
@@ -51,10 +53,12 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
     }, [open, template]);
 
     const deferredVars = useDeferredValue(vars);
+    const deferredSubject = useDeferredValue(subject);
     const previewHtml = useMemo(() => {
         if (!template?.htmlBody) return '';
         return substituteVars(template.htmlBody, deferredVars);
     }, [template, deferredVars]);
+    const showPreview = Boolean(template?.htmlBody?.trim());
 
     function clearFieldError(key: string) {
         setFieldErrors((prev) => {
@@ -126,16 +130,15 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                 scheduledAt,
                 attachments: files,
             });
-            toastSuccess(schedule ? 'Correo programado' : 'Correo enviado');
+            toastSuccess(schedule ? 'Email programado' : 'Email enviado');
             onSent();
         } catch (err) {
             if (err instanceof ApiError && err.fieldErrors) {
                 const flat = flattenFieldErrors(err.fieldErrors);
                 if (flat.variables && template.variables?.length) {
                     for (const v of template.variables) {
-                        if (!vars[v]?.trim()) flat[v] = flat[v] ?? 'Requerido';
+                        if (!vars[v]?.trim()) flat[v] = flat.variables;
                     }
-                    delete flat.variables;
                 }
                 setFieldErrors(flat);
             }
@@ -147,193 +150,218 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
-                <SheetHeader>
-                    <SheetTitle>Enviar: {template?.name}</SheetTitle>
-                    <SheetDescription>Completa variables y destinatario. Opcional: programar y adjuntos.</SheetDescription>
-                </SheetHeader>
-
-                <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
-                        <FormField id="send-to" label="Para" error={fieldErrors.to}>
-                            <Input
-                                id="send-to"
-                                type="email"
-                                maxLength={255}
-                                value={to}
-                                onChange={(e) => {
-                                    setTo(e.target.value);
-                                    clearFieldError('to');
-                                }}
-                                required
-                                aria-invalid={!!fieldErrors.to}
-                            />
-                        </FormField>
-                        <FormField id="send-cc" label="CC" error={fieldErrors.cc}>
-                            <Input
-                                id="send-cc"
-                                type="email"
-                                maxLength={255}
-                                value={cc}
-                                onChange={(e) => {
-                                    setCc(e.target.value);
-                                    clearFieldError('cc');
-                                }}
-                                aria-invalid={!!fieldErrors.cc}
-                            />
-                        </FormField>
-                        <FormField id="send-subject" label="Asunto" error={fieldErrors.subject}>
-                            <Input
-                                id="send-subject"
-                                maxLength={200}
-                                value={subject}
-                                onChange={(e) => {
-                                    setSubject(e.target.value);
-                                    clearFieldError('subject');
-                                }}
-                                required
-                                aria-invalid={!!fieldErrors.subject}
-                            />
-                        </FormField>
-
-                        {(template?.variables ?? []).map((v) => (
-                            <FormField key={v} id={`var-${v}`} label={`[${v}]`} error={fieldErrors[v]}>
-                                <Input
-                                    id={`var-${v}`}
-                                    value={vars[v] ?? ''}
-                                    onChange={(e) => setVar(v, e.target.value)}
-                                    required
-                                    aria-invalid={!!fieldErrors[v]}
-                                />
-                            </FormField>
-                        ))}
-
-                        <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
-                            <Label htmlFor="send-schedule" className="cursor-pointer">
-                                Programar envío
-                            </Label>
-                            <input
-                                id="send-schedule"
-                                type="checkbox"
-                                className="size-4 cursor-pointer accent-primary"
-                                checked={schedule}
-                                onChange={(e) => {
-                                    setSchedule(e.target.checked);
-                                    clearFieldError('date');
-                                    clearFieldError('time');
-                                    clearFieldError('scheduledAt');
-                                }}
+            <SheetContent
+                className={cn(
+                    'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                    showPreview
+                        ? 'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]'
+                        : 'data-[side=right]:sm:max-w-lg',
+                )}
+            >
+                <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+                    {showPreview ? (
+                        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
+                            <EmailHtmlPane
+                                html={previewHtml}
+                                subject={deferredSubject || template?.subject}
+                                emptyLabel="Sin HTML en la plantilla"
+                                className="h-full shadow-lg"
                             />
                         </div>
-                        {schedule && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <FormField id="send-date" label="Fecha *" error={fieldErrors.date ?? fieldErrors.scheduledAt}>
+                    ) : null}
+                    <div
+                        className={cn(
+                            'flex min-h-0 min-w-0 flex-col overflow-hidden',
+                            showPreview ? 'w-full md:w-[450px] md:shrink-0 lg:w-[500px]' : 'w-full flex-1',
+                        )}
+                    >
+                        <SheetHeader>
+                            <SheetTitle>Enviar: {template?.name}</SheetTitle>
+                            <SheetDescription>Completa variables y destinatario. Opcional: programar y adjuntos.</SheetDescription>
+                        </SheetHeader>
+
+                        <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
+                            <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+                                <FormField id="send-to" label="Para" error={fieldErrors.to}>
                                     <Input
-                                        id="send-date"
-                                        type="date"
-                                        required={schedule}
-                                        value={date}
+                                        id="send-to"
+                                        type="email"
+                                        maxLength={255}
+                                        value={to}
                                         onChange={(e) => {
-                                            setDate(e.target.value);
-                                            clearFieldError('date');
-                                            clearFieldError('scheduledAt');
+                                            setTo(e.target.value);
+                                            clearFieldError('to');
                                         }}
-                                        aria-invalid={!!(fieldErrors.date || fieldErrors.scheduledAt)}
+                                        required
+                                        aria-invalid={!!fieldErrors.to}
                                     />
                                 </FormField>
-                                <FormField id="send-time" label="Hora *" error={fieldErrors.time}>
+                                <FormField id="send-cc" label="CC" error={fieldErrors.cc}>
                                     <Input
-                                        id="send-time"
-                                        type="time"
-                                        required={schedule}
-                                        value={time}
+                                        id="send-cc"
+                                        type="email"
+                                        maxLength={255}
+                                        value={cc}
                                         onChange={(e) => {
-                                            setTime(e.target.value);
+                                            setCc(e.target.value);
+                                            clearFieldError('cc');
+                                        }}
+                                        aria-invalid={!!fieldErrors.cc}
+                                    />
+                                </FormField>
+                                <FormField id="send-subject" label="Asunto" error={fieldErrors.subject}>
+                                    <Input
+                                        id="send-subject"
+                                        maxLength={200}
+                                        value={subject}
+                                        onChange={(e) => {
+                                            setSubject(e.target.value);
+                                            clearFieldError('subject');
+                                        }}
+                                        required
+                                        aria-invalid={!!fieldErrors.subject}
+                                    />
+                                </FormField>
+
+                                {(template?.variables ?? []).map((v) => (
+                                    <FormField key={v} id={`var-${v}`} label={`[${v}]`} error={fieldErrors[v]}>
+                                        <Input
+                                            id={`var-${v}`}
+                                            value={vars[v] ?? ''}
+                                            onChange={(e) => setVar(v, e.target.value)}
+                                            required
+                                            aria-invalid={!!fieldErrors[v]}
+                                        />
+                                    </FormField>
+                                ))}
+
+                                <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+                                    <Label htmlFor="send-schedule" className="cursor-pointer">
+                                        Programar envío
+                                    </Label>
+                                    <input
+                                        id="send-schedule"
+                                        type="checkbox"
+                                        className="size-4 cursor-pointer accent-primary"
+                                        checked={schedule}
+                                        onChange={(e) => {
+                                            setSchedule(e.target.checked);
+                                            clearFieldError('date');
                                             clearFieldError('time');
                                             clearFieldError('scheduledAt');
                                         }}
-                                        aria-invalid={!!fieldErrors.time}
                                     />
-                                </FormField>
-                            </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                            <Label>Adjuntos (máx {MAX_ATTACHMENTS} × 10MB)</Label>
-                            <div
-                                className={`rounded-md border border-dashed px-3 py-6 text-center text-sm transition-colors ${
-                                    dragging ? 'border-primary bg-primary/5' : 'border-border text-muted-foreground'
-                                }`}
-                                onDragOver={(e) => {
-                                    e.preventDefault();
-                                    setDragging(true);
-                                }}
-                                onDragLeave={() => setDragging(false)}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    setDragging(false);
-                                    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-                                }}
-                            >
-                                <Paperclip className="mx-auto mb-2 size-5 opacity-60" />
-                                <p>Arrastra archivos o</p>
-                                <label className="mt-1 inline-block cursor-pointer text-primary underline">
-                                    selecciona
-                                    <input
-                                        type="file"
-                                        className="sr-only"
-                                        multiple
-                                        onChange={(e) => {
-                                            if (e.target.files) addFiles(e.target.files);
-                                            e.target.value = '';
-                                        }}
-                                    />
-                                </label>
-                            </div>
-                            {files.length > 0 && (
-                                <ul className="space-y-1 text-xs">
-                                    {files.map((f, i) => (
-                                        <li
-                                            key={`${f.name}-${i}`}
-                                            className="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1"
+                                </div>
+                                {schedule && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <FormField
+                                            id="send-date"
+                                            label="Fecha *"
+                                            error={fieldErrors.date ?? fieldErrors.scheduledAt}
                                         >
-                                            <span className="truncate">
-                                                {f.name} ({Math.round(f.size / 1024)} KB)
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="cursor-pointer text-muted-foreground hover:text-foreground"
-                                                onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
-                                                aria-label={`Quitar ${f.name}`}
-                                            >
-                                                <X className="size-3.5" />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                                            <Input
+                                                id="send-date"
+                                                type="date"
+                                                required={schedule}
+                                                value={date}
+                                                onChange={(e) => {
+                                                    setDate(e.target.value);
+                                                    clearFieldError('date');
+                                                    clearFieldError('scheduledAt');
+                                                }}
+                                                aria-invalid={!!(fieldErrors.date || fieldErrors.scheduledAt)}
+                                            />
+                                        </FormField>
+                                        <FormField id="send-time" label="Hora *" error={fieldErrors.time}>
+                                            <Input
+                                                id="send-time"
+                                                type="time"
+                                                required={schedule}
+                                                value={time}
+                                                onChange={(e) => {
+                                                    setTime(e.target.value);
+                                                    clearFieldError('time');
+                                                    clearFieldError('scheduledAt');
+                                                }}
+                                                aria-invalid={!!fieldErrors.time}
+                                            />
+                                        </FormField>
+                                    </div>
+                                )}
 
-                        <div className="space-y-1.5">
-                            <Label>Preview</Label>
-                            <iframe
-                                title="Preview envío"
-                                className="h-40 w-full rounded-md border border-border bg-white"
-                                srcDoc={previewHtml}
-                                sandbox=""
-                            />
-                        </div>
+                                <div className="space-y-1.5">
+                                    <Label>Adjuntos (máx {MAX_ATTACHMENTS} × 10MB)</Label>
+                                    <div
+                                        className={`rounded-md border border-dashed px-3 py-6 text-center text-sm transition-colors ${
+                                            dragging ? 'border-primary bg-primary/5' : 'border-border text-muted-foreground'
+                                        }`}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            setDragging(true);
+                                        }}
+                                        onDragLeave={() => setDragging(false)}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            setDragging(false);
+                                            if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+                                        }}
+                                    >
+                                        <Paperclip className="mx-auto mb-2 size-5 opacity-60" />
+                                        <p>Arrastra archivos o</p>
+                                        <label className="mt-1 inline-block cursor-pointer text-primary underline">
+                                            selecciona
+                                            <input
+                                                type="file"
+                                                className="sr-only"
+                                                multiple
+                                                onChange={(e) => {
+                                                    if (e.target.files) addFiles(e.target.files);
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                    {files.length > 0 && (
+                                        <ul className="space-y-1 text-xs">
+                                            {files.map((f, i) => (
+                                                <li
+                                                    key={`${f.name}-${i}`}
+                                                    className="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1"
+                                                >
+                                                    <span className="truncate">
+                                                        {f.name} ({Math.round(f.size / 1024)} KB)
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="cursor-pointer text-muted-foreground hover:text-foreground"
+                                                        onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
+                                                        aria-label={`Quitar ${f.name}`}
+                                                    >
+                                                        <X className="size-3.5" />
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+
+                            <SheetFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="cursor-pointer"
+                                    onClick={() => onOpenChange(false)}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" className="cursor-pointer" disabled={sending}>
+                                    {sending ? 'Enviando…' : schedule ? 'Programar' : 'Enviar ahora'}
+                                </Button>
+                            </SheetFooter>
+                        </form>
                     </div>
-
-                    <SheetFooter>
-                        <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" className="cursor-pointer" disabled={sending}>
-                            {sending ? 'Enviando…' : schedule ? 'Programar' : 'Enviar ahora'}
-                        </Button>
-                    </SheetFooter>
-                </form>
+                </div>
             </SheetContent>
         </Sheet>
     );

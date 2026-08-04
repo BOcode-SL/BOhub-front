@@ -22,6 +22,7 @@ import {
 } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { EmailTabs } from '@/pages/emails/EmailTabs';
+import { EmailHtmlPane } from '@/pages/emails/EmailHtmlPane';
 
 const PER_PAGE = 15;
 type Tab = 'sent' | 'scheduled' | 'all';
@@ -338,34 +339,62 @@ export function EmailMessagesPage() {
                 )}
             </ListPageShell>
 
-            <Dialog
+            <Sheet
                 open={!!preview}
                 onOpenChange={(o) => {
                     if (!o) setPreview(null);
                 }}
             >
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>{preview?.subject}</DialogTitle>
-                        <DialogDescription>
-                            Para: {preview?.to}
-                            {preview?.cc ? ` · CC: ${preview.cc}` : ''} · {preview ? STATUS_LABELS[preview.status] : ''}
-                        </DialogDescription>
-                    </DialogHeader>
-                    {preview?.attachments?.length ? (
-                        <p className="text-xs text-muted-foreground">
-                            Adjuntos: {preview.attachments.map((a) => a.filename).join(', ')}
-                        </p>
-                    ) : null}
-                    {preview?.errorMessage && <p className="text-sm text-destructive">{preview.errorMessage}</p>}
-                    <iframe
-                        title="Vista mensaje"
-                        className="h-[360px] w-full rounded-md border border-border bg-white"
-                        srcDoc={preview?.htmlBody ?? ''}
-                        sandbox=""
-                    />
-                </DialogContent>
-            </Dialog>
+                <SheetContent
+                    className={cn(
+                        'flex w-full flex-col gap-0 p-0',
+                        'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]',
+                    )}
+                >
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+                        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
+                            <EmailHtmlPane
+                                html={preview?.htmlBody}
+                                subject={preview?.subject}
+                                emptyLabel="Sin contenido"
+                                className="h-full shadow-lg"
+                            />
+                        </div>
+                        <div className="flex w-full min-h-0 min-w-0 flex-col overflow-hidden md:w-[380px] md:shrink-0 lg:w-[420px]">
+                            <SheetHeader>
+                                <SheetTitle>{preview?.subject ?? 'Mensaje'}</SheetTitle>
+                                <SheetDescription>
+                                    {preview
+                                        ? `Para: ${preview.to}${preview.cc ? ` · CC: ${preview.cc}` : ''} · ${STATUS_LABELS[preview.status]}`
+                                        : ''}
+                                </SheetDescription>
+                            </SheetHeader>
+                            <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+                                {preview?.attachments?.length ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        Adjuntos: {preview.attachments.map((a) => a.filename).join(', ')}
+                                    </p>
+                                ) : null}
+                                {preview?.errorMessage ? (
+                                    <p className="text-sm text-destructive">{preview.errorMessage}</p>
+                                ) : null}
+                                <div className="grid gap-1 text-sm">
+                                    <p>
+                                        <span className="text-muted-foreground">Estado:</span>{' '}
+                                        {preview ? STATUS_LABELS[preview.status] : '—'}
+                                    </p>
+                                    <p>
+                                        <span className="text-muted-foreground">Fecha:</span>{' '}
+                                        {preview?.status === 'scheduled'
+                                            ? formatDt(preview.scheduledAt)
+                                            : formatDt(preview?.sentAt ?? preview?.createdAt)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
 
             <Sheet
                 open={!!editMsg}
