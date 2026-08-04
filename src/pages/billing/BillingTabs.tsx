@@ -5,6 +5,7 @@ const tabs = [
     { to: '/dashboard/billing', end: true, label: 'Resumen' },
     { to: '/dashboard/billing/income', label: 'Ingresos' },
     { to: '/dashboard/billing/expenses', label: 'Gastos' },
+    { to: '/dashboard/billing/payrolls', label: 'Nóminas' },
 ] as const;
 
 export function BillingTabs() {

@@ -11,6 +11,7 @@ import { ProjectDetailPage } from '@/pages/projects/ProjectDetailPage';
 import { BillingSummaryPage } from '@/pages/billing/BillingSummaryPage';
 import { IncomePage } from '@/pages/billing/IncomePage';
 import { ExpensesPage } from '@/pages/billing/ExpensesPage';
+import { PayrollsPage } from '@/pages/billing/PayrollsPage';
 import { TimerPage } from '@/pages/timer/TimerPage';
 import { MaintenancePage } from '@/pages/maintenance/MaintenancePage';
 import { HomePage } from '@/pages/home/HomePage';
@@ -52,6 +53,7 @@ export default function App() {
                                     <Route path="billing" element={<BillingSummaryPage />} />
                                     <Route path="billing/income" element={<IncomePage />} />
                                     <Route path="billing/expenses" element={<ExpensesPage />} />
+                                    <Route path="billing/payrolls" element={<PayrollsPage />} />
                                 </Route>
 
                                 <Route element={<AdminRoute />}>

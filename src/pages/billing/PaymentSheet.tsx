@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { Button } from '@/components/ui/button';
@@ -9,14 +10,14 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
-    VERIFACTU_STATUSES,
-    VERIFACTU_STATUS_LABELS,
+    PAYMENT_METHODS,
     calcTotal,
+    calcBaseFromTotal,
     getPayment,
+    type Installment,
     type LedgerStatus,
     type Payment,
     type PaymentInput,
-    type VerifactuStatus,
 } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
@@ -29,18 +30,12 @@ const empty: PaymentInput = {
     ivaRate: 21,
     irpfRate: 0,
     status: 'pending',
-    paymentMethod: '',
+    paymentMethod: 'Transferencia Bancaria',
     invoiceDate: '',
     paymentDate: '',
     reference: '',
     notes: '',
-    externalSystem: '',
-    externalInvoiceId: '',
-    invoiceNumber: '',
-    externalUrl: '',
-    verifactuStatus: 'unknown',
-    invoiceUrl: '',
-    fileName: '',
+    installments: [],
 };
 
 function toForm(p: Payment): PaymentInput {
@@ -50,18 +45,12 @@ function toForm(p: Payment): PaymentInput {
         ivaRate: p.ivaRate ?? 21,
         irpfRate: p.irpfRate ?? 0,
         status: p.status,
-        paymentMethod: p.paymentMethod ?? '',
+        paymentMethod: p.paymentMethod ?? 'Transferencia Bancaria',
         invoiceDate: p.invoiceDate ?? '',
         paymentDate: p.paymentDate ?? '',
         reference: p.reference ?? '',
         notes: p.notes ?? '',
-        externalSystem: p.externalSystem ?? '',
-        externalInvoiceId: p.externalInvoiceId ?? '',
-        invoiceNumber: p.invoiceNumber ?? '',
-        externalUrl: p.externalUrl ?? '',
-        verifactuStatus: p.verifactuStatus ?? 'unknown',
-        invoiceUrl: p.invoiceUrl ?? '',
-        fileName: p.fileName ?? '',
+        installments: p.installments ?? [],
     };
 }
 
@@ -78,6 +67,8 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const [form, setForm] = useState<PaymentInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
+    const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
+    const [totalInput, setTotalInput] = useState('');
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
@@ -98,15 +89,29 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         if (!open) return;
         if (mode !== 'edit' || !payment) {
             setForm({ ...empty, projectId: lockedProjectId ?? null });
+            setTotalInput('');
+            setLastEdited('base');
             return;
         }
-        setForm({ ...toForm(payment), projectId: lockedProjectId ?? payment.projectId });
-        // list omits baseAmount — hydrate show() once
+        const f = { ...toForm(payment), projectId: lockedProjectId ?? payment.projectId };
+        setForm(f);
+        const previewTotal = calcTotal(Number(f.baseAmount) || 0, Number(f.ivaRate) || 0, Number(f.irpfRate) || 0);
+        setTotalInput(previewTotal.toFixed(2));
+        setLastEdited('base');
         if (payment.baseAmount !== undefined) return;
         let cancelled = false;
         void getPayment(payment.id)
             .then((full) => {
-                if (!cancelled) setForm({ ...toForm(full), projectId: lockedProjectId ?? full.projectId });
+                if (!cancelled) {
+                    const fullForm = { ...toForm(full), projectId: lockedProjectId ?? full.projectId };
+                    setForm(fullForm);
+                    const t = calcTotal(
+                        Number(fullForm.baseAmount) || 0,
+                        Number(fullForm.ivaRate) || 0,
+                        Number(fullForm.irpfRate) || 0,
+                    );
+                    setTotalInput(t.toFixed(2));
+                }
             })
             .catch((err) => {
                 if (!cancelled) toastError(err);
@@ -120,30 +125,93 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         setForm((prev) => ({ ...prev, [key]: value }));
     }
 
-    const preview = calcTotal(Number(form.baseAmount) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+    function recalcFromBase() {
+        const t = calcTotal(Number(form.baseAmount) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setTotalInput(t.toFixed(2));
+    }
+
+    function recalcFromTotal() {
+        const b = calcBaseFromTotal(Number(totalInput) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setForm((prev) => ({ ...prev, baseAmount: b.toFixed(2) }));
+    }
+
+    function handleBaseChange(value: string) {
+        setField('baseAmount', value);
+        setLastEdited('base');
+        const t = calcTotal(Number(value) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setTotalInput(t.toFixed(2));
+    }
+
+    function handleTotalChange(value: string) {
+        setTotalInput(value);
+        setLastEdited('total');
+        const b = calcBaseFromTotal(Number(value) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setField('baseAmount', b.toFixed(2));
+    }
+
+    function handleRateChange() {
+        if (lastEdited === 'base') {
+            recalcFromBase();
+        } else {
+            recalcFromTotal();
+        }
+    }
+
+    function addInstallment() {
+        setForm((prev) => ({
+            ...prev,
+            installments: [
+                ...(prev.installments ?? []),
+                { amount: '', paidOn: '', method: 'Transferencia Bancaria', notes: '' },
+            ],
+        }));
+    }
+
+    function removeInstallment(idx: number) {
+        setForm((prev) => ({
+            ...prev,
+            installments: (prev.installments ?? []).filter((_, i) => i !== idx),
+        }));
+    }
+
+    function updateInstallment(idx: number, field: keyof Installment, value: string | null) {
+        setForm((prev) => {
+            const inst = [...(prev.installments ?? [])];
+            inst[idx] = { ...inst[idx], [field]: value };
+            return { ...prev, installments: inst };
+        });
+    }
+
+    function suggestStatus(): LedgerStatus | undefined {
+        const rows = (form.installments ?? []).filter((i) => i.amount && Number(i.amount) > 0);
+        if (rows.length === 0 || form.status === 'draft') return undefined;
+        const total = Number(totalInput) || 0;
+        const sum = rows.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+        if (sum >= total) return 'paid';
+        if (sum > 0) return 'partially_paid';
+        return 'pending';
+    }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         setSaving(true);
         try {
+            const suggested = suggestStatus();
+            const installments = (form.installments ?? []).filter((i) => i.amount && Number(i.amount) > 0);
+            // omit empty installments so paid/pending without plazos isn't reset by auto-status
+            const hadInstallments = mode === 'edit' && (payment?.installments?.length ?? 0) > 0;
             await onSubmit({
                 projectId: lockedProjectId ?? form.projectId ?? null,
                 baseAmount: Number(form.baseAmount),
                 ivaRate: Number(form.ivaRate) || 0,
                 irpfRate: Number(form.irpfRate) || 0,
-                status: form.status,
+                status: suggested ?? form.status,
                 paymentMethod: form.paymentMethod?.toString().trim() || null,
                 invoiceDate: form.invoiceDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
                 reference: form.reference?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
-                externalSystem: form.externalSystem?.toString().trim() || null,
-                externalInvoiceId: form.externalInvoiceId?.toString().trim() || null,
-                invoiceNumber: form.invoiceNumber?.toString().trim() || null,
-                externalUrl: form.externalUrl?.toString().trim() || null,
-                verifactuStatus: form.verifactuStatus ?? 'unknown',
-                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
-                fileName: form.fileName?.toString().trim() || null,
+                ...(installments.length > 0 || hadInstallments ? { installments } : {}),
             });
             onOpenChange(false);
         } catch (err) {
@@ -158,9 +226,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
             <SheetContent className="flex w-full flex-col sm:max-w-lg">
                 <SheetHeader>
                     <SheetTitle>{mode === 'add' ? 'Añadir ingreso' : 'Editar ingreso'}</SheetTitle>
-                    <SheetDescription>
-                        Registro ledger. Emite la factura en tu app de facturación y registra aquí nº, enlace y PDF.
-                    </SheetDescription>
+                    <SheetDescription>Ledger ingreso. Método e installments opcionales.</SheetDescription>
                 </SheetHeader>
 
                 <form
@@ -182,7 +248,17 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid gap-2">
+                        <Label htmlFor="pay-method">Método de pago</Label>
+                        <AppSelect
+                            id="pay-method"
+                            items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
+                            value={form.paymentMethod ?? 'Transferencia Bancaria'}
+                            onValueChange={(value) => setField('paymentMethod', value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="pay-base">Base</Label>
                             <Input
@@ -192,10 +268,25 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 min="0"
                                 required
                                 value={form.baseAmount}
-                                onChange={(e) => setField('baseAmount', e.target.value)}
+                                onChange={(e) => handleBaseChange(e.target.value)}
                                 className="bg-card"
                             />
                         </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="pay-total">Total (bruto)</Label>
+                            <Input
+                                id="pay-total"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={totalInput}
+                                onChange={(e) => handleTotalChange(e.target.value)}
+                                className="bg-card"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="pay-iva">IVA %</Label>
                             <Input
@@ -205,7 +296,10 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 min={0}
                                 max={100}
                                 value={form.ivaRate}
-                                onChange={(e) => setField('ivaRate', e.target.value)}
+                                onChange={(e) => {
+                                    setField('ivaRate', e.target.value);
+                                    handleRateChange();
+                                }}
                                 className="bg-card"
                             />
                         </div>
@@ -218,14 +312,14 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                                 min={0}
                                 max={100}
                                 value={form.irpfRate}
-                                onChange={(e) => setField('irpfRate', e.target.value)}
+                                onChange={(e) => {
+                                    setField('irpfRate', e.target.value);
+                                    handleRateChange();
+                                }}
                                 className="bg-card"
                             />
                         </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        Total estimado: <span className="text-foreground">{preview.toFixed(2)} €</span>
-                    </p>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
@@ -241,35 +335,12 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="pay-method">Método</Label>
-                            <Input
-                                id="pay-method"
-                                maxLength={80}
-                                value={form.paymentMethod ?? ''}
-                                onChange={(e) => setField('paymentMethod', e.target.value)}
-                                className="bg-card"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
                             <Label htmlFor="pay-inv-date">Fecha factura</Label>
                             <Input
                                 id="pay-inv-date"
                                 type="date"
                                 value={form.invoiceDate ?? ''}
                                 onChange={(e) => setField('invoiceDate', e.target.value)}
-                                className="bg-card"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-pay-date">Fecha cobro</Label>
-                            <Input
-                                id="pay-pay-date"
-                                type="date"
-                                value={form.paymentDate ?? ''}
-                                onChange={(e) => setField('paymentDate', e.target.value)}
                                 className="bg-card"
                             />
                         </div>
@@ -287,76 +358,67 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     </div>
 
                     <fieldset className="grid gap-3 rounded-lg border border-border p-3">
-                        <legend className="px-1 text-sm font-medium text-foreground">Factura externa</legend>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-ext-system">Sistema (opcional)</Label>
-                            <Input
-                                id="pay-ext-system"
-                                maxLength={80}
-                                value={form.externalSystem ?? ''}
-                                onChange={(e) => setField('externalSystem', e.target.value)}
-                                className="bg-card"
-                                placeholder="p. ej. manual"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-inv-num">Nº factura</Label>
-                            <Input
-                                id="pay-inv-num"
-                                maxLength={120}
-                                value={form.invoiceNumber ?? ''}
-                                onChange={(e) => setField('invoiceNumber', e.target.value)}
-                                className="bg-card"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-ext-id">ID externo</Label>
-                            <Input
-                                id="pay-ext-id"
-                                maxLength={120}
-                                value={form.externalInvoiceId ?? ''}
-                                onChange={(e) => setField('externalInvoiceId', e.target.value)}
-                                className="bg-card"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-ext-url">URL factura externa</Label>
-                            <Input
-                                id="pay-ext-url"
-                                type="url"
-                                maxLength={500}
-                                value={form.externalUrl ?? ''}
-                                onChange={(e) => setField('externalUrl', e.target.value)}
-                                className="bg-card"
-                                placeholder="https://…"
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pay-verifactu">Verifactu</Label>
-                            <AppSelect
-                                id="pay-verifactu"
-                                items={VERIFACTU_STATUSES.map((status) => ({
-                                    label: VERIFACTU_STATUS_LABELS[status],
-                                    value: status,
-                                }))}
-                                value={form.verifactuStatus ?? 'unknown'}
-                                onValueChange={(value) => setField('verifactuStatus', value as VerifactuStatus)}
-                            />
-                        </div>
+                        <legend className="flex items-center justify-between px-1 text-sm font-medium text-foreground">
+                            <span>Plazos de pago</span>
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={addInstallment}>
+                                <Plus />
+                            </Button>
+                        </legend>
+                        {(form.installments ?? []).length === 0 && (
+                            <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
+                        )}
+                        {(form.installments ?? []).map((inst, idx) => (
+                            <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-amt`} className="text-xs">
+                                        Importe
+                                    </Label>
+                                    <Input
+                                        id={`inst-${idx}-amt`}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={inst.amount ?? ''}
+                                        onChange={(e) => updateInstallment(idx, 'amount', e.target.value)}
+                                        className="h-8 bg-card text-sm"
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-date`} className="text-xs">
+                                        Fecha
+                                    </Label>
+                                    <Input
+                                        id={`inst-${idx}-date`}
+                                        type="date"
+                                        value={inst.paidOn ?? ''}
+                                        onChange={(e) => updateInstallment(idx, 'paidOn', e.target.value)}
+                                        className="h-8 bg-card text-sm"
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-method`} className="text-xs">
+                                        Método
+                                    </Label>
+                                    <AppSelect
+                                        id={`inst-${idx}-method`}
+                                        items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
+                                        value={inst.method ?? 'Transferencia Bancaria'}
+                                        onValueChange={(value) => updateInstallment(idx, 'method', value)}
+                                        className="h-8 text-sm"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => removeInstallment(idx)}
+                                    className="mt-5"
+                                >
+                                    <Trash2 className="size-4" />
+                                </Button>
+                            </div>
+                        ))}
                     </fieldset>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="pay-pdf">URL PDF (stub)</Label>
-                        <Input
-                            id="pay-pdf"
-                            type="url"
-                            maxLength={500}
-                            value={form.invoiceUrl ?? ''}
-                            onChange={(e) => setField('invoiceUrl', e.target.value)}
-                            className="bg-card"
-                            placeholder="https://… (sin upload R2 aún)"
-                        />
-                    </div>
 
                     <div className="grid gap-2">
                         <Label htmlFor="pay-notes">Notas</Label>

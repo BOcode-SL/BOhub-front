@@ -4,6 +4,14 @@ export const LEDGER_STATUSES = ['draft', 'pending', 'paid', 'partially_paid'] as
 
 export const VERIFACTU_STATUSES = ['unknown', 'pending', 'sent', 'n_a'] as const;
 
+export const PAYMENT_METHODS = [
+    'Transferencia Bancaria',
+    'Bizum',
+    'Efectivo',
+    'Tarjeta',
+    'Otro',
+] as const;
+
 export type LedgerStatus = (typeof LEDGER_STATUSES)[number];
 export type VerifactuStatus = (typeof VERIFACTU_STATUSES)[number];
 
@@ -25,6 +33,13 @@ export type BillingProject = {
     id: number;
     name: string;
     client?: { id: number; name: string } | null;
+};
+
+export type Installment = {
+    amount: string;
+    paidOn: string | null;
+    method?: string | null;
+    notes?: string | null;
 };
 
 export type Payment = {
@@ -50,6 +65,9 @@ export type Payment = {
     storageProvider?: string | null;
     storageKey?: string | null;
     fileName?: string | null;
+    installments?: Installment[];
+    paidAmount?: string;
+    remainingAmount?: string;
 };
 
 export type PaymentInput = {
@@ -70,6 +88,7 @@ export type PaymentInput = {
     verifactuStatus?: VerifactuStatus;
     invoiceUrl?: string | null;
     fileName?: string | null;
+    installments?: Installment[];
 };
 
 export type Expense = {
@@ -90,6 +109,9 @@ export type Expense = {
     notes?: string | null;
     storageProvider?: string | null;
     fileName?: string | null;
+    installments?: Installment[];
+    paidAmount?: string;
+    remainingAmount?: string;
 };
 
 export type ExpenseInput = {
@@ -106,6 +128,7 @@ export type ExpenseInput = {
     notes?: string | null;
     invoiceUrl?: string | null;
     fileName?: string | null;
+    installments?: Installment[];
 };
 
 export type BillingMeta = {
@@ -135,11 +158,35 @@ export type BillingSummary = {
     income: BillingBucket;
     expense: BillingBucket;
     net: string;
+    result?: string;
+    grossIncome?: string;
+    netIncome?: string;
+    pending?: string;
+    grossExpenses?: string;
+    netExpenses?: string;
+    payrollExpenses?: string;
+    ivaCollected?: string;
+    ivaPaid?: string;
+    ivaBalance?: string;
+    irpfPayable?: string;
+    months?: Array<{
+        month: number;
+        gross: string;
+        pending: string;
+        payroll: string;
+        expenses: string;
+    }>;
 };
 
 /** total = base + base*iva/100 - base*irpf/100 */
 export function calcTotal(base: number, ivaRate: number, irpfRate: number): number {
     return Math.round((base + (base * ivaRate) / 100 - (base * irpfRate) / 100) * 100) / 100;
+}
+
+/** Inverse: base = total / (1 + iva/100 - irpf/100) */
+export function calcBaseFromTotal(total: number, ivaRate: number, irpfRate: number): number {
+    const factor = 1 + ivaRate / 100 - irpfRate / 100;
+    return factor !== 0 ? Math.round((total / factor) * 100) / 100 : 0;
 }
 
 export function formatMoney(value: string | number): string {
@@ -259,4 +306,86 @@ export async function deleteExpense(id: number): Promise<void> {
 
 export function billingErrorMessage(err: unknown): string {
     return apiErrorMessage(err);
+}
+
+export const PAYROLL_STATUSES = ['pending', 'paid'] as const;
+export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
+export const PAYROLL_STATUS_LABELS: Record<PayrollStatus, string> = {
+    pending: 'Pendiente',
+    paid: 'Pagado',
+};
+
+export type Payroll = {
+    id: number;
+    employeeName: string;
+    nif?: string | null;
+    category?: string | null;
+    socialSecurityNumber?: string | null;
+    iban?: string | null;
+    month: number;
+    year: number;
+    baseSalary: string;
+    netSalary: string;
+    socialSecurityEmployer?: string | null;
+    irpfRetained?: string | null;
+    status: PayrollStatus;
+    paymentDate?: string | null;
+    notes?: string | null;
+    totalCost?: string;
+};
+
+export type PayrollInput = {
+    employeeName: string;
+    nif?: string | null;
+    category?: string | null;
+    socialSecurityNumber?: string | null;
+    iban?: string | null;
+    month: number;
+    year: number;
+    baseSalary: number | string;
+    netSalary: number | string;
+    socialSecurityEmployer?: number | string | null;
+    irpfRetained?: number | string | null;
+    status: PayrollStatus;
+    paymentDate?: string | null;
+    notes?: string | null;
+};
+
+export async function listPayrolls(
+    params: {
+        search?: string;
+        page?: number;
+        perPage?: number;
+        year?: number;
+    } = {},
+    signal?: AbortSignal,
+) {
+    const q = new URLSearchParams();
+    if (params.search) q.set('search', params.search);
+    if (params.page) q.set('page', String(params.page));
+    if (params.perPage) q.set('per_page', String(params.perPage));
+    if (params.year) q.set('year', String(params.year));
+    const qs = q.toString();
+    return request<{ data: Payroll[]; meta: BillingMeta }>(`/api/payrolls${qs ? `?${qs}` : ''}`, { signal });
+}
+
+export async function getPayroll(id: number): Promise<Payroll> {
+    return request<Payroll>(`/api/payrolls/${id}`, {});
+}
+
+export async function createPayroll(body: PayrollInput): Promise<Payroll> {
+    return request<Payroll>('/api/payrolls', { method: 'POST', body });
+}
+
+export async function updatePayroll(id: number, body: Partial<PayrollInput>): Promise<Payroll> {
+    return request<Payroll>(`/api/payrolls/${id}`, {
+        method: 'PUT',
+        body,
+    });
+}
+
+export async function deletePayroll(id: number): Promise<void> {
+    await request<{ ok: boolean }>(`/api/payrolls/${id}`, {
+        method: 'DELETE',
+    });
 }

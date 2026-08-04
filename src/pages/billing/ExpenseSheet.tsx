@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { Button } from '@/components/ui/button';
@@ -9,10 +10,13 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
+    PAYMENT_METHODS,
     calcTotal,
+    calcBaseFromTotal,
     getExpense,
     type Expense,
     type ExpenseInput,
+    type Installment,
     type LedgerStatus,
 } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
@@ -32,8 +36,7 @@ const empty: ExpenseInput = {
     expenseDate: '',
     paymentDate: '',
     notes: '',
-    invoiceUrl: '',
-    fileName: '',
+    installments: [],
 };
 
 function toForm(e: Expense): ExpenseInput {
@@ -49,8 +52,7 @@ function toForm(e: Expense): ExpenseInput {
         expenseDate: e.expenseDate ?? '',
         paymentDate: e.paymentDate ?? '',
         notes: e.notes ?? '',
-        invoiceUrl: e.invoiceUrl ?? '',
-        fileName: e.fileName ?? '',
+        installments: e.installments ?? [],
     };
 }
 
@@ -67,6 +69,8 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     const [form, setForm] = useState<ExpenseInput>(empty);
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
+    const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
+    const [totalInput, setTotalInput] = useState('');
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
@@ -87,14 +91,29 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         if (!open) return;
         if (mode !== 'edit' || !expense) {
             setForm({ ...empty, projectId: lockedProjectId ?? null });
+            setTotalInput('');
+            setLastEdited('base');
             return;
         }
-        setForm({ ...toForm(expense), projectId: lockedProjectId ?? expense.projectId });
+        const f = { ...toForm(expense), projectId: lockedProjectId ?? expense.projectId };
+        setForm(f);
+        const previewTotal = calcTotal(Number(f.baseAmount) || 0, Number(f.ivaRate) || 0, Number(f.irpfRate) || 0);
+        setTotalInput(previewTotal.toFixed(2));
+        setLastEdited('base');
         if (expense.baseAmount !== undefined) return;
         let cancelled = false;
         void getExpense(expense.id)
             .then((full) => {
-                if (!cancelled) setForm({ ...toForm(full), projectId: lockedProjectId ?? full.projectId });
+                if (!cancelled) {
+                    const fullForm = { ...toForm(full), projectId: lockedProjectId ?? full.projectId };
+                    setForm(fullForm);
+                    const t = calcTotal(
+                        Number(fullForm.baseAmount) || 0,
+                        Number(fullForm.ivaRate) || 0,
+                        Number(fullForm.irpfRate) || 0,
+                    );
+                    setTotalInput(t.toFixed(2));
+                }
             })
             .catch((err) => {
                 if (!cancelled) toastError(err);
@@ -108,12 +127,80 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         setForm((prev) => ({ ...prev, [key]: value }));
     }
 
-    const preview = calcTotal(Number(form.baseAmount) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+    function recalcFromBase() {
+        const t = calcTotal(Number(form.baseAmount) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setTotalInput(t.toFixed(2));
+    }
+
+    function recalcFromTotal() {
+        const b = calcBaseFromTotal(Number(totalInput) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setForm((prev) => ({ ...prev, baseAmount: b.toFixed(2) }));
+    }
+
+    function handleBaseChange(value: string) {
+        setField('baseAmount', value);
+        setLastEdited('base');
+        const t = calcTotal(Number(value) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setTotalInput(t.toFixed(2));
+    }
+
+    function handleTotalChange(value: string) {
+        setTotalInput(value);
+        setLastEdited('total');
+        const b = calcBaseFromTotal(Number(value) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
+        setField('baseAmount', b.toFixed(2));
+    }
+
+    function handleRateChange() {
+        if (lastEdited === 'base') {
+            recalcFromBase();
+        } else {
+            recalcFromTotal();
+        }
+    }
+
+    function addInstallment() {
+        setForm((prev) => ({
+            ...prev,
+            installments: [
+                ...(prev.installments ?? []),
+                { amount: '', paidOn: '', method: 'Transferencia Bancaria', notes: '' },
+            ],
+        }));
+    }
+
+    function removeInstallment(idx: number) {
+        setForm((prev) => ({
+            ...prev,
+            installments: (prev.installments ?? []).filter((_, i) => i !== idx),
+        }));
+    }
+
+    function updateInstallment(idx: number, field: keyof Installment, value: string | null) {
+        setForm((prev) => {
+            const inst = [...(prev.installments ?? [])];
+            inst[idx] = { ...inst[idx], [field]: value };
+            return { ...prev, installments: inst };
+        });
+    }
+
+    function suggestStatus(): LedgerStatus | undefined {
+        const rows = (form.installments ?? []).filter((i) => i.amount && Number(i.amount) > 0);
+        if (rows.length === 0 || form.status === 'draft') return undefined;
+        const total = Number(totalInput) || 0;
+        const sum = rows.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+        if (sum >= total) return 'paid';
+        if (sum > 0) return 'partially_paid';
+        return 'pending';
+    }
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         setSaving(true);
         try {
+            const suggested = suggestStatus();
+            const installments = (form.installments ?? []).filter((i) => i.amount && Number(i.amount) > 0);
+            const hadInstallments = mode === 'edit' && (expense?.installments?.length ?? 0) > 0;
             await onSubmit({
                 projectId: lockedProjectId ?? form.projectId ?? null,
                 description: form.description.trim(),
@@ -122,12 +209,11 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                 baseAmount: Number(form.baseAmount),
                 ivaRate: Number(form.ivaRate) || 0,
                 irpfRate: Number(form.irpfRate) || 0,
-                status: form.status,
+                status: suggested ?? form.status,
                 expenseDate: form.expenseDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
-                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
-                fileName: form.fileName?.toString().trim() || null,
+                ...(installments.length > 0 || hadInstallments ? { installments } : {}),
             });
             onOpenChange(false);
         } catch (err) {
@@ -199,7 +285,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="exp-base">Base</Label>
                             <Input
@@ -209,10 +295,25 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                 min="0"
                                 required
                                 value={form.baseAmount}
-                                onChange={(e) => setField('baseAmount', e.target.value)}
+                                onChange={(e) => handleBaseChange(e.target.value)}
                                 className="bg-card"
                             />
                         </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="exp-total">Total</Label>
+                            <Input
+                                id="exp-total"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={totalInput}
+                                onChange={(e) => handleTotalChange(e.target.value)}
+                                className="bg-card"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
                             <Label htmlFor="exp-iva">IVA %</Label>
                             <Input
@@ -222,7 +323,10 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                 min={0}
                                 max={100}
                                 value={form.ivaRate}
-                                onChange={(e) => setField('ivaRate', e.target.value)}
+                                onChange={(e) => {
+                                    setField('ivaRate', e.target.value);
+                                    handleRateChange();
+                                }}
                                 className="bg-card"
                             />
                         </div>
@@ -235,14 +339,14 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                 min={0}
                                 max={100}
                                 value={form.irpfRate}
-                                onChange={(e) => setField('irpfRate', e.target.value)}
+                                onChange={(e) => {
+                                    setField('irpfRate', e.target.value);
+                                    handleRateChange();
+                                }}
                                 className="bg-card"
                             />
                         </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        Total estimado: <span className="text-foreground">{preview.toFixed(2)} €</span>
-                    </p>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-2">
@@ -269,18 +373,68 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         </div>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="exp-pdf">URL factura (stub)</Label>
-                        <Input
-                            id="exp-pdf"
-                            value={form.invoiceUrl ?? ''}
-                            onChange={(e) => setField('invoiceUrl', e.target.value)}
-                            className="bg-card"
-                            placeholder="https://…"
-                            maxLength={500}
-                            type="url"
-                        />
-                    </div>
+                    <fieldset className="grid gap-3 rounded-lg border border-border p-3">
+                        <legend className="flex items-center justify-between px-1 text-sm font-medium text-foreground">
+                            <span>Plazos de pago</span>
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={addInstallment}>
+                                <Plus />
+                            </Button>
+                        </legend>
+                        {(form.installments ?? []).length === 0 && (
+                            <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
+                        )}
+                        {(form.installments ?? []).map((inst, idx) => (
+                            <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-amt`} className="text-xs">
+                                        Importe
+                                    </Label>
+                                    <Input
+                                        id={`inst-${idx}-amt`}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={inst.amount ?? ''}
+                                        onChange={(e) => updateInstallment(idx, 'amount', e.target.value)}
+                                        className="h-8 bg-card text-sm"
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-date`} className="text-xs">
+                                        Fecha
+                                    </Label>
+                                    <Input
+                                        id={`inst-${idx}-date`}
+                                        type="date"
+                                        value={inst.paidOn ?? ''}
+                                        onChange={(e) => updateInstallment(idx, 'paidOn', e.target.value)}
+                                        className="h-8 bg-card text-sm"
+                                    />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor={`inst-${idx}-method`} className="text-xs">
+                                        Método
+                                    </Label>
+                                    <AppSelect
+                                        id={`inst-${idx}-method`}
+                                        items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
+                                        value={inst.method ?? 'Transferencia Bancaria'}
+                                        onValueChange={(value) => updateInstallment(idx, 'method', value)}
+                                        className="h-8 text-sm"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => removeInstallment(idx)}
+                                    className="mt-5"
+                                >
+                                    <Trash2 className="size-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </fieldset>
 
                     <div className="grid gap-2">
                         <Label htmlFor="exp-notes">Notas</Label>
