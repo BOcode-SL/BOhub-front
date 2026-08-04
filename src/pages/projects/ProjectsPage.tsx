@@ -134,6 +134,7 @@ export function ProjectsPage() {
                         perPage,
                         status: urlStatus || undefined,
                         clientId: urlClientId ? Number(urlClientId) : undefined,
+                        sort: 'status',
                     },
                     ac.signal,
                 );
@@ -271,6 +272,7 @@ export function ProjectsPage() {
                                         client_id: urlClientId || null,
                                     })
                                 }
+                                className="min-w-40"
                             />
                             <ToolbarField id="projects-client" label="Cliente">
                                 <EntitySelect

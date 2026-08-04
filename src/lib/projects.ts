@@ -2,7 +2,8 @@ import { request } from './api';
 
 export const PROJECT_TYPES = ['web', 'webapp', 'mobil', 'api', 'automation', 'ia', 'consulting', 'other'] as const;
 
-export const PROJECT_STATUSES = ['todo', 'in_progress', 'in_review', 'blocked', 'done', 'maintenance'] as const;
+// Workflow order (filter + status sort). in_review kept after in_progress.
+export const PROJECT_STATUSES = ['todo', 'in_progress', 'in_review', 'maintenance', 'blocked', 'done'] as const;
 
 export const PROJECT_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 
@@ -120,9 +121,9 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
     todo: 'Por hacer',
     in_progress: 'En progreso',
     in_review: 'En revisión',
+    maintenance: 'En mantenimiento',
     blocked: 'Bloqueado',
     done: 'Finalizado',
-    maintenance: 'En mantenimiento',
 };
 
 export const PROJECT_PRIORITY_LABELS: Record<ProjectPriority, string> = {
@@ -135,11 +136,21 @@ export const PROJECT_PRIORITY_LABELS: Record<ProjectPriority, string> = {
 /** Soft badge tints for dark BOcode UI (list/detail tables). */
 export const PROJECT_STATUS_BADGE_CLASS: Record<ProjectStatus, string> = {
     todo: 'border-transparent bg-muted text-muted-foreground',
-    in_progress: 'border-transparent bg-primary/20 text-primary',
+    in_progress: 'border-transparent bg-blue-500/20 text-blue-300',
     in_review: 'border-transparent bg-sky-500/20 text-sky-300',
+    maintenance: 'border-transparent bg-orange-500/20 text-orange-300',
     blocked: 'border-transparent bg-destructive/20 text-destructive',
-    done: 'border-transparent bg-slate-500/25 text-slate-300',
-    maintenance: 'border-transparent bg-amber-500/20 text-amber-300',
+    done: 'border-transparent bg-emerald-500/20 text-emerald-300',
+};
+
+/** Solid fills for charts — same hues as PROJECT_STATUS_BADGE_CLASS. */
+export const PROJECT_STATUS_CHART_COLORS: Record<ProjectStatus, string> = {
+    todo: '#8b9294', // muted
+    in_progress: '#3b82f6', // blue-500
+    in_review: '#0ea5e9', // sky-500
+    maintenance: '#f97316', // orange-500
+    blocked: '#ef4444', // destructive
+    done: '#10b981', // emerald-500
 };
 
 export const PROJECT_PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {

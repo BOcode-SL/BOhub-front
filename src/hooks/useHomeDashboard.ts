@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getHomeDashboard, type HomeDeadline, type HomeTopProject } from '@/lib/dashboard';
 import { toastError } from '@/lib/toast';
-import { PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projects';
+import { PROJECT_STATUS_CHART_COLORS, PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projects';
 
 export type StatusSlice = {
     status: ProjectStatus;
@@ -23,15 +23,6 @@ export type HomeDashboard = {
     deadlinesCount: number;
     loading: boolean;
     refresh: () => void;
-};
-
-const STATUS_COLORS: Record<ProjectStatus, string> = {
-    todo: '#8b9294',
-    in_progress: '#ccff00',
-    in_review: '#60a5fa',
-    blocked: '#f87171',
-    done: '#64748b',
-    maintenance: '#fbbf24',
 };
 
 export function useHomeDashboard(): HomeDashboard {
@@ -93,7 +84,7 @@ export function useHomeDashboard(): HomeDashboard {
                 status: s.status,
                 name: PROJECT_STATUS_LABELS[s.status],
                 value: s.value,
-                color: STATUS_COLORS[s.status],
+                color: PROJECT_STATUS_CHART_COLORS[s.status],
             })),
         [statusRaw],
     );

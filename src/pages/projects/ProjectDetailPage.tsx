@@ -17,11 +17,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ApiError } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import {
+    LEDGER_STATUS_LABELS,
     createExpense,
     createPayment,
     formatMoney,
     listExpenses,
     listPayments,
+    updateExpense,
+    updatePayment,
     type Expense,
     type ExpenseInput,
     type Payment,
@@ -169,6 +172,10 @@ export function ProjectDetailPage() {
     const [billingLoading, setBillingLoading] = useState(false);
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [expenseOpen, setExpenseOpen] = useState(false);
+    const [paymentMode, setPaymentMode] = useState<'add' | 'edit'>('add');
+    const [expenseMode, setExpenseMode] = useState<'add' | 'edit'>('add');
+    const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
     usePageCrumb(project?.name);
 
@@ -352,21 +359,33 @@ export function ProjectDetailPage() {
 
     const loadBilling = useCallback(async () => {
         if (!isAdmin) return;
+        if (!Number.isFinite(projectId) || projectId < 1) return;
         setBillingLoading(true);
-        try {
-            const [nextSummary, nextPayments, nextExpenses] = await Promise.all([
-                getBillingSummary(projectId),
-                listPayments({ projectId, perPage: 50 }),
-                listExpenses({ projectId, perPage: 50 }),
-            ]);
-            setBillingSummary(nextSummary);
-            setPayments(nextPayments.data);
-            setExpenses(nextExpenses.data);
-        } catch (err) {
-            toastError(err);
-        } finally {
-            setBillingLoading(false);
+        // ponytail: don't Promise.all — one 403/500 on summary used to blank both tables
+        const settled = await Promise.allSettled([
+            getBillingSummary(projectId),
+            listPayments({ projectId, perPage: 50 }),
+            listExpenses({ projectId, perPage: 50 }),
+        ]);
+        const [summaryResult, paymentsResult, expensesResult] = settled;
+        if (summaryResult.status === 'fulfilled') {
+            setBillingSummary(summaryResult.value);
+        } else {
+            toastError(summaryResult.reason);
         }
+        if (paymentsResult.status === 'fulfilled') {
+            setPayments(Array.isArray(paymentsResult.value.data) ? paymentsResult.value.data : []);
+        } else {
+            setPayments([]);
+            toastError(paymentsResult.reason);
+        }
+        if (expensesResult.status === 'fulfilled') {
+            setExpenses(Array.isArray(expensesResult.value.data) ? expensesResult.value.data : []);
+        } else {
+            setExpenses([]);
+            toastError(expensesResult.reason);
+        }
+        setBillingLoading(false);
     }, [isAdmin, projectId]);
 
     useEffect(() => {
@@ -491,16 +510,26 @@ export function ProjectDetailPage() {
         }
     }
 
-    async function handleCreatePayment(data: PaymentInput) {
-        await createPayment(data);
-        toastSuccess('Ingreso creado');
+    async function handleSavePayment(data: PaymentInput) {
+        if (paymentMode === 'edit' && editingPayment) {
+            await updatePayment(editingPayment.id, data);
+            toastSuccess('Ingreso actualizado');
+        } else {
+            await createPayment(data);
+            toastSuccess('Ingreso creado');
+        }
         await loadBilling();
         void loadCore({ soft: true });
     }
 
-    async function handleCreateExpense(data: ExpenseInput) {
-        await createExpense(data);
-        toastSuccess('Gasto creado');
+    async function handleSaveExpense(data: ExpenseInput) {
+        if (expenseMode === 'edit' && editingExpense) {
+            await updateExpense(editingExpense.id, data);
+            toastSuccess('Gasto actualizado');
+        } else {
+            await createExpense(data);
+            toastSuccess('Gasto creado');
+        }
         await loadBilling();
         void loadCore({ soft: true });
     }
@@ -747,7 +776,14 @@ export function ProjectDetailPage() {
                         <CardHeader className="px-4">
                             <div className="flex items-center justify-between gap-3">
                                 <CardTitle>Ingresos</CardTitle>
-                                <Button size="sm" onClick={() => setPaymentOpen(true)}>
+                                <Button
+                                    size="sm"
+                                    onClick={() => {
+                                        setPaymentMode('add');
+                                        setEditingPayment(null);
+                                        setPaymentOpen(true);
+                                    }}
+                                >
                                     <Plus /> Añadir
                                 </Button>
                             </div>
@@ -764,6 +800,13 @@ export function ProjectDetailPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
+                                        {billingLoading && payments.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4}>
+                                                    <Skeleton className="h-8 w-full" />
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                         {!billingLoading && payments.length === 0 && (
                                             <TableRow>
                                                 <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
@@ -772,13 +815,39 @@ export function ProjectDetailPage() {
                                             </TableRow>
                                         )}
                                         {payments.map((payment) => (
-                                            <TableRow key={payment.id}>
-                                                <TableCell>{payment.invoiceDate || '—'}</TableCell>
-                                                <TableCell>
-                                                    {payment.reference || payment.invoiceNumber || '—'}
+                                            <TableRow
+                                                key={payment.id}
+                                                className="cursor-pointer"
+                                                onClick={() => {
+                                                    setPaymentMode('edit');
+                                                    setEditingPayment(payment);
+                                                    setPaymentOpen(true);
+                                                }}
+                                            >
+                                                <TableCell className="text-muted-foreground">
+                                                    {payment.invoiceDate || '—'}
                                                 </TableCell>
-                                                <TableCell>{payment.status}</TableCell>
-                                                <TableCell className="text-right font-medium">
+                                                <TableCell className="font-medium text-foreground">
+                                                    <span className="inline-flex items-center gap-2">
+                                                        {payment.reference || payment.invoiceNumber || '—'}
+                                                        {payment.invoiceUrl ? (
+                                                            <a
+                                                                href={payment.invoiceUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-primary"
+                                                                aria-label="Abrir PDF"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <ExternalLink className="size-3.5" />
+                                                            </a>
+                                                        ) : null}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {LEDGER_STATUS_LABELS[payment.status] ?? payment.status}
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium text-foreground">
                                                     {formatMoney(payment.totalAmount)}
                                                 </TableCell>
                                             </TableRow>
@@ -793,7 +862,14 @@ export function ProjectDetailPage() {
                         <CardHeader className="px-4">
                             <div className="flex items-center justify-between gap-3">
                                 <CardTitle>Gastos</CardTitle>
-                                <Button size="sm" onClick={() => setExpenseOpen(true)}>
+                                <Button
+                                    size="sm"
+                                    onClick={() => {
+                                        setExpenseMode('add');
+                                        setEditingExpense(null);
+                                        setExpenseOpen(true);
+                                    }}
+                                >
                                     <Plus /> Añadir
                                 </Button>
                             </div>
@@ -810,6 +886,13 @@ export function ProjectDetailPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
+                                        {billingLoading && expenses.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4}>
+                                                    <Skeleton className="h-8 w-full" />
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                         {!billingLoading && expenses.length === 0 && (
                                             <TableRow>
                                                 <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
@@ -818,11 +901,39 @@ export function ProjectDetailPage() {
                                             </TableRow>
                                         )}
                                         {expenses.map((expense) => (
-                                            <TableRow key={expense.id}>
-                                                <TableCell>{expense.expenseDate || '—'}</TableCell>
-                                                <TableCell>{expense.description}</TableCell>
-                                                <TableCell>{expense.status}</TableCell>
-                                                <TableCell className="text-right font-medium">
+                                            <TableRow
+                                                key={expense.id}
+                                                className="cursor-pointer"
+                                                onClick={() => {
+                                                    setExpenseMode('edit');
+                                                    setEditingExpense(expense);
+                                                    setExpenseOpen(true);
+                                                }}
+                                            >
+                                                <TableCell className="text-muted-foreground">
+                                                    {expense.expenseDate || '—'}
+                                                </TableCell>
+                                                <TableCell className="font-medium text-foreground">
+                                                    <span className="inline-flex items-center gap-2">
+                                                        {expense.description}
+                                                        {expense.invoiceUrl ? (
+                                                            <a
+                                                                href={expense.invoiceUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-primary"
+                                                                aria-label="Abrir PDF"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <ExternalLink className="size-3.5" />
+                                                            </a>
+                                                        ) : null}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
+                                                    {LEDGER_STATUS_LABELS[expense.status] ?? expense.status}
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium text-foreground">
                                                     {formatMoney(expense.totalAmount)}
                                                 </TableCell>
                                             </TableRow>
@@ -1097,19 +1208,25 @@ export function ProjectDetailPage() {
 
             <PaymentSheet
                 open={paymentOpen}
-                mode="add"
-                payment={null}
+                mode={paymentMode}
+                payment={editingPayment}
                 lockedProjectId={projectId}
-                onOpenChange={setPaymentOpen}
-                onSubmit={handleCreatePayment}
+                onOpenChange={(open) => {
+                    setPaymentOpen(open);
+                    if (!open) setEditingPayment(null);
+                }}
+                onSubmit={handleSavePayment}
             />
             <ExpenseSheet
                 open={expenseOpen}
-                mode="add"
-                expense={null}
+                mode={expenseMode}
+                expense={editingExpense}
                 lockedProjectId={projectId}
-                onOpenChange={setExpenseOpen}
-                onSubmit={handleCreateExpense}
+                onOpenChange={(open) => {
+                    setExpenseOpen(open);
+                    if (!open) setEditingExpense(null);
+                }}
+                onSubmit={handleSaveExpense}
             />
 
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

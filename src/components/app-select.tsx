@@ -52,7 +52,8 @@ export function AppSelect({
         id={id}
         aria-invalid={ariaInvalid || undefined}
         className={cn(
-          'h-9 w-full min-w-0 rounded-md border-border bg-input/30 px-2.5 dark:bg-input/30 dark:hover:bg-input/50',
+          // data-[size=default]:h-9 beats SelectTrigger's h-8 so toolbar matches EntitySelect
+          'h-9 w-full min-w-0 rounded-md border-border bg-input/30 px-2.5 data-[size=default]:h-9 dark:bg-input/30 dark:hover:bg-input/50',
           className,
         )}
       >
