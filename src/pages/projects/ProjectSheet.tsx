@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
+import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -75,6 +76,7 @@ export function ProjectSheet({
     const [jiraProjects, setJiraProjects] = useState<JiraProject[]>([]);
     const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([]);
     const [saving, setSaving] = useState(false);
+    const [hydrating, setHydrating] = useState(false);
 
     useEffect(() => {
         if (clientOptionsProp) {
@@ -123,12 +125,13 @@ export function ProjectSheet({
         return () => controller.abort();
     }, [open, mode, form.jiraMode, form.jiraProjectKey]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!open) return;
 
         setFieldErrors({});
 
         if (mode !== 'edit' || !project) {
+            setHydrating(false);
             setForm({
                 ...emptyForm,
                 clientId: defaultClientId ?? 0,
@@ -137,17 +140,26 @@ export function ProjectSheet({
             return;
         }
 
-        setForm(toForm(project));
+        if (project.description !== undefined) {
+            setHydrating(false);
+            setForm(toForm(project));
+            return;
+        }
 
-        if (project.description !== undefined) return;
-
+        setHydrating(true);
+        setForm(emptyForm);
         let cancelled = false;
         void getProject(project.id)
             .then((full) => {
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) toastError(err);
+                if (cancelled) return;
+                toastError(err);
+                onOpenChange(false);
+            })
+            .finally(() => {
+                if (!cancelled) setHydrating(false);
             });
 
         return () => {
@@ -229,6 +241,11 @@ export function ProjectSheet({
                     </SheetDescription>
                 </SheetHeader>
 
+                {hydrating ? (
+                    <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+                        <FormFieldsSkeleton fields={7} />
+                    </div>
+                ) : (
                 <form
                     id="project-form"
                     noValidate
@@ -386,6 +403,7 @@ export function ProjectSheet({
                         </>
                     )}
                 </form>
+                )}
 
                 <SheetFooter>
                     <Button
@@ -393,11 +411,16 @@ export function ProjectSheet({
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
-                        disabled={saving}
+                        disabled={hydrating || saving}
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" form="project-form" className="cursor-pointer" disabled={saving}>
+                    <Button
+                        type="submit"
+                        form="project-form"
+                        className="cursor-pointer"
+                        disabled={hydrating || saving}
+                    >
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
                 </SheetFooter>

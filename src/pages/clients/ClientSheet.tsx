@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useLayoutEffect, useState, type FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
+import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,27 +47,34 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
     const [form, setForm] = useState<ClientInput>(emptyForm);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
+    const [hydrating, setHydrating] = useState(false);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!open) return;
 
         setFieldErrors({});
 
         if (mode !== 'edit' || !client) {
+            setHydrating(false);
             setForm(emptyForm);
             return;
         }
 
-        // seed from list row; hydrate notes via show() (list omits notes)
-        setForm(toForm(client));
-
+        // list omits notes — always hydrate via show()
+        setHydrating(true);
+        setForm(emptyForm);
         let cancelled = false;
         void getClient(client.id)
             .then((full) => {
                 if (!cancelled) setForm(toForm(full));
             })
             .catch((err) => {
-                if (!cancelled) toastError(err);
+                if (cancelled) return;
+                toastError(err);
+                onOpenChange(false);
+            })
+            .finally(() => {
+                if (!cancelled) setHydrating(false);
             });
 
         return () => {
@@ -122,6 +130,11 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                     <SheetDescription>Datos fiscales y de contacto del cliente.</SheetDescription>
                 </SheetHeader>
 
+                {hydrating ? (
+                    <div className="px-4 pb-4">
+                        <FormFieldsSkeleton fields={8} />
+                    </div>
+                ) : (
                 <form id="client-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
                     <FormField id="client-name" label="Nombre *" error={fieldErrors.name}>
                         <Input
@@ -226,6 +239,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                         />
                     </FormField>
                 </form>
+                )}
 
                 <SheetFooter>
                     <Button
@@ -233,11 +247,16 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
-                        disabled={saving}
+                        disabled={hydrating || saving}
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" form="client-form" className="cursor-pointer" disabled={saving}>
+                    <Button
+                        type="submit"
+                        form="client-form"
+                        className="cursor-pointer"
+                        disabled={hydrating || saving}
+                    >
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
                 </SheetFooter>

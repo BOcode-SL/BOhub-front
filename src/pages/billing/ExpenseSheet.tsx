@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
+import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,6 +78,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
     const [saving, setSaving] = useState(false);
+    const [hydrating, setHydrating] = useState(false);
     const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
     const [totalInput, setTotalInput] = useState('');
 
@@ -95,37 +97,50 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         };
     }, [open, lockedProjectId]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!open) return;
         setFieldErrors({});
         if (mode !== 'edit' || !expense) {
+            setHydrating(false);
             setForm({ ...empty, projectId: lockedProjectId ?? null });
             setTotalInput('');
             setLastEdited('base');
             return;
         }
-        const f = { ...toForm(expense), projectId: lockedProjectId ?? expense.projectId };
-        setForm(f);
-        const previewTotal = calcTotal(Number(f.baseAmount) || 0, Number(f.ivaRate) || 0, Number(f.irpfRate) || 0);
-        setTotalInput(previewTotal.toFixed(2));
+        // list has baseAmount but omits iva/installments — hydrate when rates missing
+        if (expense.ivaRate !== undefined) {
+            setHydrating(false);
+            const f = { ...toForm(expense), projectId: lockedProjectId ?? expense.projectId };
+            setForm(f);
+            const previewTotal = calcTotal(Number(f.baseAmount) || 0, Number(f.ivaRate) || 0, Number(f.irpfRate) || 0);
+            setTotalInput(previewTotal.toFixed(2));
+            setLastEdited('base');
+            return;
+        }
+        setHydrating(true);
+        setForm({ ...empty, projectId: lockedProjectId ?? null });
+        setTotalInput('');
         setLastEdited('base');
-        if (expense.baseAmount !== undefined) return;
         let cancelled = false;
         void getExpense(expense.id)
             .then((full) => {
-                if (!cancelled) {
-                    const fullForm = { ...toForm(full), projectId: lockedProjectId ?? full.projectId };
-                    setForm(fullForm);
-                    const t = calcTotal(
-                        Number(fullForm.baseAmount) || 0,
-                        Number(fullForm.ivaRate) || 0,
-                        Number(fullForm.irpfRate) || 0,
-                    );
-                    setTotalInput(t.toFixed(2));
-                }
+                if (cancelled) return;
+                const fullForm = { ...toForm(full), projectId: lockedProjectId ?? full.projectId };
+                setForm(fullForm);
+                const t = calcTotal(
+                    Number(fullForm.baseAmount) || 0,
+                    Number(fullForm.ivaRate) || 0,
+                    Number(fullForm.irpfRate) || 0,
+                );
+                setTotalInput(t.toFixed(2));
             })
             .catch((err) => {
-                if (!cancelled) toastError(err);
+                if (cancelled) return;
+                toastError(err);
+                onOpenChange(false);
+            })
+            .finally(() => {
+                if (!cancelled) setHydrating(false);
             });
         return () => {
             cancelled = true;
@@ -277,6 +292,11 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                     <SheetDescription>Factura recibida / gasto interno.</SheetDescription>
                 </SheetHeader>
 
+                {hydrating ? (
+                    <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
+                        <FormFieldsSkeleton fields={8} />
+                    </div>
+                ) : (
                 <form
                     id="expense-form"
                     noValidate
@@ -510,6 +530,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         />
                     </FormField>
                 </form>
+                )}
 
                 <SheetFooter>
                     <Button
@@ -517,11 +538,16 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => onOpenChange(false)}
-                        disabled={saving}
+                        disabled={hydrating || saving}
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" form="expense-form" className="cursor-pointer" disabled={saving}>
+                    <Button
+                        type="submit"
+                        form="expense-form"
+                        className="cursor-pointer"
+                        disabled={hydrating || saving}
+                    >
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
                 </SheetFooter>
