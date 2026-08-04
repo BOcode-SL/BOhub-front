@@ -1,4 +1,4 @@
-import { request, apiErrorMessage } from './api';
+import { request } from './api';
 
 export const PROJECT_TYPES = ['web', 'webapp', 'mobil', 'api', 'automation', 'ia', 'consulting', 'other'] as const;
 
@@ -285,8 +285,4 @@ export async function deleteProject(id: number): Promise<void> {
         method: 'DELETE',
     });
     invalidateProjectOptionsCache();
-}
-
-export function projectErrorMessage(err: unknown): string {
-    return apiErrorMessage(err);
 }

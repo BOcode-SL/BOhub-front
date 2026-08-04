@@ -181,24 +181,29 @@ export function ProjectDetailPage() {
             nextSummary: ProjectSummary,
             local: { data: ProjectActivity[] },
             jiraEntries: Activity[] = [],
-            opts?: { forceForm?: boolean },
+            opts?: { forceForm?: boolean; keepJiraActivity?: boolean },
         ) => {
-            const merged: Activity[] = [
-                ...local.data.map((item: ProjectActivity) => ({
+            setActivities((prev) => {
+                const localRows: Activity[] = local.data.map((item: ProjectActivity) => ({
                     occurredAt: item.occurredAt,
                     message: item.message,
                     source: 'local' as const,
                     userName: item.user?.name ?? null,
-                })),
-                ...jiraEntries,
-            ]
-                .filter((item) => item.message)
-                .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
-                .slice(0, 15);
+                }));
+                const jiraRows =
+                    jiraEntries.length > 0
+                        ? jiraEntries
+                        : opts?.keepJiraActivity
+                          ? prev.filter((a) => a.source === 'jira')
+                          : [];
+                return [...localRows, ...jiraRows]
+                    .filter((item) => item.message)
+                    .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+                    .slice(0, 15);
+            });
 
             setProject(nextProject);
             setSummary(nextSummary);
-            setActivities(merged);
             // ponytail: don't wipe Config edits while background sync lands
             if (opts?.forceForm || !configDirtyRef.current) {
                 setConfigForm(toConfigForm(nextProject));
@@ -235,10 +240,32 @@ export function ProjectDetailPage() {
                     getProjectSummary(projectId),
                     listProjectActivities(projectId, { perPage: 20 }),
                 ]);
-                applyLocalPayload(nextProject, nextSummary, local, [], { forceForm: true });
+                applyLocalPayload(nextProject, nextSummary, local, [], {
+                    forceForm: true,
+                    // after unlink, don't keep stale Jira changelog rows
+                    keepJiraActivity: soft && Boolean(nextSummary.jiraLinked),
+                });
                 if (!soft) setLoading(false);
 
-                if (soft) return;
+                if (soft) {
+                    const issueKey = nextSummary.jiraIssueKey;
+                    if (!issueKey) return;
+                    const jira = await getJiraChangelog(issueKey).catch(() => []);
+                    applyLocalPayload(
+                        nextProject,
+                        nextSummary,
+                        local,
+                        jira.map((entry) => ({
+                            occurredAt: entry.created,
+                            message: entry.items
+                                .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
+                                .join(' · '),
+                            source: 'jira' as const,
+                        })),
+                        { forceForm: true },
+                    );
+                    return;
+                }
 
                 void (async () => {
                     let projectAfter = nextProject;
@@ -258,14 +285,18 @@ export function ProjectDetailPage() {
                     const issueKey = summaryAfter.jiraIssueKey ?? nextSummary.jiraIssueKey;
                     if (!issueKey) return;
                     const jira = await getJiraChangelog(issueKey).catch(() => []);
-                    const jiraEntries: Activity[] = jira.map((entry) => ({
-                        occurredAt: entry.created,
-                        message: entry.items
-                            .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
-                            .join(' · '),
-                        source: 'jira' as const,
-                    }));
-                    applyLocalPayload(projectAfter, summaryAfter, local, jiraEntries);
+                    applyLocalPayload(
+                        projectAfter,
+                        summaryAfter,
+                        local,
+                        jira.map((entry) => ({
+                            occurredAt: entry.created,
+                            message: entry.items
+                                .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
+                                .join(' · '),
+                            source: 'jira' as const,
+                        })),
+                    );
                 })();
             } catch (err) {
                 toastError(err);
@@ -1051,14 +1082,16 @@ export function ProjectDetailPage() {
                         >
                             {savingConfig ? 'Guardando…' : 'Guardar cambios'}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="cursor-pointer"
-                            onClick={() => setDeleteOpen(true)}
-                        >
-                            <Trash2 /> Eliminar proyecto
-                        </Button>
+                        {isAdmin && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="cursor-pointer"
+                                onClick={() => setDeleteOpen(true)}
+                            >
+                                <Trash2 /> Eliminar proyecto
+                            </Button>
+                        )}
                     </div>
                 </form>
             )}
