@@ -198,6 +198,31 @@ export function formatMoney(value: string | number): string {
     }).format(n);
 }
 
+/** Drive share/view → embeddable /preview. Never returns relative/garbage (iframe would load our SPA). */
+export function drivePreviewUrl(raw: string | null | undefined): string | null {
+    const url = raw?.trim();
+    if (!url || !/^https?:\/\//i.test(url)) return null;
+
+    const resourcekey = url.match(/[?&]resourcekey=([^&]+)/i)?.[1];
+    const fileId =
+        url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] ?? url.match(/[?&]id=([a-zA-Z0-9_-]+)/)?.[1];
+
+    if (fileId) {
+        const qs = resourcekey ? `?resourcekey=${encodeURIComponent(decodeURIComponent(resourcekey))}` : '';
+        return `https://drive.google.com/file/d/${fileId}/preview${qs}`;
+    }
+
+    if (url.includes('drive.google.com') && /\/view(\?|$)/.test(url)) {
+        return url.replace(/\/view(\?.*)?$/, '/preview');
+    }
+
+    if (url.includes('drive.google.com') || url.includes('docs.google.com') || /\.pdf(\?|#|$)/i.test(url)) {
+        return url;
+    }
+
+    return null;
+}
+
 export function currentQuarter(d = new Date()): 1 | 2 | 3 | 4 {
     return (Math.floor(d.getMonth() / 3) + 1) as 1 | 2 | 3 | 4;
 }

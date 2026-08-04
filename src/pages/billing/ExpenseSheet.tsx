@@ -13,6 +13,7 @@ import {
     PAYMENT_METHODS,
     calcTotal,
     calcBaseFromTotal,
+    drivePreviewUrl,
     getExpense,
     type Expense,
     type ExpenseInput,
@@ -21,6 +22,8 @@ import {
 } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
+import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
+import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
 
@@ -36,6 +39,7 @@ const empty: ExpenseInput = {
     expenseDate: '',
     paymentDate: '',
     notes: '',
+    invoiceUrl: '',
     installments: [],
 };
 
@@ -52,6 +56,7 @@ function toForm(e: Expense): ExpenseInput {
         expenseDate: e.expenseDate ?? '',
         paymentDate: e.paymentDate ?? '',
         notes: e.notes ?? '',
+        invoiceUrl: e.invoiceUrl ?? '',
         installments: e.installments ?? [],
     };
 }
@@ -213,6 +218,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                 expenseDate: form.expenseDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
+                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
                 ...(installments.length > 0 || hadInstallments ? { installments } : {}),
             });
             onOpenChange(false);
@@ -223,9 +229,30 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         }
     }
 
+    const previewSrc = drivePreviewUrl(form.invoiceUrl);
+
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex w-full flex-col sm:max-w-lg">
+            <SheetContent
+                className={cn(
+                    'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                    previewSrc
+                        ? 'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]'
+                        : 'data-[side=right]:sm:max-w-lg',
+                )}
+            >
+                <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
+                    {previewSrc ? (
+                        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
+                            <DrivePdfPane url={form.invoiceUrl} className="h-full shadow-lg" />
+                        </div>
+                    ) : null}
+                    <div
+                        className={cn(
+                            'flex min-h-0 min-w-0 flex-col overflow-hidden',
+                            previewSrc ? 'w-full md:w-[450px] md:shrink-0 lg:w-[500px]' : 'w-full flex-1',
+                        )}
+                    >
                 <SheetHeader>
                     <SheetTitle>{mode === 'add' ? 'Añadir gasto' : 'Editar gasto'}</SheetTitle>
                     <SheetDescription>Factura recibida / gasto interno.</SheetDescription>
@@ -438,6 +465,19 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                     </fieldset>
 
                     <div className="grid gap-2">
+                        <Label htmlFor="exp-drive">URL Drive</Label>
+                        <Input
+                            id="exp-drive"
+                            type="text"
+                            inputMode="url"
+                            placeholder="https://drive.google.com/file/d/…/view"
+                            value={form.invoiceUrl ?? ''}
+                            onChange={(e) => setField('invoiceUrl', e.target.value)}
+                            className="bg-card"
+                        />
+                    </div>
+
+                    <div className="grid gap-2">
                         <Label htmlFor="exp-notes">Notas</Label>
                         <Textarea
                             id="exp-notes"
@@ -463,6 +503,8 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
                 </SheetFooter>
+                    </div>
+                </div>
             </SheetContent>
         </Sheet>
     );
