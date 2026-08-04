@@ -1,38 +1,38 @@
-name: Deploy BOhub front
-
+name: 🚀 Deploy website
 on:
     push:
         branches: [main]
 
 jobs:
     deploy:
-        name: Build & FTP
+        name: 📂 Deploy
         runs-on: ubuntu-latest
 
         steps:
-            - name: Checkout
+            - name: 🚚 Get latest code
               uses: actions/checkout@v4
 
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
-
-            - name: Setup Node
+            - name: 📦 Setup Node
               uses: actions/setup-node@v4
               with:
                   node-version: 22
-                  cache: pnpm
 
-            - name: Install
-              run: pnpm install --frozen-lockfile
+            - name: 📦 Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9
 
-            - name: Build
+            - name: 📥 Install dependencies
+              run: pnpm install
+
+            - name: 🏗️ Build project
               env:
                   VITE_ENV: Production
                   VITE_API_URL_PROD: ${{ secrets.VITE_API_URL_PROD }}
                   VITE_JIRA_BASE_URL: ${{ secrets.VITE_JIRA_BASE_URL }}
               run: pnpm run build
 
-            - name: FTP sync
+            - name: 📂 Sync files
               uses: SamKirkland/FTP-Deploy-Action@v4.3.4
               with:
                   server: ${{ secrets.FTP_HOST }}
