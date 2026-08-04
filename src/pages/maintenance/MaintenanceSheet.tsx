@@ -10,7 +10,6 @@ import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     MAINTENANCE_PERIODS,
     MAINTENANCE_PERIOD_LABELS,
-    getMaintenance,
     suggestEndsOn,
     type MaintenanceInput,
     type MaintenancePeriod,
@@ -115,14 +114,6 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
         }
         setForm(toForm(period));
         setEndsTouched(true); // edit: don't auto-overwrite existing ends
-        if (period.notes !== undefined) return;
-        let cancelled = false;
-        void getMaintenance(period.id).then((full) => {
-            if (!cancelled) setForm(toForm(full));
-        });
-        return () => {
-            cancelled = true;
-        };
     }, [open, mode, period]);
 
     function clearFieldError(key: string) {

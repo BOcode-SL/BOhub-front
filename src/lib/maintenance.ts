@@ -1,4 +1,4 @@
-import { request, apiErrorMessage } from './api';
+import { request } from './api';
 
 export const MAINTENANCE_STATUSES = ['scheduled', 'active', 'ended', 'cancelled'] as const;
 
@@ -14,10 +14,28 @@ export const MAINTENANCE_STATUS_LABELS: Record<MaintenanceStatus, string> = {
     cancelled: 'Cancelado',
 };
 
+/** Soft badge tints for dark BOcode UI (list tables). */
+export const MAINTENANCE_STATUS_BADGE_CLASS: Record<MaintenanceStatus, string> = {
+    scheduled: 'border-transparent bg-sky-500/20 text-sky-300',
+    active: 'border-transparent bg-primary/20 text-primary',
+    ended: 'border-transparent bg-slate-500/25 text-slate-300',
+    cancelled: 'border-transparent bg-destructive/20 text-destructive',
+};
+
 export const MAINTENANCE_PERIOD_LABELS: Record<MaintenancePeriodKind, string> = {
     monthly: 'Mensual',
     annual: 'Anual',
 };
+
+/** Days from today (UTC date) until endsOn; null if unparseable. */
+export function daysUntilEndsOn(endsOn: string): number | null {
+    const [y, m, d] = endsOn.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    const end = Date.UTC(y, m - 1, d);
+    const now = new Date();
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    return Math.round((end - today) / 86_400_000);
+}
 
 export type MaintenanceClient = {
     id: number;
@@ -76,12 +94,10 @@ export async function listMaintenances(
     params: {
         page?: number;
         perPage?: number;
-        status?: string;
         scope?: string;
         period?: MaintenancePeriodKind | '';
         clientId?: number;
         projectId?: number;
-        endingWithin?: 7 | 30;
         sort?: string;
     } = {},
     signal?: AbortSignal,
@@ -89,21 +105,15 @@ export async function listMaintenances(
     const q = new URLSearchParams();
     if (params.page) q.set('page', String(params.page));
     if (params.perPage) q.set('per_page', String(params.perPage));
-    if (params.status) q.set('status', params.status);
     if (params.scope) q.set('scope', params.scope);
     if (params.period) q.set('period', params.period);
     if (params.clientId) q.set('client_id', String(params.clientId));
     if (params.projectId) q.set('project_id', String(params.projectId));
-    if (params.endingWithin) q.set('ending_within', String(params.endingWithin));
     if (params.sort) q.set('sort', params.sort);
     const qs = q.toString();
     return request(`/api/maintenances${qs ? `?${qs}` : ''}`, {
         signal,
     });
-}
-
-export async function getMaintenance(id: number): Promise<MaintenancePeriod> {
-    return request(`/api/maintenances/${id}`, {});
 }
 
 export async function createMaintenance(body: MaintenanceInput): Promise<MaintenancePeriod> {
@@ -122,8 +132,4 @@ export async function updateMaintenance(
 
 export async function deleteMaintenance(id: number): Promise<void> {
     await request(`/api/maintenances/${id}`, { method: 'DELETE' });
-}
-
-export function maintenanceErrorMessage(err: unknown): string {
-    return apiErrorMessage(err);
 }

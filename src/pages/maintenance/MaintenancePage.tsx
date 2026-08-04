@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,9 +14,10 @@ import { listProjectOptions } from '@/lib/projects';
 import {
     MAINTENANCE_PERIODS,
     MAINTENANCE_PERIOD_LABELS,
-    MAINTENANCE_STATUSES,
+    MAINTENANCE_STATUS_BADGE_CLASS,
     MAINTENANCE_STATUS_LABELS,
     createMaintenance,
+    daysUntilEndsOn,
     deleteMaintenance,
     listMaintenances,
     updateMaintenance,
@@ -30,23 +32,46 @@ import { ToolbarField, ToolbarSelect } from '@/components/toolbar-field';
 import { MaintenanceSheet } from '@/pages/maintenance/MaintenanceSheet';
 
 const PER_PAGE = 15;
+type MaintTab = 'open' | 'history';
+
 function parsePage(v: string | null) {
     const n = Number(v);
     return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
+function parseTab(scope: string | null): MaintTab {
+    return scope === 'history' ? 'history' : 'open';
+}
+
+function EndsOnCell({ endsOn, status }: { endsOn: string; status: string }) {
+    const days = daysUntilEndsOn(endsOn);
+    const soon =
+        days != null &&
+        days >= 0 &&
+        days <= 30 &&
+        (status === 'active' || status === 'scheduled');
+
+    return (
+        <div className="flex flex-col gap-0.5">
+            <span className={cn('text-foreground', soon && 'font-medium')}>{endsOn}</span>
+            {soon && (
+                <span className="text-xs text-amber-300">
+                    {days === 0 ? 'Vence hoy' : days === 1 ? '1 día' : `${days} días`}
+                </span>
+            )}
+        </div>
+    );
+}
+
 export function MaintenancePage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parsePage(searchParams.get('page'));
-    const urlStatus = searchParams.get('status') ?? '';
-    const urlScope = searchParams.get('scope') ?? (urlStatus ? '' : 'open');
+    const tab = parseTab(searchParams.get('scope'));
     const urlClient = searchParams.get('client_id') ?? '';
     const urlProject = searchParams.get('project_id') ?? '';
     const urlPeriod = searchParams.get('period') ?? '';
-    const urlEnding = searchParams.get('ending_within') ?? '';
 
-    const filterKey = `${urlStatus}|${urlScope}|${urlClient}|${urlProject}|${urlPeriod}|${urlEnding}`;
-    const [debouncedFilters, setDebouncedFilters] = useState(filterKey);
+    const filterKey = `${tab}|${urlClient}|${urlProject}|${urlPeriod}`;
 
     const [rows, setRows] = useState<MaintenancePeriod[]>([]);
     const [meta, setMeta] = useState<MaintenanceMeta | null>(null);
@@ -67,31 +92,24 @@ export function MaintenancePage() {
         void listProjectOptions().then(setProjects);
     }, []);
 
-    // ponytail: 300ms debounce on filters; page/tick fetch immediately
+    // ponytail: selects only — no debounce
     useEffect(() => {
-        const t = window.setTimeout(() => setDebouncedFilters(filterKey), 300);
-        return () => window.clearTimeout(t);
-    }, [filterKey]);
-
-    useEffect(() => {
-        const [status, scope, client, project, periodKind, endingRaw] = debouncedFilters.split('|');
+        const [tabRaw, client, project, periodKind] = filterKey.split('|');
+        const scope = tabRaw === 'history' ? 'history' : 'open';
         const ac = new AbortController();
         let cancelled = false;
         async function run() {
             setLoading(true);
             try {
-                const ending = endingRaw === '7' || endingRaw === '30' ? (Number(endingRaw) as 7 | 30) : undefined;
                 const res = await listMaintenances(
                     {
                         page,
                         perPage: PER_PAGE,
-                        status: status || undefined,
-                        scope: scope || undefined,
+                        scope,
                         period: periodKind === 'monthly' || periodKind === 'annual' ? periodKind : undefined,
                         clientId: client ? Number(client) : undefined,
                         projectId: project ? Number(project) : undefined,
-                        endingWithin: ending,
-                        sort: 'ends_on',
+                        sort: scope === 'history' ? '-ends_on' : 'ends_on',
                     },
                     ac.signal,
                 );
@@ -112,7 +130,7 @@ export function MaintenancePage() {
             cancelled = true;
             ac.abort();
         };
-    }, [page, debouncedFilters, tick]);
+    }, [page, filterKey, tick]);
 
     function patch(next: Record<string, string | null>) {
         setSearchParams(
@@ -129,6 +147,10 @@ export function MaintenancePage() {
         );
     }
 
+    function setTab(next: MaintTab) {
+        patch({ scope: next === 'history' ? 'history' : 'open' });
+    }
+
     async function handleSave(data: MaintenanceInput) {
         if (sheetMode === 'edit' && editing) {
             await updateMaintenance(editing.id, data);
@@ -141,8 +163,13 @@ export function MaintenancePage() {
     }
 
     async function handleCancel(row: MaintenancePeriod) {
-        await updateMaintenance(row.id, { status: 'cancelled' });
-        setTick((n) => n + 1);
+        try {
+            await updateMaintenance(row.id, { status: 'cancelled' });
+            toastSuccess('Periodo cancelado');
+            setTick((n) => n + 1);
+        } catch (err) {
+            toastError(err);
+        }
     }
 
     async function confirmDelete() {
@@ -169,6 +196,31 @@ export function MaintenancePage() {
                 title="Mantenimientos"
                 description="Cola de contratos de soporte por vencimiento. Historial intacto."
                 icon={Wrench}
+                above={
+                    <nav aria-label="Secciones de mantenimientos" className="flex flex-wrap gap-2 border-b border-border pb-3">
+                        {(
+                            [
+                                { id: 'open' as const, label: 'Abiertos' },
+                                { id: 'history' as const, label: 'Historial' },
+                            ] as const
+                        ).map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                className={cn(
+                                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+                                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                                    tab === t.id
+                                        ? 'bg-sidebar-accent font-medium text-primary'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                )}
+                                onClick={() => setTab(t.id)}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </nav>
+                }
                 actions={
                     <Button
                         type="button"
@@ -184,30 +236,6 @@ export function MaintenancePage() {
                 }
                 toolbar={
                     <div className="flex flex-wrap items-end gap-2 py-1">
-                        <ToolbarSelect
-                            id="maint-status"
-                            label="Estado"
-                            items={[
-                                { label: 'Abiertos (prog. + activos)', value: 'open' },
-                                { label: 'Todos', value: null },
-                                ...MAINTENANCE_STATUSES.map((status) => ({
-                                    label: MAINTENANCE_STATUS_LABELS[status],
-                                    value: status,
-                                })),
-                            ]}
-                            value={urlStatus || (urlScope === 'open' ? 'open' : null)}
-                            onValueChange={(value) => {
-                                if (value === 'open') {
-                                    patch({ status: null, scope: 'open' });
-                                } else if (value == null) {
-                                    patch({ status: null, scope: null });
-                                } else {
-                                    patch({ status: value, scope: null });
-                                }
-                            }}
-                            className="min-w-40"
-                        />
-
                         <ToolbarSelect
                             id="maint-period"
                             label="Periodo"
@@ -246,35 +274,6 @@ export function MaintenancePage() {
                                 className="min-w-40"
                             />
                         </ToolbarField>
-
-                        <div className="flex gap-1 pb-0.5">
-                            <button
-                                type="button"
-                                className={cn(
-                                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-                                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-                                    urlEnding === '7'
-                                        ? 'bg-sidebar-accent font-medium text-primary'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                )}
-                                onClick={() => patch({ ending_within: urlEnding === '7' ? null : '7' })}
-                            >
-                                Vence en 7d
-                            </button>
-                            <button
-                                type="button"
-                                className={cn(
-                                    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
-                                    'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
-                                    urlEnding === '30'
-                                        ? 'bg-sidebar-accent font-medium text-primary'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                )}
-                                onClick={() => patch({ ending_within: urlEnding === '30' ? null : '30' })}
-                            >
-                                Vence en 30d
-                            </button>
-                        </div>
                     </div>
                 }
             >
@@ -306,12 +305,15 @@ export function MaintenancePage() {
                             {!loading && rows.length === 0 && (
                                 <TableRow className="hover:bg-transparent">
                                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                        No hay periodos de mantenimiento.
+                                        {tab === 'history'
+                                            ? 'No hay periodos en el historial.'
+                                            : 'No hay periodos abiertos.'}
                                     </TableCell>
                                 </TableRow>
                             )}
                             {rows.map((row) => {
                                 const clientTip = [row.client?.email, row.client?.phone].filter(Boolean).join(' · ');
+                                const status = row.status as MaintenanceStatus;
                                 return (
                                     <TableRow key={row.id}>
                                         <TableCell className="font-medium text-foreground">
@@ -329,9 +331,16 @@ export function MaintenancePage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">{row.startsOn}</TableCell>
-                                        <TableCell className="text-muted-foreground">{row.endsOn}</TableCell>
-                                        <TableCell className="text-sm text-foreground">
-                                            {MAINTENANCE_STATUS_LABELS[row.status as MaintenanceStatus] ?? row.status}
+                                        <TableCell>
+                                            <EndsOnCell endsOn={row.endsOn} status={row.status} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={MAINTENANCE_STATUS_BADGE_CLASS[status] ?? ''}
+                                            >
+                                                {MAINTENANCE_STATUS_LABELS[status] ?? row.status}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>
                                             <DropdownMenu>
