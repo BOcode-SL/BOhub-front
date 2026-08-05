@@ -1,4 +1,4 @@
-import { request, apiErrorMessage } from './api';
+import { request, apiErrorMessage, ApiError } from './api';
 
 export type TimerState = 'running' | 'paused';
 
@@ -8,6 +8,8 @@ export type ActiveTimer = {
     elapsedSeconds: number;
     startedAt: string | null;
     accumulatedSeconds: number;
+    /** ISO — clients ignore poll snapshots older than local after own mutation. */
+    updatedAt?: string | null;
     projectId: number | null;
     description: string | null;
     project?: { id: number; name: string } | null;
@@ -51,6 +53,40 @@ export function formatDuration(totalSeconds: number): string {
     return [h, m, sec].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
+/**
+ * UI clock anchored to server `elapsedSeconds` snapshot.
+ * Do NOT use client `now − startedAt` (device clock skew → display 0).
+ */
+export type TimerClock = {
+    baseElapsed: number;
+    anchoredAtMs: number;
+    state: TimerState;
+};
+
+export function displayElapsed(clock: TimerClock, nowMs: number = Date.now()): number {
+    const base = Math.max(0, clock.baseElapsed);
+    if (clock.state !== 'running') return base;
+    return base + Math.max(0, Math.floor((nowMs - clock.anchoredAtMs) / 1000));
+}
+
+export function clockFromTimer(t: ActiveTimer, nowMs: number = Date.now()): TimerClock {
+    return {
+        baseElapsed: Math.max(0, t.elapsedSeconds ?? 0),
+        anchoredAtMs: nowMs,
+        state: t.state,
+    };
+}
+
+/** Prefer `timer` embedded in start 409 body. */
+export function activeTimerFromError(err: unknown): ActiveTimer | null {
+    if (!(err instanceof ApiError) || !err.data || typeof err.data !== 'object') return null;
+    const raw = (err.data as { timer?: unknown }).timer;
+    if (!raw || typeof raw !== 'object') return null;
+    const t = raw as Partial<ActiveTimer>;
+    if (typeof t.id !== 'number' || (t.state !== 'running' && t.state !== 'paused')) return null;
+    return raw as ActiveTimer;
+}
+
 export async function getActiveTimer(signal?: AbortSignal): Promise<ActiveTimer | null> {
     const res = await request<{ timer: ActiveTimer | null }>('/api/timers/active', { signal });
     return res.timer;
@@ -85,6 +121,7 @@ export async function saveTimer(
         projectId?: number | null;
         description?: string | null;
         workedOn?: string | null;
+        durationSeconds?: number | null;
     } = {},
 ): Promise<{ hour: Hour; timer: null }> {
     return request(`/api/timers/${id}/save`, {

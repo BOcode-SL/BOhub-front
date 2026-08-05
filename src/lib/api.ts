@@ -12,12 +12,15 @@ export type AuthUser = {
 export class ApiError extends Error {
     status: number;
     fieldErrors?: Record<string, string[]>;
+    /** Raw JSON body (e.g. start 409 `{ message, timer }`). */
+    data?: unknown;
 
-    constructor(message: string, status: number, fieldErrors?: Record<string, string[]>) {
+    constructor(message: string, status: number, fieldErrors?: Record<string, string[]>, data?: unknown) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
         this.fieldErrors = fieldErrors;
+        this.data = data;
     }
 }
 
@@ -118,7 +121,7 @@ async function parseError(res: Response, data: unknown): Promise<ApiError> {
             }
         }
     }
-    return new ApiError(message, res.status, fieldErrors);
+    return new ApiError(message, res.status, fieldErrors, data);
 }
 
 export async function request<T>(path: string, { method = 'GET', body, signal, _retried }: RequestOptions = {}): Promise<T> {

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Clock, Pause, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { EntitySelect } from '@/components/entity-select';
@@ -23,6 +23,9 @@ import {
     getHoursSummary,
     listHours,
     listTeamHours,
+    displayElapsed,
+    clockFromTimer,
+    activeTimerFromError,
     patchTimer,
     saveTimer,
     startTimer,
@@ -32,6 +35,7 @@ import {
     type HoursMeta,
     type HoursSummary,
     type HourInput,
+    type TimerClock,
 } from '@/lib/timer';
 import { HourSheet } from './HourSheet';
 import { HoursTable } from './HoursTable';
@@ -40,8 +44,35 @@ import { TimerTabs } from './TimerTabs';
 // ponytail: keep recharts off the Mis horas / Equipo path until Analytics opens
 const TimerAnalytics = lazy(() => import('./TimerAnalytics').then((m) => ({ default: m.TimerAnalytics })));
 
+/** Session-wide: StrictMode remount + poll overlap share one GET /active. */
+let activeTimerInflight: Promise<ActiveTimer | null> | null = null;
+/** Session-wide project options — one fetch across StrictMode double-mount. */
+let projectOptionsInflight: Promise<{ id: number; name: string }[]> | null = null;
+
+function fetchActiveTimerSingleFlight(): Promise<ActiveTimer | null> {
+    if (!activeTimerInflight) {
+        activeTimerInflight = getActiveTimer().finally(() => {
+            activeTimerInflight = null;
+        });
+    }
+    return activeTimerInflight;
+}
+
+function fetchProjectOptionsOnce(): Promise<{ id: number; name: string }[]> {
+    if (!projectOptionsInflight) {
+        projectOptionsInflight = listProjectOptions();
+    }
+    return projectOptionsInflight;
+}
+
+/** Calendar date in Europe/Madrid — not UTC via toISOString (jumps day after ~22:00 CET). */
 function today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Madrid',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
 }
 
 /** Visible month for Mis horas cards: from filter date if set, else current calendar month. */
@@ -89,6 +120,18 @@ export function TimerPage() {
     const [listTick, setListTick] = useState(0);
 
     const [saveOpen, setSaveOpen] = useState(false);
+    const saveOpenRef = useRef(false);
+    saveOpenRef.current = saveOpen;
+    // ponytail: block poll/focus from clobbering project/desc until live PATCH settles
+    const liveDirtyRef = useRef(false);
+    /** Newest updatedAt from own mutations — ignore older poll snapshots. */
+    const localUpdatedAtRef = useRef<string | null>(null);
+    /** Display clock: base = server elapsedSeconds, tick from local anchor (no startedAt). */
+    const clockRef = useRef<TimerClock | null>(null);
+    /** Skip focus/visibility refetch if we fetched within this window. */
+    const lastTimerFetchAtRef = useRef(0);
+    const timerRef = useRef(timer);
+    timerRef.current = timer;
     const [frozenSeconds, setFrozenSeconds] = useState(0);
     const [saveProjectId, setSaveProjectId] = useState<number | ''>('');
     const [saveDesc, setSaveDesc] = useState('');
@@ -116,7 +159,7 @@ export function TimerPage() {
     );
 
     useEffect(() => {
-        void listProjectOptions().then(setProjects);
+        void fetchProjectOptionsOnce().then(setProjects).catch((err) => toastError(err));
     }, []);
 
     // ponytail: 300ms debounce on list filters; AbortSignal cancels in-flight
@@ -125,32 +168,108 @@ export function TimerPage() {
         return () => window.clearTimeout(t);
     }, [filters]);
 
-    async function refreshTimer() {
-        const t = await getActiveTimer();
+    async function refreshTimer(opts?: { force?: boolean }) {
+        if (!opts?.force && Date.now() - lastTimerFetchAtRef.current < 5_000) {
+            return;
+        }
+        lastTimerFetchAtRef.current = Date.now();
+        const t = await fetchActiveTimerSingleFlight();
+        // Save dialog open: keep frozenSeconds/form; only react if another device cleared the timer.
+        if (saveOpenRef.current) {
+            if (!t) {
+                applyServerTimer(null);
+                setFrozenSeconds(0);
+                setSaveOpen(false);
+                reloadList();
+                toastSuccess('Timer guardado en otro dispositivo');
+            }
+            return;
+        }
+        applyServerTimer(t, { fromPoll: true });
+    }
+
+    /** Replace local snapshot with server timer; re-anchor UI clock from elapsedSeconds. */
+    function applyServerTimer(t: ActiveTimer | null, opts?: { fromPoll?: boolean }) {
+        if (
+            opts?.fromPoll &&
+            t?.updatedAt &&
+            localUpdatedAtRef.current &&
+            Date.parse(t.updatedAt) < Date.parse(localUpdatedAtRef.current)
+        ) {
+            return;
+        }
+        if (t?.updatedAt) {
+            localUpdatedAtRef.current = t.updatedAt;
+        } else if (!t) {
+            localUpdatedAtRef.current = null;
+        }
         setTimer(t);
         if (t) {
-            setDisplaySeconds(t.elapsedSeconds);
-            setLiveProjectId(t.projectId ?? '');
-            setLiveDesc(t.description ?? '');
+            const clock = clockFromTimer(t);
+            clockRef.current = clock;
+            const shown = displayElapsed(clock);
+            setDisplaySeconds(shown);
+            if (!liveDirtyRef.current) {
+                setLiveProjectId(t.projectId ?? '');
+                setLiveDesc(t.description ?? '');
+            }
         } else {
+            clockRef.current = null;
             setDisplaySeconds(0);
+            liveDirtyRef.current = false;
         }
     }
 
+    // Debounce live project/desc → PATCH (Mac uses 400ms). Does not reset the clock.
     useEffect(() => {
-        void refreshTimer().catch((err) => toastError(err));
+        const active = timerRef.current;
+        if (!active || saveOpen) return;
+        const nextProject = liveProjectId === '' ? null : liveProjectId;
+        const nextDesc = liveDesc;
+        if (nextProject === (active.projectId ?? null) && nextDesc.trim() === (active.description ?? '')) {
+            liveDirtyRef.current = false;
+            return;
+        }
+        liveDirtyRef.current = true;
+        const id = active.id;
+        const handle = window.setTimeout(() => {
+            const current = timerRef.current;
+            if (!current || current.id !== id) {
+                liveDirtyRef.current = false;
+                return;
+            }
+            void patchTimer(id, {
+                projectId: liveProjectId === '' ? null : liveProjectId,
+                description: liveDesc.trim() || null,
+            })
+                .then((updated) => {
+                    liveDirtyRef.current = false;
+                    applyServerTimer(updated);
+                })
+                .catch((err) => {
+                    liveDirtyRef.current = false;
+                    toastError(err);
+                });
+        }, 400);
+        return () => window.clearTimeout(handle);
+    }, [liveProjectId, liveDesc, timer?.id, saveOpen]);
+
+    useEffect(() => {
+        void refreshTimer({ force: true }).catch((err) => toastError(err));
     }, []);
 
-    // ponytail: local 1s tick only; API resync on pause/resume/focus/visibility — not each second
+    // Tick from anchored server elapsedSeconds — never Date.parse(startedAt).
     useEffect(() => {
         if (!timer || timer.state !== 'running') return;
-        const anchor = Date.now();
-        const base = timer.elapsedSeconds;
-        const id = window.setInterval(() => {
-            setDisplaySeconds(base + Math.floor((Date.now() - anchor) / 1000));
-        }, 1000);
+        const tick = () => {
+            const clock = clockRef.current;
+            if (!clock) return;
+            setDisplaySeconds(displayElapsed(clock));
+        };
+        tick();
+        const id = window.setInterval(tick, 1000);
         return () => window.clearInterval(id);
-    }, [timer]);
+    }, [timer?.id, timer?.state, timer?.elapsedSeconds]);
 
     useEffect(() => {
         function resync() {
@@ -159,9 +278,12 @@ export function TimerPage() {
         }
         window.addEventListener('focus', resync);
         document.addEventListener('visibilitychange', resync);
+        // 20s poll — UI ticks locally from elapsedSeconds anchor; no need for 10s spam
+        const pollId = window.setInterval(resync, 20_000);
         return () => {
             window.removeEventListener('focus', resync);
             document.removeEventListener('visibilitychange', resync);
+            window.clearInterval(pollId);
         };
     }, []);
 
@@ -289,9 +411,23 @@ export function TimerPage() {
                 projectId: liveProjectId || null,
                 description: liveDesc.trim() || null,
             });
-            setTimer(t);
-            setDisplaySeconds(t.elapsedSeconds);
+            liveDirtyRef.current = false;
+            applyServerTimer(t);
         } catch (err) {
+            // 409 = another client already owns the timer — adopt body.timer or GET /active.
+            if (err instanceof ApiError && err.status === 409) {
+                try {
+                    const embedded = activeTimerFromError(err);
+                    const t = embedded ?? (await getActiveTimer());
+                    if (t) {
+                        liveDirtyRef.current = false;
+                        applyServerTimer(t);
+                        return;
+                    }
+                } catch {
+                    // fall through to toast
+                }
+            }
             if (err instanceof ApiError && err.fieldErrors) {
                 setFieldErrors(flattenFieldErrors(err.fieldErrors));
             }
@@ -305,8 +441,7 @@ export function TimerPage() {
         if (!timer) return;
         await runAction(async () => {
             const t = await patchTimer(timer.id, { action: 'pause' });
-            setTimer(t);
-            setDisplaySeconds(t.elapsedSeconds);
+            applyServerTimer(t);
         });
     }
 
@@ -314,19 +449,33 @@ export function TimerPage() {
         if (!timer) return;
         await runAction(async () => {
             const t = await patchTimer(timer.id, { action: 'resume' });
-            setTimer(t);
-            setDisplaySeconds(t.elapsedSeconds);
+            applyServerTimer(t);
         });
     }
 
-    function handleStop() {
+    async function handleStop() {
         if (!timer) return;
         setFieldErrors({});
-        setFrozenSeconds(displaySeconds);
-        setSaveProjectId(liveProjectId || timer.projectId || '');
-        setSaveDesc(liveDesc || timer.description || '');
-        setSaveDate(today());
-        setSaveOpen(true);
+        setBusy(true);
+        try {
+            // Pause on server before dialog so other clients stop accumulating.
+            let paused = timer;
+            if (timer.state === 'running') {
+                paused = await patchTimer(timer.id, { action: 'pause' });
+                applyServerTimer(paused);
+            }
+            const frozen = clockRef.current ? displayElapsed(clockRef.current) : displaySeconds;
+            setDisplaySeconds(frozen);
+            setFrozenSeconds(frozen);
+            setSaveProjectId(liveProjectId || paused.projectId || '');
+            setSaveDesc(liveDesc || paused.description || '');
+            setSaveDate(today());
+            setSaveOpen(true);
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setBusy(false);
+        }
     }
 
     async function confirmSave() {
@@ -341,9 +490,9 @@ export function TimerPage() {
                 projectId: Number(saveProjectId),
                 description: saveDesc.trim() || null,
                 workedOn: saveDate,
+                durationSeconds: frozenSeconds > 0 ? frozenSeconds : undefined,
             });
-            setTimer(null);
-            setDisplaySeconds(0);
+            applyServerTimer(null);
             setSaveOpen(false);
             setFieldErrors({});
             reloadList();
@@ -362,8 +511,7 @@ export function TimerPage() {
         if (!timer) return;
         await runAction(async () => {
             await discardTimer(timer.id);
-            setTimer(null);
-            setDisplaySeconds(0);
+            applyServerTimer(null);
             setSaveOpen(false);
         });
     }
@@ -498,7 +646,7 @@ export function TimerPage() {
                                 size="lg"
                                 className="min-w-32"
                                 disabled={busy}
-                                onClick={handleStop}
+                                onClick={() => void handleStop()}
                             >
                                 <Square />
                                 Parar
@@ -523,7 +671,7 @@ export function TimerPage() {
                                 size="lg"
                                 className="min-w-32"
                                 disabled={busy}
-                                onClick={handleStop}
+                                onClick={() => void handleStop()}
                             >
                                 <Square />
                                 Parar
@@ -662,7 +810,9 @@ export function TimerPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Guardar tiempo</DialogTitle>
-                        <DialogDescription>Duración congelada. Guarda o descarta la sesión.</DialogDescription>
+                        <DialogDescription>
+                            Duración congelada. Guarda o descarta; cerrar deja el timer en pausa.
+                        </DialogDescription>
                     </DialogHeader>
                     <p className="font-mono text-3xl font-semibold text-primary tabular-nums">{formatDuration(frozenSeconds)}</p>
                     <div className="grid gap-3">
