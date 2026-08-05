@@ -66,7 +66,7 @@ function toForm(e: Expense): ExpenseInput {
 
 type Props = {
     open: boolean;
-    mode: 'add' | 'edit';
+    mode: 'add' | 'edit' | 'view';
     expense: Expense | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: ExpenseInput) => Promise<void>;
@@ -74,6 +74,7 @@ type Props = {
 };
 
 export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lockedProjectId }: Props) {
+    const readOnly = mode === 'view';
     const [form, setForm] = useState<ExpenseInput>(empty);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
@@ -100,7 +101,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     useLayoutEffect(() => {
         if (!open) return;
         setFieldErrors({});
-        if (mode !== 'edit' || !expense) {
+        if (mode === 'add' || !expense) {
             setHydrating(false);
             setForm({ ...empty, projectId: lockedProjectId ?? null });
             setTotalInput('');
@@ -232,6 +233,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
+        if (readOnly) return;
         setSaving(true);
         try {
             const suggested = suggestStatus();
@@ -288,8 +290,12 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         )}
                     >
                 <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir gasto' : 'Editar gasto'}</SheetTitle>
-                    <SheetDescription>Factura recibida / gasto interno.</SheetDescription>
+                    <SheetTitle>
+                        {mode === 'add' ? 'Añadir gasto' : mode === 'view' ? 'Ver gasto' : 'Editar gasto'}
+                    </SheetTitle>
+                    <SheetDescription>
+                        {readOnly ? 'Detalle ledger (solo lectura).' : 'Factura recibida / gasto interno.'}
+                    </SheetDescription>
                 </SheetHeader>
 
                 {hydrating ? (
@@ -303,6 +309,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
+                    <fieldset disabled={readOnly} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
                     <FormField id="exp-desc" label="Descripción" error={fieldErrors.description}>
                         <Input
                             id="exp-desc"
@@ -529,27 +536,42 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                             className="bg-card"
                         />
                     </FormField>
+                    </fieldset>
                 </form>
                 )}
 
                 <SheetFooter>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
-                        disabled={hydrating || saving}
-                    >
-                        Cancelar
-                    </Button>
-                    <Button
-                        type="submit"
-                        form="expense-form"
-                        className="cursor-pointer"
-                        disabled={hydrating || saving}
-                    >
-                        {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
-                    </Button>
+                    {readOnly ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointer"
+                            onClick={() => onOpenChange(false)}
+                            disabled={hydrating}
+                        >
+                            Cerrar
+                        </Button>
+                    ) : (
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="cursor-pointer"
+                                onClick={() => onOpenChange(false)}
+                                disabled={hydrating || saving}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="submit"
+                                form="expense-form"
+                                className="cursor-pointer"
+                                disabled={hydrating || saving}
+                            >
+                                {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
+                            </Button>
+                        </>
+                    )}
                 </SheetFooter>
                     </div>
                 </div>

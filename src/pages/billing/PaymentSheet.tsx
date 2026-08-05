@@ -64,7 +64,7 @@ function toForm(p: Payment): PaymentInput {
 
 type Props = {
     open: boolean;
-    mode: 'add' | 'edit';
+    mode: 'add' | 'edit' | 'view';
     payment: Payment | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: PaymentInput) => Promise<void>;
@@ -72,6 +72,7 @@ type Props = {
 };
 
 export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lockedProjectId }: Props) {
+    const readOnly = mode === 'view';
     const [form, setForm] = useState<PaymentInput>(empty);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<ProjectOpt[]>([]);
@@ -98,7 +99,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     useLayoutEffect(() => {
         if (!open) return;
         setFieldErrors({});
-        if (mode !== 'edit' || !payment) {
+        if (mode === 'add' || !payment) {
             setHydrating(false);
             setForm({ ...empty, projectId: lockedProjectId ?? null });
             setTotalInput('');
@@ -230,6 +231,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
+        if (readOnly) return;
         setSaving(true);
         try {
             const suggested = suggestStatus();
@@ -286,8 +288,12 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         )}
                     >
                 <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir ingreso' : 'Editar ingreso'}</SheetTitle>
-                    <SheetDescription>Ledger ingreso. Método e installments opcionales.</SheetDescription>
+                    <SheetTitle>
+                        {mode === 'add' ? 'Añadir ingreso' : mode === 'view' ? 'Ver ingreso' : 'Editar ingreso'}
+                    </SheetTitle>
+                    <SheetDescription>
+                        {readOnly ? 'Detalle ledger (solo lectura).' : 'Ledger ingreso. Método e installments opcionales.'}
+                    </SheetDescription>
                 </SheetHeader>
 
                 {hydrating ? (
@@ -301,6 +307,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
                 >
+                    <fieldset disabled={readOnly} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
                     {!lockedProjectId && (
                         <FormField id="pay-project" label="Proyecto" error={fieldErrors.projectId}>
                             <EntitySelect
@@ -513,27 +520,42 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             className="bg-card"
                         />
                     </FormField>
+                    </fieldset>
                 </form>
                 )}
 
                 <SheetFooter>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => onOpenChange(false)}
-                        disabled={hydrating || saving}
-                    >
-                        Cancelar
-                    </Button>
-                    <Button
-                        type="submit"
-                        form="payment-form"
-                        className="cursor-pointer"
-                        disabled={hydrating || saving}
-                    >
-                        {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
-                    </Button>
+                    {readOnly ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointer"
+                            onClick={() => onOpenChange(false)}
+                            disabled={hydrating}
+                        >
+                            Cerrar
+                        </Button>
+                    ) : (
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="cursor-pointer"
+                                onClick={() => onOpenChange(false)}
+                                disabled={hydrating || saving}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="submit"
+                                form="payment-form"
+                                className="cursor-pointer"
+                                disabled={hydrating || saving}
+                            >
+                                {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
+                            </Button>
+                        </>
+                    )}
                 </SheetFooter>
                     </div>
                 </div>

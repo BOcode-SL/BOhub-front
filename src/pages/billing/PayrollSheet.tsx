@@ -59,13 +59,14 @@ function toForm(p: Payroll): PayrollInput {
 
 type Props = {
     open: boolean;
-    mode: 'add' | 'edit';
+    mode: 'add' | 'edit' | 'view';
     editing: Payroll | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: PayrollInput) => Promise<void>;
 };
 
 export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Props) {
+    const readOnly = mode === 'view';
     const [form, setForm] = useState<PayrollInput>(empty);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -91,7 +92,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
         if (!open) return;
         setFieldErrors({});
         setSelectedUserId(null);
-        if (mode !== 'edit' || !editing) {
+        if (mode === 'add' || !editing) {
             setForm(empty);
             return;
         }
@@ -136,6 +137,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
+        if (readOnly) return;
         setSaving(true);
         try {
             await onSubmit({
@@ -186,11 +188,15 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                         )}
                     >
                         <SheetHeader>
-                            <SheetTitle>{mode === 'add' ? 'Nueva nómina' : 'Editar nómina'}</SheetTitle>
+                            <SheetTitle>
+                                {mode === 'add' ? 'Nueva nómina' : mode === 'view' ? 'Ver nómina' : 'Editar nómina'}
+                            </SheetTitle>
                             <SheetDescription>
-                                {mode === 'edit'
-                                    ? 'Actualiza los detalles económicos de la nómina.'
-                                    : 'Introduce los detalles económicos y el enlace al documento.'}
+                                {readOnly
+                                    ? 'Detalle de nómina (solo lectura).'
+                                    : mode === 'edit'
+                                      ? 'Actualiza los detalles económicos de la nómina.'
+                                      : 'Introduce los detalles económicos y el enlace al documento.'}
                             </SheetDescription>
                         </SheetHeader>
 
@@ -200,6 +206,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
                             onSubmit={(e) => void handleSubmit(e)}
                         >
+                            <fieldset disabled={readOnly} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
                             <FormField id="pr-employee" label="Seleccionar empleado">
                                 <EntitySelect
                                     id="pr-employee"
@@ -405,21 +412,35 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                 <span className="text-sm font-medium">Coste total empresa</span>
                                 <span className="text-base font-semibold">{formatMoney(totalCost)}</span>
                             </div>
+                            </fieldset>
                         </form>
 
                         <SheetFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="cursor-pointer"
-                                onClick={() => onOpenChange(false)}
-                                disabled={saving}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button type="submit" form="payroll-form" className="cursor-pointer" disabled={saving}>
-                                {saving ? 'Guardando…' : mode === 'add' ? 'Crear nómina' : 'Guardar'}
-                            </Button>
+                            {readOnly ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="cursor-pointer"
+                                    onClick={() => onOpenChange(false)}
+                                >
+                                    Cerrar
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="cursor-pointer"
+                                        onClick={() => onOpenChange(false)}
+                                        disabled={saving}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button type="submit" form="payroll-form" className="cursor-pointer" disabled={saving}>
+                                        {saving ? 'Guardando…' : mode === 'add' ? 'Crear nómina' : 'Guardar'}
+                                    </Button>
+                                </>
+                            )}
                         </SheetFooter>
                     </div>
                 </div>

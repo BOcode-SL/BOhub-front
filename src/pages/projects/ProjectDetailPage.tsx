@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Plus, RefreshCw, Trash2, Unlink } from 'lucide
 import { useAuth } from '@/auth/AuthContext';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
+import { FormField } from '@/components/form-field';
 import { usePageCrumb } from '@/components/layout/page-crumb';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ApiError } from '@/lib/api';
+import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import {
     createExpense,
@@ -151,6 +152,7 @@ export function ProjectDetailPage() {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [configForm, setConfigForm] = useState<ConfigForm | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
     const [savingConfig, setSavingConfig] = useState(false);
     const [jiraSpaces, setJiraSpaces] = useState<JiraProject[]>([]);
@@ -439,10 +441,12 @@ export function ProjectDetailPage() {
         e.preventDefault();
         if (!configForm || !configDirty) return;
         if (!configForm.clientId) {
+            setFieldErrors((prev) => ({ ...prev, clientId: 'Selecciona un cliente.' }));
             toastError('Selecciona un cliente.');
             return;
         }
         setSavingConfig(true);
+        setFieldErrors({});
         try {
             await updateProject(projectId, {
                 clientId: configForm.clientId,
@@ -455,10 +459,22 @@ export function ProjectDetailPage() {
             configDirtyRef.current = false;
             await loadCore({ soft: true });
         } catch (err) {
+            if (err instanceof ApiError && err.fieldErrors) {
+                setFieldErrors(flattenFieldErrors(err.fieldErrors));
+            }
             toastError(err);
         } finally {
             setSavingConfig(false);
         }
+    }
+
+    function setConfigField<K extends keyof ConfigForm>(key: K, value: ConfigForm[K]) {
+        setConfigForm((f) => (f ? { ...f, [key]: value } : f));
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const { [key]: _, ...rest } = prev;
+            return rest;
+        });
     }
 
     async function handleJiraAttach() {
@@ -963,31 +979,28 @@ export function ProjectDetailPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4 px-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="cfg-name">Nombre</Label>
+                            <FormField id="cfg-name" label="Nombre" error={fieldErrors.name}>
                                 <Input
                                     id="cfg-name"
                                     required
                                     maxLength={255}
                                     value={configForm.name}
-                                    onChange={(e) => setConfigForm((f) => (f ? { ...f, name: e.target.value } : f))}
+                                    onChange={(e) => setConfigField('name', e.target.value)}
                                     className="bg-card"
+                                    aria-invalid={!!fieldErrors.name}
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="cfg-client">Cliente</Label>
+                            </FormField>
+                            <FormField id="cfg-client" label="Cliente" error={fieldErrors.clientId}>
                                 <EntitySelect
                                     id="cfg-client"
                                     value={configForm.clientId || null}
-                                    onValueChange={(cid) =>
-                                        setConfigForm((f) => (f ? { ...f, clientId: cid ?? 0 } : f))
-                                    }
+                                    onValueChange={(cid) => setConfigField('clientId', cid ?? 0)}
                                     items={clients}
                                     placeholder="Seleccionar…"
+                                    aria-invalid={!!fieldErrors.clientId}
                                 />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="cfg-type">Tipo</Label>
+                            </FormField>
+                            <FormField id="cfg-type" label="Tipo" error={fieldErrors.type}>
                                 <AppSelect
                                     id="cfg-type"
                                     items={PROJECT_TYPES.map((type) => ({
@@ -995,11 +1008,10 @@ export function ProjectDetailPage() {
                                         value: type,
                                     }))}
                                     value={configForm.type}
-                                    onValueChange={(value) =>
-                                        setConfigForm((f) => (f ? { ...f, type: value as ProjectType } : f))
-                                    }
+                                    onValueChange={(value) => setConfigField('type', value as ProjectType)}
+                                    aria-invalid={!!fieldErrors.type}
                                 />
-                            </div>
+                            </FormField>
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                 <div className="grid gap-1">
                                     <span className="text-sm text-muted-foreground">Estado</span>
@@ -1026,40 +1038,35 @@ export function ProjectDetailPage() {
                                     </Badge>
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="cfg-color">Color</Label>
+                            <FormField id="cfg-color" label="Color" error={fieldErrors.color}>
                                 <div className="flex items-center gap-2">
                                     <input
                                         id="cfg-color"
                                         type="color"
                                         value={configForm.color || '#ccff00'}
-                                        onChange={(e) =>
-                                            setConfigForm((f) => (f ? { ...f, color: e.target.value } : f))
-                                        }
+                                        onChange={(e) => setConfigField('color', e.target.value)}
                                         className="h-9 w-12 cursor-pointer rounded-md border border-border bg-card"
+                                        aria-invalid={!!fieldErrors.color}
                                     />
                                     <Input
                                         value={configForm.color}
-                                        onChange={(e) =>
-                                            setConfigForm((f) => (f ? { ...f, color: e.target.value } : f))
-                                        }
+                                        onChange={(e) => setConfigField('color', e.target.value)}
                                         className="bg-card font-mono text-sm"
                                         maxLength={7}
+                                        aria-invalid={!!fieldErrors.color}
                                     />
                                 </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="cfg-desc">Descripción</Label>
+                            </FormField>
+                            <FormField id="cfg-desc" label="Descripción" error={fieldErrors.description}>
                                 <Textarea
                                     id="cfg-desc"
                                     rows={4}
                                     value={configForm.description}
-                                    onChange={(e) =>
-                                        setConfigForm((f) => (f ? { ...f, description: e.target.value } : f))
-                                    }
+                                    onChange={(e) => setConfigField('description', e.target.value)}
                                     className="bg-card"
+                                    aria-invalid={!!fieldErrors.description}
                                 />
-                            </div>
+                            </FormField>
                         </CardContent>
                     </Card>
 

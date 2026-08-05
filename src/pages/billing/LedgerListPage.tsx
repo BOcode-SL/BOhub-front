@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
+    Eye,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -91,7 +92,7 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     rowTitle?: (row: TRow) => ReactNode;
     renderSheet: (props: {
         open: boolean;
-        mode: 'add' | 'edit';
+        mode: 'add' | 'edit' | 'view';
         editing: TRow | null;
         onOpenChange: (open: boolean) => void;
         onSubmit: (data: TInput) => Promise<void>;
@@ -100,7 +101,6 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
 
 export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: { config: LedgerListConfig<TRow, TInput> }) {
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
     const canMutate = user?.role === 'admin'; // billing = read-only; employee blocked by route
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parsePage(searchParams.get('page'));
@@ -114,7 +114,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [loading, setLoading] = useState(true);
     const [tick, setTick] = useState(0);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
+    const [sheetMode, setSheetMode] = useState<'add' | 'edit' | 'view'>('add');
     const [editing, setEditing] = useState<TRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<TRow | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -147,6 +147,19 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         setSearchInput(urlSearch);
     }, [urlSearch]);
 
+    // ponytail: API listPayrolls ignores status — drop leftover URL junk instead of a fake filter
+    useEffect(() => {
+        if (!isPayrollLayout || !searchParams.has('status')) return;
+        setSearchParams(
+            (prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete('status');
+                return p;
+            },
+            { replace: true },
+        );
+    }, [isPayrollLayout, searchParams, setSearchParams]);
+
     useEffect(() => {
         const t = setTimeout(() => {
             const next = searchInput.trim();
@@ -177,7 +190,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                         search: urlSearch || undefined,
                         page,
                         perPage,
-                        status: urlStatus || undefined,
+                        status: isPayrollLayout ? undefined : urlStatus || undefined,
                     },
                     ac.signal,
                 );
@@ -198,7 +211,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
             cancelled = true;
             ac.abort();
         };
-    }, [urlSearch, page, perPage, urlStatus, tick, list]);
+    }, [urlSearch, page, perPage, urlStatus, tick, list, isPayrollLayout]);
 
     function patch(next: Record<string, string | null>) {
         setSearchParams((prev) => {
@@ -212,6 +225,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     }
 
     async function handleSave(data: TInput) {
+        if (sheetMode === 'view') return;
         if (sheetMode === 'edit' && editing) {
             await update(editing.id, data);
             toastSuccess(successUpdate);
@@ -276,19 +290,21 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             />
                         </div>
                         <div className="flex flex-wrap items-end gap-2">
-                            <ToolbarSelect
-                                id="ledger-status"
-                                label="Estado"
-                                items={[
-                                    { label: 'Todos', value: null },
-                                    ...LEDGER_STATUSES.map((status) => ({
-                                        label: LEDGER_STATUS_LABELS[status],
-                                        value: status,
-                                    })),
-                                ]}
-                                value={urlStatus || null}
-                                onValueChange={(value) => patch({ status: value, page: '1' })}
-                            />
+                            {!isPayrollLayout ? (
+                                <ToolbarSelect
+                                    id="ledger-status"
+                                    label="Estado"
+                                    items={[
+                                        { label: 'Todos', value: null },
+                                        ...LEDGER_STATUSES.map((status) => ({
+                                            label: LEDGER_STATUS_LABELS[status],
+                                            value: status,
+                                        })),
+                                    ]}
+                                    value={urlStatus || null}
+                                    onValueChange={(value) => patch({ status: value, page: '1' })}
+                                />
+                            ) : null}
                             <ToolbarSelect
                                 id="ledger-per-page"
                                 label="Por página"
@@ -397,27 +413,27 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                         </>
                                     )}
                                     <TableCell>
-                                        {canMutate ? (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger
-                                                    render={<Button variant="ghost" size="icon-sm" className="cursor-pointer" />}
-                                                >
-                                                    <MoreHorizontal />
-                                                    <span className="sr-only">Acciones</span>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer"
-                                                        onClick={() => {
-                                                            setSheetMode('edit');
-                                                            setEditing(row);
-                                                            setSheetOpen(true);
-                                                        }}
-                                                    >
-                                                        <Pencil />
-                                                        Editar
-                                                    </DropdownMenuItem>
-                                                    {isAdmin && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger
+                                                render={<Button variant="ghost" size="icon-sm" className="cursor-pointer" />}
+                                            >
+                                                <MoreHorizontal />
+                                                <span className="sr-only">Acciones</span>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {canMutate ? (
+                                                    <>
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer"
+                                                            onClick={() => {
+                                                                setSheetMode('edit');
+                                                                setEditing(row);
+                                                                setSheetOpen(true);
+                                                            }}
+                                                        >
+                                                            <Pencil />
+                                                            Editar
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             variant="destructive"
                                                             className="cursor-pointer"
@@ -426,10 +442,22 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                             <Trash2 />
                                                             Eliminar
                                                         </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        ) : null}
+                                                    </>
+                                                ) : (
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer"
+                                                        onClick={() => {
+                                                            setSheetMode('view');
+                                                            setEditing(row);
+                                                            setSheetOpen(true);
+                                                        }}
+                                                    >
+                                                        <Eye />
+                                                        Ver
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
