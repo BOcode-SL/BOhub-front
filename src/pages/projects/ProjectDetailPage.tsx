@@ -31,7 +31,14 @@ import {
     type PaymentInput,
 } from '@/lib/billing';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
-import { getJiraChangelog, listJiraProjects, searchJiraIssues, type JiraIssue, type JiraProject } from '@/lib/jira';
+import {
+    getJiraChangelog,
+    listJiraProjects,
+    searchJiraIssues,
+    type JiraChangelogEntry,
+    type JiraIssue,
+    type JiraProject,
+} from '@/lib/jira';
 import {
     PROJECT_PRIORITY_BADGE_CLASS,
     PROJECT_PRIORITY_LABELS,
@@ -47,6 +54,7 @@ import {
     listProjectActivities,
     syncProjectJira,
     updateProject,
+    wasJiraBatchRecent,
     type ProjectActivity,
     type ProjectBillingSummary,
     type ProjectHoursSummary,
@@ -87,6 +95,28 @@ type Activity = {
     source: 'jira' | 'local';
     userName?: string | null;
 };
+
+function mapJiraActivity(entries: JiraChangelogEntry[]): Activity[] {
+    return entries.map((entry) => ({
+        occurredAt: entry.created,
+        message: entry.items
+            .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
+            .join(' · '),
+        source: 'jira' as const,
+    }));
+}
+
+/** Recompute daysRemaining from Project.endDate so we can skip getProjectSummary after sync. */
+function summaryAfterProjectSync(base: ProjectSummary, p: Project): ProjectSummary {
+    let daysRemaining: number | null = null;
+    if (p.endDate) {
+        const end = Date.parse(`${p.endDate}T12:00:00`);
+        const today = new Date();
+        today.setHours(12, 0, 0, 0);
+        daysRemaining = Math.round((end - today.getTime()) / 86_400_000);
+    }
+    return { ...base, daysRemaining };
+}
 
 type ConfigForm = {
     clientId: number;
@@ -255,56 +285,50 @@ export function ProjectDetailPage() {
                 });
                 if (!soft) setLoading(false);
 
+                const issueKey = nextSummary.jiraIssueKey;
+
                 if (soft) {
-                    const issueKey = nextSummary.jiraIssueKey;
+                    // ponytail: don't block soft refresh on changelog
                     if (!issueKey) return;
-                    const jira = await getJiraChangelog(issueKey).catch(() => []);
-                    applyLocalPayload(
-                        nextProject,
-                        nextSummary,
-                        local,
-                        jira.map((entry) => ({
-                            occurredAt: entry.created,
-                            message: entry.items
-                                .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
-                                .join(' · '),
-                            source: 'jira' as const,
-                        })),
-                        { forceForm: true },
-                    );
+                    void getJiraChangelog(issueKey)
+                        .catch(() => [])
+                        .then((jira) => {
+                            applyLocalPayload(nextProject, nextSummary, local, mapJiraActivity(jira), {
+                                forceForm: true,
+                            });
+                        });
                     return;
                 }
 
                 void (async () => {
                     let projectAfter = nextProject;
                     let summaryAfter = nextSummary;
-                    // Always sync this issue on detail open — batch throttle must not skip
-                    // (user may have changed Jira after Home/list sync within 60s).
-                    try {
-                        projectAfter = await syncProjectJira(projectId);
-                        summaryAfter = await getProjectSummary(projectId);
-                        applyLocalPayload(projectAfter, summaryAfter, local);
-                    } catch (err) {
-                        if (!(err instanceof ApiError && err.status === 422)) {
-                            /* silence flaky Jira */
+                    // Skip auto-sync if Home/list batch ran <60s ago; manual Sync always forces.
+                    const shouldSync = Boolean(nextSummary.jiraLinked) && !wasJiraBatchRecent();
+                    const changelogPromise = issueKey
+                        ? getJiraChangelog(issueKey).catch(() => [] as JiraChangelogEntry[])
+                        : Promise.resolve([] as JiraChangelogEntry[]);
+
+                    if (shouldSync) {
+                        try {
+                            const [synced, jira] = await Promise.all([
+                                syncProjectJira(projectId),
+                                changelogPromise,
+                            ]);
+                            projectAfter = synced;
+                            summaryAfter = summaryAfterProjectSync(nextSummary, synced);
+                            applyLocalPayload(projectAfter, summaryAfter, local, mapJiraActivity(jira));
+                            return;
+                        } catch (err) {
+                            if (!(err instanceof ApiError && err.status === 422)) {
+                                /* silence flaky Jira */
+                            }
                         }
                     }
 
-                    const issueKey = summaryAfter.jiraIssueKey ?? nextSummary.jiraIssueKey;
                     if (!issueKey) return;
-                    const jira = await getJiraChangelog(issueKey).catch(() => []);
-                    applyLocalPayload(
-                        projectAfter,
-                        summaryAfter,
-                        local,
-                        jira.map((entry) => ({
-                            occurredAt: entry.created,
-                            message: entry.items
-                                .map((item) => `${item.field}: ${item.fromString || '—'} → ${item.toString || '—'}`)
-                                .join(' · '),
-                            source: 'jira' as const,
-                        })),
-                    );
+                    const jira = await changelogPromise;
+                    applyLocalPayload(projectAfter, summaryAfter, local, mapJiraActivity(jira));
                 })();
             } catch (err) {
                 toastError(err);
@@ -1182,8 +1206,22 @@ export function ProjectDetailPage() {
                                         onClick={() => {
                                             void (async () => {
                                                 try {
-                                                    await syncProjectJira(projectId);
-                                                    await loadCore({ soft: true });
+                                                    const issueKey = summary?.jiraIssueKey;
+                                                    const [synced, local, jira] = await Promise.all([
+                                                        syncProjectJira(projectId),
+                                                        listProjectActivities(projectId, { perPage: 20 }),
+                                                        issueKey
+                                                            ? getJiraChangelog(issueKey).catch(() => [])
+                                                            : Promise.resolve([] as JiraChangelogEntry[]),
+                                                    ]);
+                                                    const summaryBase = summary ?? (await getProjectSummary(projectId));
+                                                    applyLocalPayload(
+                                                        synced,
+                                                        summaryAfterProjectSync(summaryBase, synced),
+                                                        local,
+                                                        mapJiraActivity(jira),
+                                                        { forceForm: true },
+                                                    );
                                                     toastSuccess('Sincronizado desde Jira');
                                                 } catch (err) {
                                                     if (!(err instanceof ApiError && err.status === 422)) toastError(err);
