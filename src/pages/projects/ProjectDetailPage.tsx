@@ -62,6 +62,7 @@ import {
     type Project,
     type ProjectType,
 } from '@/lib/projects';
+import { formatProjectActivityMessage } from '@/lib/project-activity';
 import { formatHoursFromSeconds } from '@/lib/time';
 import { listTeamHours, type Hour, type HoursMeta } from '@/lib/timer';
 import { toastError, toastSuccess } from '@/lib/toast';
@@ -92,6 +93,7 @@ function searchForTab(tab: Tab): string {
 type Activity = {
     occurredAt: string;
     message: string;
+    event?: string;
     source: 'jira' | 'local';
     userName?: string | null;
 };
@@ -224,7 +226,8 @@ export function ProjectDetailPage() {
             setActivities((prev) => {
                 const localRows: Activity[] = local.data.map((item: ProjectActivity) => ({
                     occurredAt: item.occurredAt,
-                    message: item.message,
+                    event: item.event,
+                    message: formatProjectActivityMessage(item.event, item.message),
                     source: 'local' as const,
                     userName: item.user?.name ?? null,
                 }));
@@ -235,7 +238,7 @@ export function ProjectDetailPage() {
                           ? prev.filter((a) => a.source === 'jira')
                           : [];
                 return [...localRows, ...jiraRows]
-                    .filter((item) => item.message)
+                    .filter((item) => item.message.trim())
                     .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
                     .slice(0, 15);
             });
