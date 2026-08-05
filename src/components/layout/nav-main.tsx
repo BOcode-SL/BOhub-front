@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Clock, Folder, Home, Mail, ReceiptEuro, Settings, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { Clock, Folder, Home, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth/AuthContext';
@@ -59,11 +59,6 @@ const accountItems: NavItem[] = [
         url: '/dashboard/users',
         icon: UserCog,
         roles: ['admin'],
-    },
-    {
-        title: 'Configuración',
-        url: '/dashboard/settings',
-        icon: Settings,
     },
 ];
 

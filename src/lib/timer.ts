@@ -176,14 +176,31 @@ export type HoursAnalyticsResponse = {
     buckets: HoursAnalyticsBucket[];
 };
 
+export type HoursSummary = {
+    totalSeconds: number;
+    activeDays: number;
+    avgDailySeconds: number;
+};
+
+export function getHoursSummary(
+    params: { year: number; month: number },
+    signal?: AbortSignal,
+): Promise<HoursSummary> {
+    const q = new URLSearchParams();
+    q.set('year', String(params.year));
+    q.set('month', String(params.month));
+    return request(`/api/hours/summary?${q}`, { signal });
+}
+
 export function getHoursAnalytics(
-    params: { year: number; month: number; projectId?: number },
+    params: { year: number; month: number; projectId?: number; userId?: number },
     signal?: AbortSignal,
 ): Promise<HoursAnalyticsResponse> {
     const q = new URLSearchParams();
     q.set('year', String(params.year));
     q.set('month', String(params.month));
     if (params.projectId) q.set('project_id', String(params.projectId));
+    if (params.userId) q.set('user_id', String(params.userId));
     return request(`/api/hours/analytics?${q}`, { signal });
 }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Clock, Pause, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { EntitySelect } from '@/components/entity-select';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ToolbarField, toolbarControlClass } from '@/components/toolbar-field';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listProjectOptions } from '@/lib/projects';
+import { formatHoursFromSeconds } from '@/lib/time';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
@@ -19,6 +20,7 @@ import {
     discardTimer,
     formatDuration,
     getActiveTimer,
+    getHoursSummary,
     listHours,
     listTeamHours,
     patchTimer,
@@ -28,7 +30,10 @@ import {
     type ActiveTimer,
     type Hour,
     type HoursMeta,
+    type HoursSummary,
+    type HourInput,
 } from '@/lib/timer';
+import { HourSheet } from './HourSheet';
 import { HoursTable } from './HoursTable';
 import { TimerTabs } from './TimerTabs';
 
@@ -37,6 +42,15 @@ const TimerAnalytics = lazy(() => import('./TimerAnalytics').then((m) => ({ defa
 
 function today(): string {
     return new Date().toISOString().slice(0, 10);
+}
+
+/** Visible month for Mis horas cards: from filter date if set, else current calendar month. */
+function summaryMonth(from: string): { year: number; month: number } {
+    if (from && /^\d{4}-\d{2}/.test(from)) {
+        return { year: Number(from.slice(0, 4)), month: Number(from.slice(5, 7)) };
+    }
+    const n = new Date();
+    return { year: n.getFullYear(), month: n.getMonth() + 1 };
 }
 
 type Tab = 'mine' | 'team' | 'analytics';
@@ -91,11 +105,15 @@ export function TimerPage() {
 
     const [editHour, setEditHour] = useState<Hour | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Hour | null>(null);
-    const [editHours, setEditHours] = useState('0');
-    const [editMinutes, setEditMinutes] = useState('0');
-    const [editDesc, setEditDesc] = useState('');
-    const [editDate, setEditDate] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    const [mineSummary, setMineSummary] = useState<HoursSummary | null>(null);
+    const [summaryLoading, setSummaryLoading] = useState(false);
+
+    const { year: summaryYear, month: summaryMonthNum } = useMemo(
+        () => summaryMonth(debouncedFilters.from),
+        [debouncedFilters.from],
+    );
 
     useEffect(() => {
         void listProjectOptions().then(setProjects);
@@ -204,6 +222,30 @@ export function TimerPage() {
             ac.abort();
         };
     }, [page, listTick, tab, debouncedFilters]);
+
+    useEffect(() => {
+        if (tab !== 'mine') return;
+        const ac = new AbortController();
+        let cancelled = false;
+        async function run() {
+            setSummaryLoading(true);
+            try {
+                const res = await getHoursSummary({ year: summaryYear, month: summaryMonthNum }, ac.signal);
+                if (!cancelled) setMineSummary(res);
+            } catch (err) {
+                if (cancelled) return;
+                toastError(err);
+                setMineSummary(null);
+            } finally {
+                if (!cancelled) setSummaryLoading(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+            ac.abort();
+        };
+    }, [tab, summaryYear, summaryMonthNum, listTick]);
 
     async function runAction(fn: () => Promise<void>) {
         setBusy(true);
@@ -362,44 +404,12 @@ export function TimerPage() {
         }
     }
 
-    function openEdit(h: Hour) {
-        setFieldErrors({});
-        setEditHour(h);
-        const total = h.durationSeconds;
-        setEditHours(String(Math.floor(total / 3600)));
-        setEditMinutes(String(Math.floor((total % 3600) / 60)));
-        setEditDesc(h.description ?? '');
-        setEditDate(h.workedOn);
-    }
-
-    async function saveEdit() {
+    async function handleEditSubmit(data: Partial<HourInput>) {
         if (!editHour) return;
-        const duration = (Number(editHours) || 0) * 3600 + (Number(editMinutes) || 0) * 60;
-        if (duration < 1) {
-            setFieldErrors({ duration: 'La duración debe ser mayor que 0.' });
-            return;
-        }
-        setBusy(true);
-        try {
-            await updateHour(editHour.id, {
-                hours: Number(editHours) || 0,
-                minutes: Number(editMinutes) || 0,
-                seconds: 0,
-                description: editDesc.trim() || null,
-                workedOn: editDate,
-            });
-            setEditHour(null);
-            setFieldErrors({});
-            reloadList();
-            toastSuccess('Horas actualizadas');
-        } catch (err) {
-            if (err instanceof ApiError && err.fieldErrors) {
-                setFieldErrors(flattenFieldErrors(err.fieldErrors));
-            }
-            toastError(err);
-        } finally {
-            setBusy(false);
-        }
+        await updateHour(editHour.id, data);
+        setEditHour(null);
+        reloadList();
+        toastSuccess('Horas actualizadas');
     }
 
     async function confirmDelete() {
@@ -530,7 +540,7 @@ export function TimerPage() {
             ) : (
                 <ListPageShell
                     title={tab === 'team' ? 'Equipo' : 'Mis horas'}
-                    description={tab === 'team' ? 'Horas registradas por el equipo.' : 'Historistro de tus horas trabajadas.'}
+                    description={tab === 'team' ? 'Horas registradas por el equipo.' : 'Registro de tus horas trabajadas.'}
                     icon={Clock}
                     above={<TimerTabs tab={tab} isAdmin={isAdmin} onChange={switchTab} />}
                     actions={
@@ -600,6 +610,35 @@ export function TimerPage() {
                         </div>
                     }
                 >
+                    {tab === 'mine' && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            {[
+                                {
+                                    title: 'Total del mes',
+                                    value: formatDuration(mineSummary?.totalSeconds ?? 0),
+                                },
+                                {
+                                    title: 'Media diaria',
+                                    value: formatHoursFromSeconds(mineSummary?.avgDailySeconds ?? 0),
+                                },
+                                {
+                                    title: 'Días activos',
+                                    value: String(mineSummary?.activeDays ?? 0),
+                                },
+                            ].map((tile) => (
+                                <div key={tile.title} className="rounded-xl border border-border bg-card/50 p-4">
+                                    <p className="text-sm text-muted-foreground">{tile.title}</p>
+                                    <div className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
+                                        {summaryLoading ? (
+                                            <Skeleton className="h-7 w-24" />
+                                        ) : (
+                                            tile.value
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <HoursTable
                         hours={hours}
                         meta={meta}
@@ -608,7 +647,7 @@ export function TimerPage() {
                         showActions={tab === 'mine'}
                         page={page}
                         onPageChange={setPage}
-                        onEdit={openEdit}
+                        onEdit={setEditHour}
                         onDelete={setDeleteTarget}
                     />
                 </ListPageShell>
@@ -788,86 +827,14 @@ export function TimerPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog
+            <HourSheet
                 open={Boolean(editHour)}
+                hour={editHour}
                 onOpenChange={(o) => {
                     if (!o) setEditHour(null);
                 }}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Editar horas</DialogTitle>
-                        <DialogDescription>{editHour?.project?.name ?? 'Entrada'}</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-3">
-                        <FormField id="edit-duration" label="Duración" error={fieldErrors.duration}>
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                    id="edit-hours"
-                                    type="number"
-                                    min={0}
-                                    max={24}
-                                    value={editHours}
-                                    onChange={(e) => {
-                                        setEditHours(e.target.value);
-                                        clearFieldError('duration');
-                                    }}
-                                    className="bg-card"
-                                    aria-label="Horas"
-                                    aria-invalid={!!fieldErrors.duration}
-                                />
-                                <Input
-                                    id="edit-minutes"
-                                    type="number"
-                                    min={0}
-                                    max={59}
-                                    value={editMinutes}
-                                    onChange={(e) => {
-                                        setEditMinutes(e.target.value);
-                                        clearFieldError('duration');
-                                    }}
-                                    className="bg-card"
-                                    aria-label="Minutos"
-                                    aria-invalid={!!fieldErrors.duration}
-                                />
-                            </div>
-                        </FormField>
-                        <FormField id="edit-date" label="Fecha" error={fieldErrors.workedOn}>
-                            <Input
-                                id="edit-date"
-                                type="date"
-                                value={editDate}
-                                onChange={(e) => {
-                                    setEditDate(e.target.value);
-                                    clearFieldError('workedOn');
-                                }}
-                                className="bg-card"
-                                aria-invalid={!!fieldErrors.workedOn}
-                            />
-                        </FormField>
-                        <FormField id="edit-desc" label="Descripción" error={fieldErrors.description}>
-                            <Input
-                                id="edit-desc"
-                                value={editDesc}
-                                onChange={(e) => {
-                                    setEditDesc(e.target.value);
-                                    clearFieldError('description');
-                                }}
-                                className="bg-card"
-                                aria-invalid={!!fieldErrors.description}
-                            />
-                        </FormField>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditHour(null)}>
-                            Cancelar
-                        </Button>
-                        <Button disabled={busy} onClick={() => void saveEdit()}>
-                            Guardar
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                onSubmit={handleEditSubmit}
+            />
 
             <Dialog
                 open={Boolean(deleteTarget)}

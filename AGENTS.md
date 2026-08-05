@@ -35,7 +35,7 @@ src/
   lib/                    # API clients (one file per domain)
   pages/
     home/                 # dashboard home (reference UI)
-    clients|projects|billing|timer|emails|maintenance|users|settings/
+    clients|projects|billing|timer|emails|maintenance|users/
   index.css               # design tokens
 ```
 
@@ -57,7 +57,6 @@ src/
 | `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin           |
 | `/dashboard/users`            | Users CRUD                                  | admin           |
 | `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
-| `/dashboard/settings`         | Perfil + cambio de contraseña       | any auth        |
 
 Legacy: `/app` → `/dashboard`. Post-login: `billing` → `/dashboard/billing`; resto → `/dashboard`.
 

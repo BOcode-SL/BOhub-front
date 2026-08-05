@@ -18,7 +18,6 @@ import { HomePage } from '@/pages/home/HomePage';
 import { EmailsPage } from '@/pages/emails/EmailsPage';
 import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage';
 import { UsersPage } from '@/pages/users/UsersPage';
-import { SettingsPage } from '@/pages/settings/SettingsPage';
 
 /** Bookmarks: /app and /app/* → /dashboard/* */
 function LegacyAppRedirect() {
@@ -61,8 +60,6 @@ export default function App() {
                                     <Route path="emails/messages" element={<EmailMessagesPage />} />
                                     <Route path="users" element={<UsersPage />} />
                                 </Route>
-
-                                <Route path="settings" element={<SettingsPage />} />
                             </Route>
                         </Route>
 

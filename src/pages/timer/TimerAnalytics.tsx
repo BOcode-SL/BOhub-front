@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
     ChartContainer,
@@ -14,6 +15,7 @@ import { ListPageShell } from '@/components/list-page-shell';
 import { EntitySelect } from '@/components/entity-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listProjects, type Project } from '@/lib/projects';
+import { listUsers } from '@/lib/users';
 import { toastError } from '@/lib/toast';
 import {
     formatDuration,
@@ -35,11 +37,15 @@ type Props = {
 };
 
 export function TimerAnalytics({ above }: Props) {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [monthIndex, setMonthIndex] = useState(now.getMonth());
     const [projectFilter, setProjectFilter] = useState<number | ''>('');
+    const [userFilter, setUserFilter] = useState<number | ''>('');
     const [projectOptions, setProjectOptions] = useState<Project[]>([]);
+    const [userOptions, setUserOptions] = useState<{ id: number; name: string }[]>([]);
     const [projects, setProjects] = useState<HoursAnalyticsProject[]>([]);
     const [buckets, setBuckets] = useState<HoursAnalyticsBucket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -53,6 +59,15 @@ export function TimerAnalytics({ above }: Props) {
     }, []);
 
     useEffect(() => {
+        if (!isAdmin) return;
+        const ac = new AbortController();
+        void listUsers({ perPage: 50 }, ac.signal)
+            .then((res) => setUserOptions(res.data.map((u) => ({ id: u.id, name: u.name }))))
+            .catch(() => {});
+        return () => ac.abort();
+    }, [isAdmin]);
+
+    useEffect(() => {
         const ac = new AbortController();
         let cancelled = false;
         async function run() {
@@ -63,6 +78,7 @@ export function TimerAnalytics({ above }: Props) {
                         year,
                         month: monthIndex + 1,
                         projectId: projectFilter || undefined,
+                        userId: isAdmin && userFilter ? userFilter : undefined,
                     },
                     ac.signal,
                 );
@@ -84,7 +100,7 @@ export function TimerAnalytics({ above }: Props) {
             cancelled = true;
             ac.abort();
         };
-    }, [year, monthIndex, projectFilter]);
+    }, [year, monthIndex, projectFilter, userFilter, isAdmin]);
 
     function shiftMonth(delta: number) {
         const d = new Date(Date.UTC(year, monthIndex + delta, 1));
@@ -186,7 +202,23 @@ export function TimerAnalytics({ above }: Props) {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        {isAdmin && (
+                            <>
+                                <label htmlFor="analytics-user" className="shrink-0">
+                                    Usuario
+                                </label>
+                                <EntitySelect
+                                    id="analytics-user"
+                                    items={userOptions}
+                                    value={userFilter || null}
+                                    onValueChange={(value) => setUserFilter(value ?? '')}
+                                    allowClear
+                                    placeholder="Todos"
+                                    className="min-w-40"
+                                />
+                            </>
+                        )}
                         <label htmlFor="analytics-project" className="shrink-0">
                             Proyecto
                         </label>
@@ -220,9 +252,9 @@ export function TimerAnalytics({ above }: Props) {
                 ].map((tile) => (
                     <div key={tile.title} className="rounded-xl border border-border bg-card/50 p-4">
                         <p className="text-sm text-muted-foreground">{tile.title}</p>
-                        <p className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
+                        <div className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
                             {loading ? <Skeleton className="h-7 w-24" /> : tile.value}
-                        </p>
+                        </div>
                     </div>
                 ))}
             </div>

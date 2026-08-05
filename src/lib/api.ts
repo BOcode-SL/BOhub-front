@@ -221,33 +221,6 @@ export async function me(): Promise<AuthUser> {
     return data.user;
 }
 
-export type ProfileInput = {
-    name: string;
-    email: string;
-    avatarUrl?: string | null;
-};
-
-export type PasswordInput = {
-    currentPassword: string;
-    password: string;
-    passwordConfirmation: string;
-};
-
-export async function updateProfile(body: ProfileInput): Promise<AuthUser> {
-    const data = await request<{ user: AuthUser }>('/api/auth/profile', {
-        method: 'PUT',
-        body,
-    });
-    return data.user;
-}
-
-export async function updatePassword(body: PasswordInput): Promise<void> {
-    await request<{ ok: boolean }>('/api/auth/password', {
-        method: 'PUT',
-        body,
-    });
-}
-
 export function apiErrorMessage(err: unknown): string {
     if (err instanceof ApiError) return err.message;
     if (err instanceof Error) return err.message;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { formatHoursFromSeconds } from '@/lib/time';
 import { syncProjectsFromJiraBatch } from '@/lib/projects';
 import { useHomeDashboard } from '@/hooks/useHomeDashboard';
-import { ProjectStatusChart, StatsCards, TopProjectsByHours, UpcomingDeadlines } from './components';
+import { ProjectStatusChart, StatsCards, UpcomingDeadlines, UpcomingMaintenances } from './components';
 
 function useIsMobile(breakpoint = 640) {
     const [mobile, setMobile] = useState(
@@ -25,7 +25,7 @@ export function HomePage() {
         projectsCount,
         projectsInProgress,
         hoursThisMonthSeconds,
-        topProjects,
+        upcomingMaintenances,
         statusSlices,
         deadlines,
         deadlinesCount,
@@ -64,7 +64,7 @@ export function HomePage() {
                 </div>
             </div>
 
-            <TopProjectsByHours projects={topProjects} formatHours={formatHoursFromSeconds} isLoading={loading} />
+            <UpcomingMaintenances items={upcomingMaintenances} isLoading={loading} />
         </div>
     );
 }

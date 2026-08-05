@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDuration, type Hour, type HoursMeta } from '@/lib/timer';
@@ -44,7 +45,7 @@ export function HoursTable({
                             {!hideProject && <TableHead>Proyecto</TableHead>}
                             <TableHead>Duración</TableHead>
                             <TableHead>Descripción</TableHead>
-                            {showActions && <TableHead className="w-28" />}
+                            {showActions && <TableHead className="w-12" />}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -81,20 +82,31 @@ export function HoursTable({
                                 <TableCell className="text-muted-foreground">{h.description || '—'}</TableCell>
                                 {showActions && (
                                     <TableCell>
-                                        <div className="flex gap-1">
-                                            <Button type="button" variant="ghost" size="sm" onClick={() => onEdit?.(h)}>
-                                                Editar
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-destructive"
-                                                onClick={() => onDelete?.(h)}
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger
+                                                render={<Button variant="ghost" size="icon-sm" className="cursor-pointer" />}
                                             >
-                                                Eliminar
-                                            </Button>
-                                        </div>
+                                                <MoreHorizontal />
+                                                <span className="sr-only">Acciones</span>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    className="cursor-pointer"
+                                                    onClick={() => onEdit?.(h)}
+                                                >
+                                                    <Pencil />
+                                                    Editar
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    variant="destructive"
+                                                    className="cursor-pointer"
+                                                    onClick={() => onDelete?.(h)}
+                                                >
+                                                    <Trash2 />
+                                                    Eliminar
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 )}
                             </TableRow>
