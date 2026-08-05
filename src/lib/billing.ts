@@ -2,8 +2,6 @@ import { request, apiErrorMessage } from './api';
 
 export const LEDGER_STATUSES = ['draft', 'pending', 'paid', 'partially_paid'] as const;
 
-export const VERIFACTU_STATUSES = ['unknown', 'pending', 'sent', 'n_a'] as const;
-
 export const PAYMENT_METHODS = [
     'Transferencia Bancaria',
     'Bizum',
@@ -13,7 +11,6 @@ export const PAYMENT_METHODS = [
 ] as const;
 
 export type LedgerStatus = (typeof LEDGER_STATUSES)[number];
-export type VerifactuStatus = (typeof VERIFACTU_STATUSES)[number];
 
 export const LEDGER_STATUS_LABELS: Record<LedgerStatus, string> = {
     draft: 'Borrador',
@@ -28,13 +25,6 @@ export const LEDGER_STATUS_BADGE_CLASS: Record<LedgerStatus, string> = {
     pending: 'border-transparent bg-amber-500/20 text-amber-300',
     paid: 'border-transparent bg-emerald-500/20 text-emerald-300',
     partially_paid: 'border-transparent bg-sky-500/20 text-sky-300',
-};
-
-export const VERIFACTU_STATUS_LABELS: Record<VerifactuStatus, string> = {
-    unknown: 'Desconocido',
-    pending: 'Pendiente',
-    sent: 'Enviado',
-    n_a: 'N/A',
 };
 
 export type BillingProject = {
@@ -64,7 +54,6 @@ export type Payment = {
     lastPaymentDate?: string | null;
     reference: string | null;
     invoiceNumber: string | null;
-    verifactuStatus?: VerifactuStatus;
     invoiceUrl: string | null;
     project?: BillingProject | null;
     notes?: string | null;
@@ -94,7 +83,6 @@ export type PaymentInput = {
     externalInvoiceId?: string | null;
     invoiceNumber?: string | null;
     externalUrl?: string | null;
-    verifactuStatus?: VerifactuStatus;
     invoiceUrl?: string | null;
     fileName?: string | null;
     installments?: Installment[];
@@ -399,10 +387,6 @@ export async function listPayrolls(
     if (params.year) q.set('year', String(params.year));
     const qs = q.toString();
     return request<{ data: Payroll[]; meta: BillingMeta }>(`/api/payrolls${qs ? `?${qs}` : ''}`, { signal });
-}
-
-export async function getPayroll(id: number): Promise<Payroll> {
-    return request<Payroll>(`/api/payrolls/${id}`, {});
 }
 
 export async function createPayroll(body: PayrollInput): Promise<Payroll> {

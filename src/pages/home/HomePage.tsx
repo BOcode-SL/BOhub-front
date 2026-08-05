@@ -1,25 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { formatHoursFromSeconds } from '@/lib/time';
 import { syncProjectsFromJiraBatch } from '@/lib/projects';
 import { useHomeDashboard } from '@/hooks/useHomeDashboard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ProjectStatusChart, StatsCards, UpcomingDeadlines, UpcomingMaintenances } from './components';
 
-function useIsMobile(breakpoint = 640) {
-    const [mobile, setMobile] = useState(
-        () => typeof window !== 'undefined' && window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches,
-    );
-    useEffect(() => {
-        const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-        const onChange = () => setMobile(mq.matches);
-        onChange();
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
-    }, [breakpoint]);
-    return mobile;
-}
-
 export function HomePage() {
-    const isMobile = useIsMobile();
+    // ponytail: Home chart layout breaks at sm (640), not sidebar md (768)
+    const isMobile = useIsMobile(640);
     const {
         clientsCount,
         projectsCount,

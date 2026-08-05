@@ -379,10 +379,12 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                         'w-fit font-normal',
                                                         row.status === 'paid'
                                                             ? 'border-transparent bg-emerald-500/20 text-emerald-300'
-                                                            : 'border-transparent bg-amber-500/20 text-amber-300',
+                                                            : row.status === 'pending'
+                                                              ? 'border-transparent bg-amber-500/20 text-amber-300'
+                                                              : 'border-transparent bg-muted text-muted-foreground',
                                                     )}
                                                 >
-                                                    {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? row.status}
+                                                    {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? '—'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">

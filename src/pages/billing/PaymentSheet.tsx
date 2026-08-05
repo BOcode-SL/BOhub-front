@@ -83,17 +83,16 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
-        let cancelled = false;
-        void listProjectOptions()
+        const ac = new AbortController();
+        void listProjectOptions(ac.signal)
             .then((rows) => {
-                if (!cancelled) setProjects(rows);
+                if (!ac.signal.aborted) setProjects(rows);
             })
             .catch((err) => {
-                if (!cancelled) toastError(err);
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
             });
-        return () => {
-            cancelled = true;
-        };
+        return () => ac.abort();
     }, [open, lockedProjectId]);
 
     useLayoutEffect(() => {

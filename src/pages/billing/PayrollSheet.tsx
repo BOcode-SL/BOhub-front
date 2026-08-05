@@ -75,17 +75,16 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
 
     useEffect(() => {
         if (!open) return;
-        let cancelled = false;
-        void listUsers({ perPage: 50 })
+        const ac = new AbortController();
+        void listUsers({ perPage: 50 }, ac.signal)
             .then((res) => {
-                if (!cancelled) setUsers(res.data);
+                if (!ac.signal.aborted) setUsers(res.data);
             })
             .catch((err) => {
-                if (!cancelled) toastError(err);
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
             });
-        return () => {
-            cancelled = true;
-        };
+        return () => ac.abort();
     }, [open]);
 
     useEffect(() => {

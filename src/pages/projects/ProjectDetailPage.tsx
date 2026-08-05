@@ -63,7 +63,7 @@ import {
     type ProjectType,
 } from '@/lib/projects';
 import { formatHoursFromSeconds } from '@/lib/time';
-import { listHours, listTeamHours, type Hour, type HoursMeta } from '@/lib/timer';
+import { listTeamHours, type Hour, type HoursMeta } from '@/lib/timer';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { ExpenseSheet } from '@/pages/billing/ExpenseSheet';
@@ -360,16 +360,14 @@ export function ProjectDetailPage() {
     }, [tab]);
 
     useEffect(() => {
+        // hours tab is admin-only (see tabFromSearch + redirect)
         if (tab !== 'hours') return;
         const controller = new AbortController();
         setHoursLoading(true);
-        const rows = isAdmin
-            ? listTeamHours({ projectId, page: hoursPage, perPage: 20 }, controller.signal)
-            : listHours({ projectId, page: hoursPage, perPage: 20 }, controller.signal);
-        const summaryPromise = isAdmin
-            ? getHoursSummary(projectId, controller.signal)
-            : Promise.resolve(null);
-        void Promise.all([summaryPromise, rows])
+        void Promise.all([
+            getHoursSummary(projectId, controller.signal),
+            listTeamHours({ projectId, page: hoursPage, perPage: 20 }, controller.signal),
+        ])
             .then(([nextSummary, result]) => {
                 setHoursSummary(nextSummary);
                 setHours(result.data);
@@ -381,33 +379,40 @@ export function ProjectDetailPage() {
             })
             .finally(() => setHoursLoading(false));
         return () => controller.abort();
-    }, [tab, projectId, hoursPage, isAdmin]);
+    }, [tab, projectId, hoursPage]);
+
+    const billingAbortRef = useRef<AbortController | null>(null);
 
     const loadBilling = useCallback(async () => {
         if (!isAdmin) return;
         if (!Number.isFinite(projectId) || projectId < 1) return;
+        billingAbortRef.current?.abort();
+        const controller = new AbortController();
+        billingAbortRef.current = controller;
         setBillingLoading(true);
         // ponytail: don't Promise.all — one 403/500 on summary used to blank both tables
         const settled = await Promise.allSettled([
-            getBillingSummary(projectId),
-            listPayments({ projectId, perPage: 50 }),
-            listExpenses({ projectId, perPage: 50 }),
+            getBillingSummary(projectId, controller.signal),
+            listPayments({ projectId, perPage: 50 }, controller.signal),
+            listExpenses({ projectId, perPage: 50 }, controller.signal),
         ]);
+        if (controller.signal.aborted) return;
+        const isAbort = (err: unknown) => err instanceof DOMException && err.name === 'AbortError';
         const [summaryResult, paymentsResult, expensesResult] = settled;
         if (summaryResult.status === 'fulfilled') {
             setBillingSummary(summaryResult.value);
-        } else {
+        } else if (!isAbort(summaryResult.reason)) {
             toastError(summaryResult.reason);
         }
         if (paymentsResult.status === 'fulfilled') {
             setPayments(Array.isArray(paymentsResult.value.data) ? paymentsResult.value.data : []);
-        } else {
+        } else if (!isAbort(paymentsResult.reason)) {
             setPayments([]);
             toastError(paymentsResult.reason);
         }
         if (expensesResult.status === 'fulfilled') {
             setExpenses(Array.isArray(expensesResult.value.data) ? expensesResult.value.data : []);
-        } else {
+        } else if (!isAbort(expensesResult.reason)) {
             setExpenses([]);
             toastError(expensesResult.reason);
         }
@@ -416,6 +421,7 @@ export function ProjectDetailPage() {
 
     useEffect(() => {
         if (tab === 'billing') void loadBilling();
+        return () => billingAbortRef.current?.abort();
     }, [tab, loadBilling]);
 
     const configDirty = useMemo(() => {
@@ -774,27 +780,25 @@ export function ProjectDetailPage() {
 
             {tab === 'hours' && (
                 <div className="grid gap-4">
-                    {isAdmin && (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <StatCard
-                                label="Horas totales"
-                                value={formatHoursFromSeconds(hoursSummary?.totalSeconds ?? 0)}
-                            />
-                            <StatCard
-                                label="Precio por hora"
-                                value={
-                                    hoursSummary?.pricePerHour == null
-                                        ? '—'
-                                        : formatMoney(hoursSummary.pricePerHour)
-                                }
-                            />
-                        </div>
-                    )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <StatCard
+                            label="Horas totales"
+                            value={formatHoursFromSeconds(hoursSummary?.totalSeconds ?? 0)}
+                        />
+                        <StatCard
+                            label="Precio por hora"
+                            value={
+                                hoursSummary?.pricePerHour == null
+                                    ? '—'
+                                    : formatMoney(hoursSummary.pricePerHour)
+                            }
+                        />
+                    </div>
                     <HoursTable
                         hours={hours}
                         meta={hoursMeta}
                         loading={hoursLoading}
-                        showUser={isAdmin}
+                        showUser
                         showActions={false}
                         hideProject
                         page={hoursPage}

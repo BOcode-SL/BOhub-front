@@ -54,7 +54,10 @@ export function TimerAnalytics({ above }: Props) {
         const ac = new AbortController();
         void listProjects({ perPage: 50, sort: 'name' }, ac.signal)
             .then((res) => setProjectOptions(res.data))
-            .catch(() => {});
+            .catch((err) => {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
+            });
         return () => ac.abort();
     }, []);
 
@@ -63,7 +66,10 @@ export function TimerAnalytics({ above }: Props) {
         const ac = new AbortController();
         void listUsers({ perPage: 50 }, ac.signal)
             .then((res) => setUserOptions(res.data.map((u) => ({ id: u.id, name: u.name }))))
-            .catch(() => {});
+            .catch((err) => {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
+            });
         return () => ac.abort();
     }, [isAdmin]);
 

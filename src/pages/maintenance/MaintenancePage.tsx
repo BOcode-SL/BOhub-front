@@ -370,6 +370,7 @@ export function MaintenancePage() {
                                                             Cancelar periodo
                                                         </DropdownMenuItem>
                                                     )}
+                                                    {/* ponytail: back allows employee delete (role:admin,employee apiResource) — don't invent admin-only UI */}
                                                     <DropdownMenuItem
                                                         className="cursor-pointer text-destructive"
                                                         onClick={() => setDeleteTarget(row)}
