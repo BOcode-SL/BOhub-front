@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
@@ -9,6 +9,7 @@ import { usePageCrumb } from '@/components/layout/page-crumb';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +21,8 @@ import { listClientOptions } from '@/lib/clients';
 import {
     createExpense,
     createPayment,
+    deleteExpense,
+    deletePayment,
     formatMoney,
     listExpenses,
     listPayments,
@@ -210,6 +213,10 @@ export function ProjectDetailPage() {
     const [expenseMode, setExpenseMode] = useState<'add' | 'edit'>('add');
     const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [ledgerDeleteTarget, setLedgerDeleteTarget] = useState<
+        { kind: 'payment'; row: Payment } | { kind: 'expense'; row: Expense } | null
+    >(null);
+    const [ledgerDeleting, setLedgerDeleting] = useState(false);
 
     usePageCrumb(project?.name);
 
@@ -583,6 +590,27 @@ export function ProjectDetailPage() {
         void loadCore({ soft: true });
     }
 
+    async function handleDeleteLedger() {
+        if (!ledgerDeleteTarget) return;
+        setLedgerDeleting(true);
+        try {
+            if (ledgerDeleteTarget.kind === 'payment') {
+                await deletePayment(ledgerDeleteTarget.row.id);
+                toastSuccess('Ingreso eliminado');
+            } else {
+                await deleteExpense(ledgerDeleteTarget.row.id);
+                toastSuccess('Gasto eliminado');
+            }
+            setLedgerDeleteTarget(null);
+            await loadBilling();
+            void loadCore({ soft: true });
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setLedgerDeleting(false);
+        }
+    }
+
     const daysRemaining = useMemo(() => {
         if (summary?.daysRemaining == null) return '—';
         if (summary.daysRemaining < 0) return `${Math.abs(summary.daysRemaining)}d de retraso`;
@@ -848,62 +876,109 @@ export function ProjectDetailPage() {
                                             <TableHead>F. Último Pago</TableHead>
                                             <TableHead>Método</TableHead>
                                             <TableHead>Referencia</TableHead>
+                                            <TableHead className="w-10">
+                                                <span className="sr-only">Acciones</span>
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={8}>
+                                                <TableCell colSpan={9}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={9} className="h-20 text-center text-muted-foreground">
                                                     Sin ingresos.
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                        {payments.map((payment) => (
-                                            <TableRow
-                                                key={payment.id}
-                                                className="cursor-pointer"
-                                                onClick={() => {
-                                                    setPaymentMode('edit');
-                                                    setEditingPayment(payment);
-                                                    setPaymentOpen(true);
-                                                }}
-                                            >
-                                                <TableCell className="text-muted-foreground">
-                                                    {payment.invoiceDate || '—'}
-                                                </TableCell>
-                                                <TableCell className="font-medium text-foreground">
-                                                    {payment.notes?.trim() ||
-                                                        payment.reference ||
-                                                        payment.invoiceNumber ||
-                                                        '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <LedgerStatusBadge status={payment.status} />
-                                                </TableCell>
-                                                <TableCell className="text-right text-muted-foreground">
-                                                    {formatMoney(payment.baseAmount ?? 0)}
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium text-foreground">
-                                                    {formatMoney(payment.totalAmount)}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {payment.lastPaymentDate || payment.paymentDate || '—'}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {payment.paymentMethod || '—'}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {payment.reference || '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {payments.map((payment) => {
+                                            const description =
+                                                payment.notes?.trim() ||
+                                                payment.reference ||
+                                                payment.invoiceNumber ||
+                                                '—';
+                                            return (
+                                                <TableRow key={payment.id}>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {payment.invoiceDate || '—'}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="max-w-[14rem] sm:max-w-[20rem] truncate font-medium text-foreground"
+                                                        title={description}
+                                                    >
+                                                        {description}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <LedgerStatusBadge status={payment.status} />
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                                                        {formatMoney(payment.baseAmount ?? 0)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
+                                                        {formatMoney(payment.totalAmount)}
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {payment.lastPaymentDate || payment.paymentDate || '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {payment.paymentMethod || '—'}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="max-w-[10rem] truncate text-muted-foreground"
+                                                        title={payment.reference || undefined}
+                                                    >
+                                                        {payment.reference || '—'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger
+                                                                render={
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon-sm"
+                                                                        className="cursor-pointer"
+                                                                    />
+                                                                }
+                                                            >
+                                                                <MoreHorizontal />
+                                                                <span className="sr-only">Acciones</span>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setPaymentMode('edit');
+                                                                        setEditingPayment(payment);
+                                                                        setPaymentOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Pencil />
+                                                                    Editar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    className="cursor-pointer"
+                                                                    onClick={() =>
+                                                                        setLedgerDeleteTarget({
+                                                                            kind: 'payment',
+                                                                            row: payment,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <Trash2 />
+                                                                    Eliminar
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -939,59 +1014,105 @@ export function ProjectDetailPage() {
                                             <TableHead>F. Último Pago</TableHead>
                                             <TableHead>Método</TableHead>
                                             <TableHead>Referencia</TableHead>
+                                            <TableHead className="w-10">
+                                                <span className="sr-only">Acciones</span>
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={8}>
+                                                <TableCell colSpan={9}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={9} className="h-20 text-center text-muted-foreground">
                                                     Sin gastos.
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                        {expenses.map((expense) => (
-                                            <TableRow
-                                                key={expense.id}
-                                                className="cursor-pointer"
-                                                onClick={() => {
-                                                    setExpenseMode('edit');
-                                                    setEditingExpense(expense);
-                                                    setExpenseOpen(true);
-                                                }}
-                                            >
-                                                <TableCell className="text-muted-foreground">
-                                                    {expense.expenseDate || '—'}
-                                                </TableCell>
-                                                <TableCell className="font-medium text-foreground">
-                                                    {expense.description || '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <LedgerStatusBadge status={expense.status} />
-                                                </TableCell>
-                                                <TableCell className="text-right text-muted-foreground">
-                                                    {formatMoney(expense.baseAmount ?? 0)}
-                                                </TableCell>
-                                                <TableCell className="text-right font-medium text-foreground">
-                                                    {formatMoney(expense.totalAmount)}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {expense.lastPaymentDate || expense.paymentDate || '—'}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {expense.paymentMethod || '—'}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {expense.recipient || '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {expenses.map((expense) => {
+                                            const description = expense.description || '—';
+                                            return (
+                                                <TableRow key={expense.id}>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {expense.expenseDate || '—'}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="max-w-[14rem] sm:max-w-[20rem] truncate font-medium text-foreground"
+                                                        title={description}
+                                                    >
+                                                        {description}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <LedgerStatusBadge status={expense.status} />
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                                                        {formatMoney(expense.baseAmount ?? 0)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
+                                                        {formatMoney(expense.totalAmount)}
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {expense.lastPaymentDate || expense.paymentDate || '—'}
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                        {expense.paymentMethod || '—'}
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className="max-w-[10rem] truncate text-muted-foreground"
+                                                        title={expense.recipient || undefined}
+                                                    >
+                                                        {expense.recipient || '—'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger
+                                                                render={
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon-sm"
+                                                                        className="cursor-pointer"
+                                                                    />
+                                                                }
+                                                            >
+                                                                <MoreHorizontal />
+                                                                <span className="sr-only">Acciones</span>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setExpenseMode('edit');
+                                                                        setEditingExpense(expense);
+                                                                        setExpenseOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Pencil />
+                                                                    Editar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    className="cursor-pointer"
+                                                                    onClick={() =>
+                                                                        setLedgerDeleteTarget({
+                                                                            kind: 'expense',
+                                                                            row: expense,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <Trash2 />
+                                                                    Eliminar
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -1315,6 +1436,40 @@ export function ProjectDetailPage() {
                             disabled={deleting}
                         >
                             {deleting ? 'Eliminando…' : 'Eliminar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(ledgerDeleteTarget)}
+                onOpenChange={(o) => {
+                    if (!o) setLedgerDeleteTarget(null);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {ledgerDeleteTarget?.kind === 'expense' ? 'Eliminar gasto' : 'Eliminar ingreso'}
+                        </DialogTitle>
+                        <DialogDescription>Soft delete del registro ledger.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            className="cursor-pointer"
+                            onClick={() => setLedgerDeleteTarget(null)}
+                            disabled={ledgerDeleting}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="cursor-pointer"
+                            onClick={() => void handleDeleteLedger()}
+                            disabled={ledgerDeleting}
+                        >
+                            {ledgerDeleting ? 'Eliminando…' : 'Eliminar'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
