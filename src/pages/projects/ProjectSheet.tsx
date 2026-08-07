@@ -233,7 +233,7 @@ export function ProjectSheet({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex w-full flex-col sm:max-w-md">
+            <SheetContent className="flex w-full flex-col gap-0 overflow-hidden data-[side=right]:w-full sm:max-w-md data-[side=right]:sm:max-w-md">
                 <SheetHeader>
                     <SheetTitle>{mode === 'add' ? 'Añadir proyecto' : 'Editar proyecto'}</SheetTitle>
                     <SheetDescription>

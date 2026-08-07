@@ -108,7 +108,7 @@ export function BillingSummaryPage() {
             }
         >
             {loading && !summary && (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {Array.from({ length: 11 }).map((_, i) => (
                         <Skeleton key={i} className="h-28 w-full rounded-xl" />
                     ))}
@@ -117,7 +117,7 @@ export function BillingSummaryPage() {
 
             {summary && (
                 <>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <SummaryCard
                             title="Resultado / Beneficio neto"
                             value={formatMoney(summary.result ?? summary.net)}
@@ -152,14 +152,17 @@ export function BillingSummaryPage() {
 
 function SummaryCard({ title, value, emphasize }: { title: string; value: string; emphasize?: boolean }) {
     return (
-        <div className="rounded-xl border border-border bg-card/50 p-4">
-            <p className="text-sm text-muted-foreground">{title}</p>
+        <div className="min-w-0 rounded-xl border border-border bg-card/50 p-4">
+            <p className="truncate text-sm text-muted-foreground" title={title}>
+                {title}
+            </p>
             <p
                 className={
                     emphasize
-                        ? 'mt-2 text-2xl font-semibold tracking-tight text-primary'
-                        : 'mt-2 text-2xl font-semibold tracking-tight text-foreground'
+                        ? 'mt-2 truncate text-2xl font-semibold tracking-tight text-primary'
+                        : 'mt-2 truncate text-2xl font-semibold tracking-tight text-foreground'
                 }
+                title={value}
             >
                 {value}
             </p>
@@ -198,13 +201,13 @@ function MonthChart({
     const periodLabel = quarter === 'all' ? `Año ${year}` : `T${quarter} ${year}`;
 
     return (
-        <div className="rounded-md border">
+        <div className="min-w-0 rounded-md border">
             <div className="border-b border-border px-4 py-3">
                 <p className="text-base font-medium text-foreground sm:text-lg">Resumen mensual</p>
                 <p className="text-xs text-muted-foreground sm:text-sm">{periodLabel}</p>
             </div>
-            <div className="p-4">
-                <ChartContainer config={chartConfig} className="aspect-auto h-[320px] w-full">
+            <div className="min-w-0 overflow-x-auto p-4">
+                <ChartContainer config={chartConfig} className="aspect-auto h-[320px] w-full min-w-0">
                     <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />

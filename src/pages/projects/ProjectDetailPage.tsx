@@ -703,11 +703,18 @@ export function ProjectDetailPage() {
                             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <div className="grid gap-1">
                                     <dt className="text-sm text-muted-foreground">Proyecto</dt>
-                                    <dd className="text-sm font-medium text-foreground">{project.name}</dd>
+                                    <dd className="truncate text-sm font-medium text-foreground" title={project.name}>
+                                        {project.name}
+                                    </dd>
                                 </div>
                                 <div className="grid gap-1">
                                     <dt className="text-sm text-muted-foreground">Cliente</dt>
-                                    <dd className="text-sm font-medium text-foreground">{project.client?.name ?? '—'}</dd>
+                                    <dd
+                                        className="truncate text-sm font-medium text-foreground"
+                                        title={project.client?.name ?? undefined}
+                                    >
+                                        {project.client?.name ?? '—'}
+                                    </dd>
                                 </div>
                                 <div className="grid gap-1">
                                     <dt className="text-sm text-muted-foreground">Estado</dt>
@@ -783,12 +790,15 @@ export function ProjectDetailPage() {
                             ) : (
                                 <ol className="divide-y divide-border">
                                     {activities.map((activity, index) => (
-                                        <li key={`${activity.occurredAt}-${index}`} className="flex gap-4 py-3 text-sm">
-                                            <time className="w-36 shrink-0 text-muted-foreground">
+                                        <li
+                                            key={`${activity.occurredAt}-${index}`}
+                                            className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:gap-4"
+                                        >
+                                            <time className="shrink-0 text-muted-foreground sm:w-36">
                                                 {new Date(activity.occurredAt).toLocaleString('es-ES')}
                                             </time>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-foreground">{activity.message}</p>
+                                                <p className="break-words text-foreground">{activity.message}</p>
                                                 {(activity.userName || activity.source === 'jira') && (
                                                     <p className="mt-0.5 text-xs text-muted-foreground">
                                                         {[
@@ -849,7 +859,7 @@ export function ProjectDetailPage() {
 
                     <Card className="gap-3 py-4">
                         <CardHeader className="px-4">
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
                                 <CardTitle>Ingresos</CardTitle>
                                 <Button
                                     size="sm"
@@ -871,11 +881,11 @@ export function ProjectDetailPage() {
                                             <TableHead>F. Factura</TableHead>
                                             <TableHead>Descripción</TableHead>
                                             <TableHead>Estado</TableHead>
-                                            <TableHead className="text-right">Base</TableHead>
+                                            <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
-                                            <TableHead>F. Último Pago</TableHead>
-                                            <TableHead>Método</TableHead>
-                                            <TableHead>Referencia</TableHead>
+                                            <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
+                                            <TableHead className="hidden md:table-cell">Método</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Referencia</TableHead>
                                             <TableHead className="w-10">
                                                 <span className="sr-only">Acciones</span>
                                             </TableHead>
@@ -908,7 +918,7 @@ export function ProjectDetailPage() {
                                                         {payment.invoiceDate || '—'}
                                                     </TableCell>
                                                     <TableCell
-                                                        className="max-w-[14rem] sm:max-w-[20rem] truncate font-medium text-foreground"
+                                                        className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[20rem]"
                                                         title={description}
                                                     >
                                                         {description}
@@ -916,20 +926,20 @@ export function ProjectDetailPage() {
                                                     <TableCell>
                                                         <LedgerStatusBadge status={payment.status} />
                                                     </TableCell>
-                                                    <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-right text-muted-foreground whitespace-nowrap sm:table-cell">
                                                         {formatMoney(payment.baseAmount ?? 0)}
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                                                         {formatMoney(payment.totalAmount)}
                                                     </TableCell>
-                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
                                                         {payment.lastPaymentDate || payment.paymentDate || '—'}
                                                     </TableCell>
-                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
                                                         {payment.paymentMethod || '—'}
                                                     </TableCell>
                                                     <TableCell
-                                                        className="max-w-[10rem] truncate text-muted-foreground"
+                                                        className="hidden max-w-[10rem] truncate text-muted-foreground lg:table-cell"
                                                         title={payment.reference || undefined}
                                                     >
                                                         {payment.reference || '—'}
@@ -987,7 +997,7 @@ export function ProjectDetailPage() {
 
                     <Card className="gap-3 py-4">
                         <CardHeader className="px-4">
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
                                 <CardTitle>Gastos</CardTitle>
                                 <Button
                                     size="sm"
@@ -1009,11 +1019,11 @@ export function ProjectDetailPage() {
                                             <TableHead>F. Factura</TableHead>
                                             <TableHead>Descripción</TableHead>
                                             <TableHead>Estado</TableHead>
-                                            <TableHead className="text-right">Base</TableHead>
+                                            <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
-                                            <TableHead>F. Último Pago</TableHead>
-                                            <TableHead>Método</TableHead>
-                                            <TableHead>Referencia</TableHead>
+                                            <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
+                                            <TableHead className="hidden md:table-cell">Método</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Referencia</TableHead>
                                             <TableHead className="w-10">
                                                 <span className="sr-only">Acciones</span>
                                             </TableHead>
@@ -1042,7 +1052,7 @@ export function ProjectDetailPage() {
                                                         {expense.expenseDate || '—'}
                                                     </TableCell>
                                                     <TableCell
-                                                        className="max-w-[14rem] sm:max-w-[20rem] truncate font-medium text-foreground"
+                                                        className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[20rem]"
                                                         title={description}
                                                     >
                                                         {description}
@@ -1050,20 +1060,20 @@ export function ProjectDetailPage() {
                                                     <TableCell>
                                                         <LedgerStatusBadge status={expense.status} />
                                                     </TableCell>
-                                                    <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-right text-muted-foreground whitespace-nowrap sm:table-cell">
                                                         {formatMoney(expense.baseAmount ?? 0)}
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                                                         {formatMoney(expense.totalAmount)}
                                                     </TableCell>
-                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
                                                         {expense.lastPaymentDate || expense.paymentDate || '—'}
                                                     </TableCell>
-                                                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
                                                         {expense.paymentMethod || '—'}
                                                     </TableCell>
                                                     <TableCell
-                                                        className="max-w-[10rem] truncate text-muted-foreground"
+                                                        className="hidden max-w-[10rem] truncate text-muted-foreground lg:table-cell"
                                                         title={expense.recipient || undefined}
                                                     >
                                                         {expense.recipient || '—'}

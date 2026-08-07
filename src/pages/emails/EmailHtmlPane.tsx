@@ -15,7 +15,7 @@ export function EmailHtmlPane({ html, subject, emptyLabel = 'Escribe HTML para p
     return (
         <div
             className={cn(
-                'relative flex h-full min-h-[220px] flex-col overflow-hidden rounded-xl border border-border bg-muted/10 md:min-h-0',
+                'relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-muted/10',
                 className,
             )}
         >

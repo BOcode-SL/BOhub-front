@@ -333,11 +333,11 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 ) : (
                                     <>
                                         <TableHead>F. Factura</TableHead>
-                                        <TableHead>F. Último Pago</TableHead>
-                                        <TableHead>Proyecto</TableHead>
+                                        <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
                                         <TableHead>Cliente</TableHead>
                                         <TableHead>Estado</TableHead>
-                                        <TableHead className="text-right">Base</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="w-12" />
                                     </>
@@ -349,11 +349,52 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 rows.length === 0 &&
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: isPayrollLayout ? 5 : 8 }).map((__, j) => (
-                                            <TableCell key={j}>
-                                                <Skeleton className="h-4 w-full" />
-                                            </TableCell>
-                                        ))}
+                                        {isPayrollLayout ? (
+                                            <>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-8" />
+                                                </TableCell>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-8" />
+                                                </TableCell>
+                                            </>
+                                        )}
                                     </TableRow>
                                 ))}
                             {!loading && total === 0 && (
@@ -371,7 +412,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     {isPayrollLayout ? (
                                         <>
                                             <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
-                                            <TableCell className="font-medium text-foreground">{rowTitle?.(row)}</TableCell>
+                                            <TableCell className="max-w-[12rem] min-w-0 font-medium text-foreground sm:max-w-[18rem]">
+                                                <div className="min-w-0 truncate">{rowTitle?.(row)}</div>
+                                            </TableCell>
                                             <TableCell>
                                                 <Badge
                                                     variant="outline"
@@ -394,19 +437,25 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     ) : (
                                         <>
                                             <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
-                                            <TableCell className="text-muted-foreground">
+                                            <TableCell className="hidden text-muted-foreground md:table-cell">
                                                 {row.lastPaymentDate || row.paymentDate || '—'}
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground">
+                                            <TableCell
+                                                className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[14rem]"
+                                                title={row.project?.name || undefined}
+                                            >
                                                 {row.project?.name || '—'}
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground">
+                                            <TableCell
+                                                className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[12rem]"
+                                                title={row.project?.client?.name || undefined}
+                                            >
                                                 {row.project?.client?.name || '—'}
                                             </TableCell>
                                             <TableCell>
                                                 <LedgerStatusBadge status={row.status} />
                                             </TableCell>
-                                            <TableCell className="text-right text-muted-foreground">
+                                            <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
                                                 {formatMoney(row.baseAmount ?? 0)}
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">

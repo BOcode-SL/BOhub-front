@@ -242,8 +242,16 @@ export function EmailMessagesPage() {
                                                   {STATUS_LABELS[row.status]}
                                               </span>
                                           </TableCell>
-                                          <TableCell className="max-w-[160px] truncate">{row.to}</TableCell>
-                                          <TableCell className="hidden max-w-[220px] truncate text-muted-foreground sm:table-cell">
+                                          <TableCell
+                                              className="max-w-[160px] truncate"
+                                              title={row.to}
+                                          >
+                                              {row.to}
+                                          </TableCell>
+                                          <TableCell
+                                              className="hidden max-w-[220px] truncate text-muted-foreground sm:table-cell"
+                                              title={row.subject}
+                                          >
                                               {row.subject}
                                           </TableCell>
                                           <TableCell className="hidden text-muted-foreground md:table-cell">

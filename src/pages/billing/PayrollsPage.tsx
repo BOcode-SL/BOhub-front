@@ -67,9 +67,11 @@ const config: LedgerListConfig<PayrollRow, PayrollInput> = {
         return `${label} ${row.year}`;
     },
     rowTitle: (row) => (
-        <div className="flex flex-col gap-0.5">
-            <span>{row.employeeName}</span>
-            <span className="text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate" title={row.employeeName}>
+                {row.employeeName}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
                 {formatMoney(row.totalCost ?? row.baseSalary)} coste · {formatMoney(row.netSalary)} neto
             </span>
         </div>

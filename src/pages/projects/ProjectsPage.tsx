@@ -319,10 +319,10 @@ export function ProjectsPage() {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Cliente</TableHead>
-                                <TableHead>Tipo</TableHead>
+                                <TableHead className="hidden sm:table-cell">Tipo</TableHead>
                                 <TableHead>Estado</TableHead>
-                                <TableHead>Prioridad</TableHead>
-                                <TableHead>Fin</TableHead>
+                                <TableHead className="hidden md:table-cell">Prioridad</TableHead>
+                                <TableHead className="hidden md:table-cell">Fin</TableHead>
                                 <TableHead className="w-12" />
                             </TableRow>
                         </TableHeader>
@@ -331,11 +331,27 @@ export function ProjectsPage() {
                                 projects.length === 0 &&
                                 Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: 7 }).map((__, j) => (
-                                            <TableCell key={j}>
-                                                <Skeleton className="h-4 w-full" />
-                                            </TableCell>
-                                        ))}
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-8" />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
 
@@ -349,8 +365,8 @@ export function ProjectsPage() {
 
                             {projects.map((project) => (
                                 <TableRow key={project.id} className={loading ? 'opacity-60' : undefined}>
-                                    <TableCell className="font-medium text-foreground">
-                                        <span className="inline-flex items-center gap-2">
+                                    <TableCell className="max-w-[10rem] font-medium text-foreground sm:max-w-[14rem]">
+                                        <span className="inline-flex max-w-full items-center gap-2">
                                             <span
                                                 className="inline-block size-2.5 shrink-0 rounded-full border border-border"
                                                 style={{
@@ -360,20 +376,28 @@ export function ProjectsPage() {
                                             />
                                             <Link
                                                 to={`/dashboard/projects/${project.id}`}
-                                                className="cursor-pointer transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                className="truncate cursor-pointer transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                title={project.name}
                                             >
                                                 {project.name}
                                             </Link>
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">{project.client?.name ?? '—'}</TableCell>
-                                    <TableCell className="text-muted-foreground">{PROJECT_TYPE_LABELS[project.type]}</TableCell>
+                                    <TableCell
+                                        className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[12rem]"
+                                        title={project.client?.name ?? undefined}
+                                    >
+                                        {project.client?.name ?? '—'}
+                                    </TableCell>
+                                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                                        {PROJECT_TYPE_LABELS[project.type]}
+                                    </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={PROJECT_STATUS_BADGE_CLASS[project.status]}>
                                             {PROJECT_STATUS_LABELS[project.status]}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="hidden md:table-cell">
                                         <Badge
                                             variant="outline"
                                             className={PROJECT_PRIORITY_BADGE_CLASS[project.priority]}
@@ -381,7 +405,7 @@ export function ProjectsPage() {
                                             {PROJECT_PRIORITY_LABELS[project.priority]}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="hidden md:table-cell">
                                         <Badge variant="outline" className="whitespace-nowrap">
                                             {formatEndDate(project.endDate)}
                                         </Badge>

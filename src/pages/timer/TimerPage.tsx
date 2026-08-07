@@ -579,10 +579,10 @@ export function TimerPage() {
     const isPaused = timer?.state === 'paused';
 
     return (
-        <div className="flex flex-col gap-8">
-            <section className="flex flex-col items-center gap-6 rounded-xl border border-border bg-card px-4 py-8 sm:px-8">
+        <div className="flex min-w-0 flex-col gap-8 overflow-x-hidden">
+            <section className="flex min-w-0 flex-col items-center gap-5 rounded-xl border border-border bg-card px-3 py-6 sm:gap-6 sm:px-8 sm:py-8">
                 <p
-                    className="font-mono text-5xl font-semibold tracking-tight text-primary tabular-nums sm:text-6xl md:text-7xl"
+                    className="max-w-full truncate font-mono text-4xl font-semibold tracking-tight text-primary tabular-nums sm:text-6xl md:text-7xl"
                     aria-live="polite"
                 >
                     {formatDuration(displaySeconds)}
@@ -622,7 +622,7 @@ export function TimerPage() {
 
                 <div className="flex w-full max-w-xl flex-wrap justify-center gap-2">
                     {!timer && (
-                        <Button type="button" size="lg" className="min-w-32" disabled={busy} onClick={() => void handleStart()}>
+                        <Button type="button" size="lg" className="min-h-11 min-w-[8.5rem] flex-1 sm:flex-none" disabled={busy} onClick={() => void handleStart()}>
                             <Play />
                             Iniciar
                         </Button>
@@ -633,7 +633,7 @@ export function TimerPage() {
                                 type="button"
                                 variant="outline"
                                 size="lg"
-                                className="min-w-32"
+                                className="min-h-11 min-w-[8.5rem] flex-1 sm:flex-none"
                                 disabled={busy}
                                 onClick={() => void handlePause()}
                             >
@@ -644,7 +644,7 @@ export function TimerPage() {
                                 type="button"
                                 variant="destructive"
                                 size="lg"
-                                className="min-w-32"
+                                className="min-h-11 min-w-[8.5rem] flex-1 sm:flex-none"
                                 disabled={busy}
                                 onClick={() => void handleStop()}
                             >
@@ -658,7 +658,7 @@ export function TimerPage() {
                             <Button
                                 type="button"
                                 size="lg"
-                                className="min-w-32"
+                                className="min-h-11 min-w-[8.5rem] flex-1 sm:flex-none"
                                 disabled={busy}
                                 onClick={() => void handleResume()}
                             >
@@ -669,7 +669,7 @@ export function TimerPage() {
                                 type="button"
                                 variant="destructive"
                                 size="lg"
-                                className="min-w-32"
+                                className="min-h-11 min-w-[8.5rem] flex-1 sm:flex-none"
                                 disabled={busy}
                                 onClick={() => void handleStop()}
                             >

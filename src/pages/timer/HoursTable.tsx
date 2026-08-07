@@ -36,15 +36,15 @@ export function HoursTable({
 
     return (
         <>
-            <div className="overflow-x-auto rounded-md border">
+            <div className="min-w-0 overflow-x-auto rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow className="hover:bg-transparent">
                             <TableHead>Fecha</TableHead>
-                            {showUser && <TableHead>Usuario</TableHead>}
+                            {showUser && <TableHead className="hidden sm:table-cell">Usuario</TableHead>}
                             {!hideProject && <TableHead>Proyecto</TableHead>}
                             <TableHead>Duración</TableHead>
-                            <TableHead>Descripción</TableHead>
+                            <TableHead className="hidden md:table-cell">Descripción</TableHead>
                             {showActions && <TableHead className="w-12" />}
                         </TableRow>
                     </TableHeader>
@@ -69,17 +69,32 @@ export function HoursTable({
                         )}
                         {hours.map((h) => (
                             <TableRow key={h.id}>
-                                <TableCell className="text-muted-foreground">{h.workedOn}</TableCell>
-                                {showUser && <TableCell className="text-foreground">{h.user?.name ?? '—'}</TableCell>}
+                                <TableCell className="whitespace-nowrap text-muted-foreground">{h.workedOn}</TableCell>
+                                {showUser && (
+                                    <TableCell
+                                        className="hidden max-w-[10rem] truncate text-foreground sm:table-cell"
+                                        title={h.user?.name ?? undefined}
+                                    >
+                                        {h.user?.name ?? '—'}
+                                    </TableCell>
+                                )}
                                 {!hideProject && (
-                                    <TableCell className="font-medium text-foreground">
+                                    <TableCell
+                                        className="max-w-[8rem] truncate font-medium text-foreground sm:max-w-[14rem]"
+                                        title={h.project?.name ?? undefined}
+                                    >
                                         {h.project?.name ?? `#${h.projectId}`}
                                     </TableCell>
                                 )}
-                                <TableCell className="font-mono font-medium text-primary">
+                                <TableCell className="whitespace-nowrap font-mono font-medium text-primary">
                                     {formatDuration(h.durationSeconds)}
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">{h.description || '—'}</TableCell>
+                                <TableCell
+                                    className="hidden max-w-[20rem] truncate text-muted-foreground md:table-cell"
+                                    title={h.description || undefined}
+                                >
+                                    {h.description || '—'}
+                                </TableCell>
                                 {showActions && (
                                     <TableCell>
                                         <DropdownMenu>
@@ -116,7 +131,10 @@ export function HoursTable({
             </div>
 
             {(meta?.total ?? 0) > 0 && (
-                <nav aria-label="Paginación horas" className="flex items-center justify-between">
+                <nav
+                    aria-label="Paginación horas"
+                    className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                >
                     <p className="text-sm text-muted-foreground">
                         Página {currentPage} de {lastPage}
                     </p>

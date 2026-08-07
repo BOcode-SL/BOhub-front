@@ -236,7 +236,7 @@ export function UsersPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Usuario</TableHead>
-                                <TableHead>Email</TableHead>
+                                <TableHead className="hidden sm:table-cell">Email</TableHead>
                                 <TableHead>Rol</TableHead>
                                 <TableHead className="w-12" />
                             </TableRow>
@@ -246,11 +246,18 @@ export function UsersPage() {
                                 users.length === 0 &&
                                 Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: 4 }).map((__, j) => (
-                                            <TableCell key={j}>
-                                                <Skeleton className="h-4 w-full" />
-                                            </TableCell>
-                                        ))}
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-8" />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
 
@@ -264,18 +271,25 @@ export function UsersPage() {
 
                             {users.map((row) => (
                                 <TableRow key={row.id} className={loading ? 'opacity-60' : undefined}>
-                                    <TableCell className="font-medium text-foreground">
-                                        <span className="inline-flex items-center gap-2">
-                                            <Avatar className="size-8 rounded-lg">
+                                    <TableCell className="max-w-[12rem] font-medium text-foreground sm:max-w-[16rem]">
+                                        <span className="inline-flex max-w-full items-center gap-2">
+                                            <Avatar className="size-8 shrink-0 rounded-lg">
                                                 {row.avatarUrl ? <AvatarImage src={row.avatarUrl} alt="" /> : null}
                                                 <AvatarFallback className="rounded-lg bg-muted text-xs font-semibold">
                                                     {initials(row.name)}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            {row.name}
+                                            <span className="truncate" title={row.name}>
+                                                {row.name}
+                                            </span>
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-muted-foreground">{row.email}</TableCell>
+                                    <TableCell
+                                        className="hidden max-w-[14rem] truncate text-muted-foreground sm:table-cell"
+                                        title={row.email}
+                                    >
+                                        {row.email}
+                                    </TableCell>
                                     <TableCell className="text-muted-foreground">
                                         {USER_ROLE_LABELS[row.role] ?? row.role}
                                     </TableCell>

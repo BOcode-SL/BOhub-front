@@ -184,8 +184,8 @@ export function TimerAnalytics({ above }: Props) {
             icon={BarChart3}
             above={above}
             toolbar={
-                <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex shrink-0 items-center gap-2">
                         <Button
                             type="button"
                             variant="outline"
@@ -195,7 +195,7 @@ export function TimerAnalytics({ above }: Props) {
                         >
                             <ChevronLeft />
                         </Button>
-                        <p className="min-w-40 text-center text-sm font-medium capitalize text-foreground">
+                        <p className="min-w-0 flex-1 text-center text-sm font-medium capitalize text-foreground sm:min-w-40 sm:flex-none">
                             {monthLabelEs(year, monthIndex)}
                         </p>
                         <Button
@@ -208,7 +208,7 @@ export function TimerAnalytics({ above }: Props) {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {isAdmin && (
                             <>
                                 <label htmlFor="analytics-user" className="shrink-0">
@@ -221,7 +221,7 @@ export function TimerAnalytics({ above }: Props) {
                                     onValueChange={(value) => setUserFilter(value ?? '')}
                                     allowClear
                                     placeholder="Todos"
-                                    className="min-w-40"
+                                    className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                                 />
                             </>
                         )}
@@ -235,13 +235,13 @@ export function TimerAnalytics({ above }: Props) {
                             onValueChange={(value) => setProjectFilter(value ?? '')}
                             allowClear
                             placeholder="Todos"
-                            className="min-w-48"
+                            className="min-w-0 w-full sm:min-w-48 sm:w-auto"
                         />
                     </div>
                 </div>
             }
         >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
                     {
                         title: 'Total del mes',
@@ -256,7 +256,7 @@ export function TimerAnalytics({ above }: Props) {
                         value: String(activeDays),
                     },
                 ].map((tile) => (
-                    <div key={tile.title} className="rounded-xl border border-border bg-card/50 p-4">
+                    <div key={tile.title} className="min-w-0 rounded-xl border border-border bg-card/50 p-4">
                         <p className="text-sm text-muted-foreground">{tile.title}</p>
                         <div className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
                             {loading ? <Skeleton className="h-7 w-24" /> : tile.value}
@@ -265,26 +265,26 @@ export function TimerAnalytics({ above }: Props) {
                 ))}
             </div>
 
-            <div className="rounded-md border">
+            <div className="min-w-0 overflow-hidden rounded-md border">
                 <div className="border-b border-border px-4 py-3">
                     <p className="text-base font-medium text-foreground sm:text-lg">Horas por día</p>
                     <p className="text-xs text-muted-foreground sm:text-sm">
                         Apilado por proyecto · {monthLabelEs(year, monthIndex)}
                     </p>
                 </div>
-                <div className="p-4">
+                <div className="min-w-0 overflow-x-auto p-2 sm:p-4">
                     {loading ? (
                         <Skeleton className="h-[280px] w-full rounded-lg" />
                     ) : hasBars ? (
-                        <ChartContainer key={monthKey} config={chartConfig} className="aspect-auto h-[320px] w-full">
-                            <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
+                        <ChartContainer key={monthKey} config={chartConfig} className="aspect-auto h-[260px] w-full min-w-0 sm:h-[320px]">
+                            <BarChart data={chartData} margin={{ left: 0, right: 4 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    width={36}
+                                    width={32}
                                     tickFormatter={(v) => `${v}h`}
                                 />
                                 <ChartTooltip

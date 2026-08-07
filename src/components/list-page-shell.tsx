@@ -17,18 +17,20 @@ type Props = {
 /** ProjectHub-style list shell: Card + header icon + toolbar + table body. */
 export function ListPageShell({ title, description, icon: Icon, actions, toolbar, children, above }: Props) {
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex w-full min-w-0 flex-col gap-4">
             {above}
-            <Card>
-                <CardHeader>
+            <Card className="min-w-0">
+                <CardHeader className="min-w-0">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="rounded-lg bg-muted p-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <div className="shrink-0 rounded-lg bg-muted p-2">
                                 <Icon className="size-5 text-foreground" aria-hidden />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <CardTitle className="text-lg">{title}</CardTitle>
-                                {description ? <CardDescription>{description}</CardDescription> : null}
+                                {description ? (
+                                    <CardDescription className="break-words">{description}</CardDescription>
+                                ) : null}
                             </div>
                         </div>
                         {actions ? (
@@ -36,7 +38,7 @@ export function ListPageShell({ title, description, icon: Icon, actions, toolbar
                         ) : null}
                     </div>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-4">
+                <CardContent className="flex min-w-0 flex-col gap-4">
                     {toolbar}
                     {children}
                 </CardContent>

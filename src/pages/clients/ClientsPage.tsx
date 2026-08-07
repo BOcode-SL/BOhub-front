@@ -236,10 +236,10 @@ export function ClientsPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Nombre</TableHead>
-                                <TableHead>NIF/CIF</TableHead>
-                                <TableHead>Teléfono</TableHead>
+                                <TableHead className="hidden sm:table-cell">NIF/CIF</TableHead>
+                                <TableHead className="hidden sm:table-cell">Teléfono</TableHead>
                                 <TableHead>Email</TableHead>
-                                <TableHead>Ciudad</TableHead>
+                                <TableHead className="hidden md:table-cell">Ciudad</TableHead>
                                 <TableHead className="w-12" />
                             </TableRow>
                         </TableHeader>
@@ -248,11 +248,24 @@ export function ClientsPage() {
                                 clients.length === 0 &&
                                 Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: 6 }).map((__, j) => (
-                                            <TableCell key={j}>
-                                                <Skeleton className="h-4 w-full" />
-                                            </TableCell>
-                                        ))}
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-8" />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
 
@@ -266,11 +279,27 @@ export function ClientsPage() {
 
                             {clients.map((client) => (
                                 <TableRow key={client.id} className={loading ? 'opacity-60' : undefined}>
-                                    <TableCell className="font-medium text-foreground">{client.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">{client.taxId || '—'}</TableCell>
-                                    <TableCell className="text-muted-foreground">{client.phone || '—'}</TableCell>
-                                    <TableCell className="text-muted-foreground">{client.email || '—'}</TableCell>
-                                    <TableCell className="text-muted-foreground">{client.city || '—'}</TableCell>
+                                    <TableCell
+                                        className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[14rem]"
+                                        title={client.name}
+                                    >
+                                        {client.name}
+                                    </TableCell>
+                                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                                        {client.taxId || '—'}
+                                    </TableCell>
+                                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                                        {client.phone || '—'}
+                                    </TableCell>
+                                    <TableCell
+                                        className="max-w-[10rem] truncate text-muted-foreground sm:max-w-[16rem]"
+                                        title={client.email || undefined}
+                                    >
+                                        {client.email || '—'}
+                                    </TableCell>
+                                    <TableCell className="hidden text-muted-foreground md:table-cell">
+                                        {client.city || '—'}
+                                    </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>

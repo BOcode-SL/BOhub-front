@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { PageCrumbProvider, usePageCrumbValue } from '@/components/layout/page-crumb';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+
+/** Close mobile Sheet when the route changes (nav tap → navigate → drawer closes). */
+function CloseMobileSidebarOnNavigate() {
+    const { pathname } = useLocation();
+    const { setOpenMobile } = useSidebar();
+    useEffect(() => {
+        setOpenMobile(false);
+    }, [pathname, setOpenMobile]);
+    return null;
+}
 
 const PAGE_TITLES: Record<string, string> = {
     '/dashboard': 'Inicio',
@@ -93,11 +104,12 @@ export function AppLayout() {
                 Saltar al contenido
             </a>
 
+            <CloseMobileSidebarOnNavigate />
             <AppSidebar />
 
-            <SidebarInset className="min-w-0 bg-background">
+            <SidebarInset className="min-w-0 overflow-x-hidden bg-background">
                 <PageCrumbProvider>
-                    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur supports-backdrop-filter:bg-background/60 sm:gap-3 sm:px-4">
+                    <header className="sticky top-0 z-20 flex min-h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 pt-[env(safe-area-inset-top)] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] backdrop-blur supports-backdrop-filter:bg-background/60 sm:gap-3 sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
                         <SidebarTrigger
                             className="cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/40"
                             aria-label="Abrir o cerrar menú"
@@ -108,7 +120,7 @@ export function AppLayout() {
                     <main
                         id="main-content"
                         tabIndex={-1}
-                        className="flex flex-1 flex-col gap-6 px-4 py-5 outline-none sm:px-6 sm:py-6 lg:px-8"
+                        className="flex min-w-0 flex-1 flex-col gap-6 px-4 py-5 outline-none sm:px-6 sm:py-6 lg:px-8"
                     >
                         <Outlet />
                     </main>

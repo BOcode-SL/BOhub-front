@@ -127,22 +127,20 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width]',
-                    showPreview
-                        ? 'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]'
-                        : 'data-[side=right]:sm:max-w-lg',
+                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
+                    showPreview ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
                 )}
             >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreview ? (
-                        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
-                            <EmailHtmlPane html={deferredHtml} subject={deferredSubject} className="h-full shadow-lg" />
+                        <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                            <EmailHtmlPane html={deferredHtml} subject={deferredSubject} className="h-full min-h-0 shadow-lg" />
                         </div>
                     ) : null}
                     <div
                         className={cn(
-                            'flex min-h-0 min-w-0 flex-col overflow-hidden',
-                            showPreview ? 'w-full md:w-[450px] md:shrink-0 lg:w-[500px]' : 'w-full flex-1',
+                            'order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2',
+                            showPreview ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
                         <SheetHeader>

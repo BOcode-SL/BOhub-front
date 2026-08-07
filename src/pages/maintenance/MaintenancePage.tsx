@@ -282,9 +282,9 @@ export function MaintenancePage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Proyecto</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Periodo</TableHead>
-                                <TableHead>Inicio</TableHead>
+                                <TableHead className="hidden sm:table-cell">Cliente</TableHead>
+                                <TableHead className="hidden sm:table-cell">Periodo</TableHead>
+                                <TableHead className="hidden md:table-cell">Inicio</TableHead>
                                 <TableHead>Fin</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="w-12" />
@@ -295,11 +295,27 @@ export function MaintenancePage() {
                                 rows.length === 0 &&
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i}>
-                                        {Array.from({ length: 7 }).map((__, j) => (
-                                            <TableCell key={j}>
-                                                <Skeleton className="h-4 w-full" />
-                                            </TableCell>
-                                        ))}
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-8" />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             {!loading && rows.length === 0 && (
@@ -314,23 +330,36 @@ export function MaintenancePage() {
                             {rows.map((row) => {
                                 const clientTip = [row.client?.email, row.client?.phone].filter(Boolean).join(' · ');
                                 const status = row.status as MaintenanceStatus;
+                                const projectLabel = row.project?.name ?? `#${row.projectId}`;
                                 return (
                                     <TableRow key={row.id}>
-                                        <TableCell className="font-medium text-foreground">
-                                            {row.project?.name ?? `#${row.projectId}`}
+                                        <TableCell
+                                            className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[14rem]"
+                                            title={projectLabel}
+                                        >
+                                            {projectLabel}
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground" title={clientTip || undefined}>
-                                            <span className="block text-foreground">{row.client?.name ?? '—'}</span>
+                                        <TableCell
+                                            className="hidden max-w-[12rem] text-muted-foreground sm:table-cell"
+                                            title={clientTip || undefined}
+                                        >
+                                            <span className="block truncate text-foreground">
+                                                {row.client?.name ?? '—'}
+                                            </span>
                                             {row.client?.email && (
-                                                <span className="block text-xs text-muted-foreground">{row.client.email}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">
+                                                    {row.client.email}
+                                                </span>
                                             )}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="hidden sm:table-cell">
                                             <span className="inline-flex rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
                                                 {MAINTENANCE_PERIOD_LABELS[row.period] ?? row.period}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground">{row.startsOn}</TableCell>
+                                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                                            {row.startsOn}
+                                        </TableCell>
                                         <TableCell>
                                             <EndsOnCell endsOn={row.endsOn} status={row.status} />
                                         </TableCell>
@@ -389,7 +418,10 @@ export function MaintenancePage() {
                 </div>
 
                 {(meta?.total ?? 0) > 0 && (
-                    <nav aria-label="Paginación mantenimientos" className="flex items-center justify-between">
+                    <nav
+                        aria-label="Paginación mantenimientos"
+                        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
                         <p className="text-sm text-muted-foreground">
                             Página {currentPage} de {lastPage}
                         </p>

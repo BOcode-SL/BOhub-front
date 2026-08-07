@@ -169,8 +169,15 @@ export function EmailsPage() {
                                   ))
                                 : rows.map((row) => (
                                       <TableRow key={row.id}>
-                                          <TableCell className="font-medium">{row.name}</TableCell>
-                                          <TableCell className="hidden max-w-[240px] truncate text-muted-foreground sm:table-cell">
+                                          <TableCell className="font-medium">
+                                              <span className="block max-w-[12rem] truncate sm:max-w-[16rem]" title={row.name}>
+                                                  {row.name}
+                                              </span>
+                                          </TableCell>
+                                          <TableCell
+                                              className="hidden max-w-[240px] truncate text-muted-foreground sm:table-cell"
+                                              title={row.subject}
+                                          >
                                               {row.subject}
                                           </TableCell>
                                           <TableCell className="hidden text-muted-foreground md:table-cell">
