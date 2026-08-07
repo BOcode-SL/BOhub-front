@@ -1,5 +1,4 @@
 import type { ComponentProps } from 'react';
-import { Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { NavMain } from '@/components/layout/nav-main';
 import { NavUser } from '@/components/layout/nav-user';
@@ -27,9 +26,14 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
                             tooltip="BOhub"
                             className="cursor-pointer transition-colors duration-200 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-primary/40"
                         >
-                            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                <Zap className="size-4" strokeWidth={2.5} aria-hidden />
-                            </div>
+                            <img
+                                src="/favicon.svg"
+                                alt=""
+                                width={32}
+                                height={32}
+                                className="size-8 shrink-0 rounded-lg"
+                                aria-hidden
+                            />
                             <div className="grid flex-1 text-left text-sm leading-tight">
                                 <span className="truncate font-semibold tracking-tight text-foreground">BOhub</span>
                                 <span className="truncate text-xs text-muted-foreground">by BOcode</span>
