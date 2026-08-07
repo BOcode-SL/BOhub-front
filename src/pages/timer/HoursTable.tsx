@@ -53,11 +53,30 @@ export function HoursTable({
                             hours.length === 0 &&
                             Array.from({ length: 4 }).map((_, i) => (
                                 <TableRow key={i}>
-                                    {Array.from({ length: colCount }).map((__, j) => (
-                                        <TableCell key={j}>
+                                    <TableCell>
+                                        <Skeleton className="h-4 w-full" />
+                                    </TableCell>
+                                    {showUser && (
+                                        <TableCell className="hidden sm:table-cell">
                                             <Skeleton className="h-4 w-full" />
                                         </TableCell>
-                                    ))}
+                                    )}
+                                    {!hideProject && (
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-full" />
+                                        </TableCell>
+                                    )}
+                                    <TableCell>
+                                        <Skeleton className="h-4 w-full" />
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        <Skeleton className="h-4 w-full" />
+                                    </TableCell>
+                                    {showActions && (
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-8" />
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         {!loading && hours.length === 0 && (

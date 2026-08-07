@@ -12,7 +12,14 @@ export default defineConfig({
         react(),
         tailwindcss(),
         VitePWA({
+            // ponytail: injectManifest + no __WB_MANIFEST — generateSW hangs on Vite 8/Rolldown
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.ts',
             registerType: 'prompt',
+            injectManifest: {
+                injectionPoint: undefined,
+            },
             includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
             manifest: {
                 name: 'BOhub — by BOcode',
@@ -42,19 +49,6 @@ export default defineConfig({
                         sizes: '512x512',
                         type: 'image/png',
                         purpose: 'maskable',
-                    },
-                ],
-            },
-            workbox: {
-                navigateFallback: '/index.html',
-                // SPA shell only — never cache Sanctum/API responses
-                runtimeCaching: [
-                    {
-                        urlPattern: ({ url }) =>
-                            url.hostname === 'api.hub.bocode.es' ||
-                            url.pathname.startsWith('/api/') ||
-                            url.pathname.startsWith('/sanctum/'),
-                        handler: 'NetworkOnly',
                     },
                 ],
             },
