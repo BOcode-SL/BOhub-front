@@ -21,7 +21,7 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
       data-slot="toast-viewport"
       className={cn(
         // top-mid: centered under the top edge
-        "pointer-events-none fixed top-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 outline-none",
+        "pointer-events-none fixed top-4 left-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 outline-none",
         className
       )}
       {...props}
