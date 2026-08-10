@@ -820,7 +820,7 @@ export function ProjectDetailPage() {
             )}
 
             {tab === 'hours' && (
-                <div className="grid gap-4">
+                <div className="grid gap-6">
                     <div className="grid gap-3 sm:grid-cols-2">
                         <StatCard
                             label="Horas totales"
@@ -835,16 +835,23 @@ export function ProjectDetailPage() {
                             }
                         />
                     </div>
-                    <HoursTable
-                        hours={hours}
-                        meta={hoursMeta}
-                        loading={hoursLoading}
-                        showUser
-                        showActions={false}
-                        hideProject
-                        page={hoursPage}
-                        onPageChange={setHoursPage}
-                    />
+                    <Card className="gap-3 py-4">
+                        <CardHeader className="px-4">
+                            <CardTitle>Registro</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4 px-4">
+                            <HoursTable
+                                hours={hours}
+                                meta={hoursMeta}
+                                loading={hoursLoading}
+                                showUser
+                                showActions={false}
+                                hideProject
+                                page={hoursPage}
+                                onPageChange={setHoursPage}
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 
