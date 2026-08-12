@@ -16,6 +16,7 @@ const emptyForm: ClientInput = {
     phone: '',
     address: '',
     city: '',
+    province: '',
     postalCode: '',
     country: 'España',
     notes: '',
@@ -29,6 +30,7 @@ function toForm(c: Client): ClientInput {
         phone: c.phone ?? '',
         address: c.address ?? '',
         city: c.city ?? '',
+        province: c.province ?? '',
         postalCode: c.postalCode ?? '',
         country: c.country ?? 'España',
         notes: c.notes ?? '',
@@ -107,6 +109,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                 phone: form.phone?.toString().trim() || null,
                 address: form.address?.toString().trim() || null,
                 city: form.city?.toString().trim() || null,
+                province: form.province?.toString().trim() || null,
                 postalCode: form.postalCode?.toString().trim() || null,
                 country: form.country?.toString().trim() || 'España',
                 notes: form.notes?.toString().trim() || null,
@@ -217,6 +220,17 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                             />
                         </FormField>
                     </div>
+                    <FormField id="client-province" label="Provincia" error={fieldErrors.province}>
+                        <Input
+                            id="client-province"
+                            maxLength={120}
+                            value={form.province ?? ''}
+                            onChange={(e) => setField('province', e.target.value)}
+                            placeholder="Madrid"
+                            className="bg-background"
+                            aria-invalid={!!fieldErrors.province}
+                        />
+                    </FormField>
                     <FormField id="client-country" label="País" error={fieldErrors.country}>
                         <Input
                             id="client-country"

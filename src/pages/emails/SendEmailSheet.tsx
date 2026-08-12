@@ -11,6 +11,7 @@ import {
     MAX_ATTACHMENTS,
     sendEmail,
     substituteVars,
+    fqdnEmailError,
     type EmailTemplate,
 } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
@@ -99,6 +100,12 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
             if (!vars[v]?.trim()) nextErrors[v] = 'Requerido';
         }
         if (!to.trim()) nextErrors.to = 'Destinatario requerido';
+        else {
+            const toErr = fqdnEmailError(to);
+            if (toErr) nextErrors.to = toErr;
+        }
+        const ccErr = fqdnEmailError(cc);
+        if (ccErr) nextErrors.cc = ccErr;
         if (schedule) {
             if (!date) nextErrors.date = 'Fecha requerida';
             if (!time) nextErrors.time = 'Hora requerida';

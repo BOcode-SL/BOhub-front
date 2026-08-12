@@ -1,4 +1,5 @@
 import { request, apiErrorMessage, ensureCsrf, getBaseUrl, ApiError } from './api';
+import type { EmailMessage, EmailTemplate } from './emails';
 
 export const LEDGER_STATUSES = ['draft', 'pending', 'paid', 'partially_paid'] as const;
 
@@ -281,6 +282,7 @@ export async function listPayments(
         page?: number;
         perPage?: number;
         status?: string;
+        invoiceFilter?: string;
         projectId?: number;
         year?: number;
     } = {},
@@ -291,6 +293,7 @@ export async function listPayments(
     if (params.page) q.set('page', String(params.page));
     if (params.perPage) q.set('per_page', String(params.perPage));
     if (params.status) q.set('status', params.status);
+    if (params.invoiceFilter) q.set('invoice_filter', params.invoiceFilter);
     if (params.projectId) q.set('project_id', String(params.projectId));
     if (params.year) q.set('year', String(params.year));
     const qs = q.toString();
@@ -363,6 +366,41 @@ export async function downloadPaymentInvoice(id: number): Promise<void> {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+}
+
+export const INVOICE_FILTERS = ['draft', 'issued', 'no_number'] as const;
+export type InvoiceFilter = (typeof INVOICE_FILTERS)[number];
+
+export const INVOICE_FILTER_LABELS: Record<InvoiceFilter, string> = {
+    draft: 'Borrador',
+    issued: 'Emitida',
+    no_number: 'Sin número',
+};
+
+export type InvoiceSendPreview = {
+    to: string;
+    cc: string | null;
+    subject: string;
+    htmlPreview: string;
+    templateId: number;
+    variables: Record<string, string>;
+};
+
+export type InvoiceSendInput = {
+    to?: string | null;
+    cc?: string | null;
+    variables?: Record<string, string>;
+};
+
+export async function previewInvoiceSend(id: number): Promise<InvoiceSendPreview> {
+    return request<InvoiceSendPreview>(`/api/payments/${id}/invoice-send-preview`);
+}
+
+export async function sendInvoice(id: number, input: InvoiceSendInput = {}): Promise<EmailMessage> {
+    return request<EmailMessage>(`/api/payments/${id}/send-invoice`, {
+        method: 'POST',
+        body: input,
+    });
 }
 
 export async function listExpenses(
@@ -502,6 +540,7 @@ export type InvoiceSettings = {
     bankName: string | null;
     numberPrefix: string;
     nextSequence: number;
+    readyToEmit?: boolean;
 };
 
 export type InvoiceSettingsInput = {
@@ -539,5 +578,20 @@ export async function updateInvoiceSettings(body: InvoiceSettingsInput): Promise
     return request<InvoiceSettings>('/api/billing/invoice-settings', {
         method: 'PUT',
         body,
+    });
+}
+
+export async function getInvoiceEmailTemplate(): Promise<EmailTemplate> {
+    return request<EmailTemplate>('/api/billing/invoice-email-template');
+}
+
+export async function updateInvoiceEmailTemplate(input: {
+    subject: string;
+    htmlBody: string;
+    description?: string | null;
+}): Promise<EmailTemplate> {
+    return request<EmailTemplate>('/api/billing/invoice-email-template', {
+        method: 'PUT',
+        body: input,
     });
 }

@@ -889,14 +889,14 @@ export function ProjectDetailPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead>Nº</TableHead>
                                             <TableHead>F. Factura</TableHead>
-                                            <TableHead>Descripción</TableHead>
+                                            <TableHead>Concepto</TableHead>
                                             <TableHead>Estado</TableHead>
                                             <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
                                             <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
                                             <TableHead className="hidden md:table-cell">Método</TableHead>
-                                            <TableHead className="hidden lg:table-cell">Referencia</TableHead>
                                             <TableHead className="w-10">
                                                 <span className="sr-only">Acciones</span>
                                             </TableHead>
@@ -918,19 +918,29 @@ export function ProjectDetailPage() {
                                             </TableRow>
                                         )}
                                         {payments.map((payment) => {
+                                            const lines =
+                                                payment.lines?.filter((l) => l.description?.toString().trim()) ?? [];
                                             const description =
-                                                payment.notes?.trim() ||
-                                                payment.reference ||
-                                                payment.invoiceNumber ||
-                                                '—';
+                                                lines.length === 0
+                                                    ? '—'
+                                                    : lines.length === 1
+                                                      ? lines[0].description
+                                                      : `${lines.length} conceptos`;
                                             return (
                                                 <TableRow key={payment.id}>
+                                                    <TableCell className="font-mono text-foreground whitespace-nowrap">
+                                                        {payment.invoiceNumber?.trim() || '—'}
+                                                    </TableCell>
                                                     <TableCell className="text-muted-foreground whitespace-nowrap">
                                                         {payment.invoiceDate || '—'}
                                                     </TableCell>
                                                     <TableCell
                                                         className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[20rem]"
-                                                        title={description}
+                                                        title={
+                                                            lines.length > 1
+                                                                ? lines.map((l) => l.description).join(' · ')
+                                                                : description
+                                                        }
                                                     >
                                                         {description}
                                                     </TableCell>
@@ -948,12 +958,6 @@ export function ProjectDetailPage() {
                                                     </TableCell>
                                                     <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
                                                         {payment.paymentMethod || '—'}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        className="hidden max-w-[10rem] truncate text-muted-foreground lg:table-cell"
-                                                        title={payment.reference || undefined}
-                                                    >
-                                                        {payment.reference || '—'}
                                                     </TableCell>
                                                     <TableCell>
                                                         <DropdownMenu>

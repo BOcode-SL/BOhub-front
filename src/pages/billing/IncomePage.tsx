@@ -25,7 +25,7 @@ export function IncomePage() {
             update: updatePayment,
             remove: deletePayment,
             rowDate: (row) => row.invoiceDate,
-            renderSheet: ({ open, mode, editing, onOpenChange, onSubmit, onReload }) => (
+            renderSheet: ({ open, mode, editing, onOpenChange, onSubmit, onReload, onSendInvoice }) => (
                 <PaymentSheet
                     open={open}
                     mode={mode}
@@ -33,6 +33,7 @@ export function IncomePage() {
                     onOpenChange={onOpenChange}
                     onSubmit={onSubmit}
                     onEmitted={() => onReload()}
+                    onSendInvoice={onSendInvoice}
                 />
             ),
         }),

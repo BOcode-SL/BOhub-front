@@ -4,6 +4,24 @@ export const MAX_ATTACHMENTS = 10;
 export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 export const RESERVED_VARS = ['EMAIL', 'TO', 'CC'] as const;
 
+/** Domain must include a dot (oscar@bocode.es ok; oscar@bocode rejected). */
+export function isFqdnEmail(value: string): boolean {
+    const email = value.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
+    const domain = email.slice(email.lastIndexOf('@') + 1);
+    return domain.includes('.');
+}
+
+export function fqdnEmailError(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parts = trimmed.split(/[,;]+/).map((p) => p.trim()).filter(Boolean);
+    for (const part of parts) {
+        if (!isFqdnEmail(part)) return 'Usa dominio completo (p. ej. nombre@bocode.es).';
+    }
+    return null;
+}
+
 export type EmailTemplate = {
     id: number;
     name: string;

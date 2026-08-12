@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowUp, Download, FileWarning, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, FileWarning, Mail, Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -45,7 +45,6 @@ const empty: PaymentInput = {
     paymentMethod: 'Transferencia Bancaria',
     invoiceDate: '',
     paymentDate: '',
-    reference: '',
     notes: '',
     invoiceUrl: '',
     installments: [],
@@ -64,7 +63,6 @@ function formSnapshot(f: PaymentInput): string {
         paymentMethod: f.paymentMethod ?? null,
         invoiceDate: f.invoiceDate || null,
         paymentDate: f.paymentDate || null,
-        reference: f.reference || null,
         notes: f.notes || null,
         invoiceUrl: f.invoiceUrl || null,
         lines: (f.lines ?? []).map((l) => ({
@@ -105,7 +103,6 @@ function toForm(p: Payment): PaymentInput {
         paymentMethod: p.paymentMethod ?? 'Transferencia Bancaria',
         invoiceDate: p.invoiceDate ?? '',
         paymentDate: p.paymentDate ?? '',
-        reference: p.reference ?? '',
         notes: p.notes ?? '',
         invoiceUrl: p.invoiceUrl ?? '',
         installments: p.installments ?? [],
@@ -122,9 +119,11 @@ type Props = {
     lockedProjectId?: number;
     /** After emit — refresh list / parent row */
     onEmitted?: (payment: Payment) => void;
+    /** Open parent SendInvoiceDialog (issued only) */
+    onSendInvoice?: () => void;
 };
 
-export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lockedProjectId, onEmitted }: Props) {
+export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lockedProjectId, onEmitted, onSendInvoice }: Props) {
     const readOnly = mode === 'view';
     const [form, setForm] = useState<PaymentInput>(empty);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -357,7 +356,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 paymentMethod: form.paymentMethod?.toString().trim() || null,
                 invoiceDate: form.invoiceDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
-                reference: form.reference?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
                 invoiceUrl: form.invoiceUrl?.toString().trim() || null,
                 lines: validLines.map((l, i) => ({
@@ -380,7 +378,11 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         }
     }
 
-    const previewSrc = drivePreviewUrl(form.invoiceUrl);
+    // R2/local archive: no Drive UI. Legacy import: keep Drive if only invoiceUrl.
+    const storageProvider = payment?.storageProvider ?? 'url_stub';
+    const archivedPdf = storageProvider === 'r2' || storageProvider === 'local';
+    const showDriveUi = !archivedPdf && (!fiscalLocked || !!form.invoiceUrl);
+    const previewSrc = showDriveUi ? drivePreviewUrl(form.invoiceUrl) : null;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -669,24 +671,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </FormField>
                     )}
 
-                    <FormField
-                        id="pay-ref"
-                        label="Referencia interna"
-                        error={fieldErrors.reference}
-                        description="Opcional. Los conceptos de factura son las líneas de arriba."
-                    >
-                        <Input
-                            id="pay-ref"
-                            maxLength={120}
-                            disabled={fiscalLocked}
-                            placeholder="Etiqueta interna"
-                            value={form.reference ?? ''}
-                            onChange={(e) => setField('reference', e.target.value)}
-                            aria-invalid={!!fieldErrors.reference}
-                            className="bg-card"
-                        />
-                    </FormField>
-
                     <fieldset className="grid gap-3 rounded-lg border border-border p-3">
                         <legend className="px-1 text-sm font-medium text-foreground">Plazos de pago</legend>
                         {fieldErrors.installments ? (
@@ -754,18 +738,20 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </Button>
                     </fieldset>
 
-                    <FormField id="pay-drive" label="URL Drive" error={fieldErrors.invoiceUrl}>
-                        <Input
-                            id="pay-drive"
-                            type="text"
-                            inputMode="url"
-                            placeholder="https://drive.google.com/file/d/…/view"
-                            value={form.invoiceUrl ?? ''}
-                            onChange={(e) => setField('invoiceUrl', e.target.value)}
-                            aria-invalid={!!fieldErrors.invoiceUrl}
-                            className="bg-card"
-                        />
-                    </FormField>
+                    {showDriveUi ? (
+                        <FormField id="pay-drive" label="URL Drive" error={fieldErrors.invoiceUrl}>
+                            <Input
+                                id="pay-drive"
+                                type="text"
+                                inputMode="url"
+                                placeholder="https://drive.google.com/file/d/…/view"
+                                value={form.invoiceUrl ?? ''}
+                                onChange={(e) => setField('invoiceUrl', e.target.value)}
+                                aria-invalid={!!fieldErrors.invoiceUrl}
+                                className="bg-card"
+                            />
+                        </FormField>
+                    ) : null}
 
                     <FormField id="pay-notes" label="Notas" error={fieldErrors.notes}>
                         <Textarea
@@ -792,6 +778,21 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         >
                             <Download />
                             {fiscalLocked ? 'Descargar PDF' : 'Vista borrador PDF'}
+                        </Button>
+                    ) : null}
+                    {paymentId && fiscalLocked && onSendInvoice ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="cursor-pointer"
+                            disabled={hydrating}
+                            onClick={() => {
+                                onOpenChange(false);
+                                onSendInvoice();
+                            }}
+                        >
+                            <Mail />
+                            Enviar al cliente
                         </Button>
                     ) : null}
                     {!readOnly && paymentId && !fiscalLocked ? (
@@ -854,7 +855,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                               ...(payment as Payment),
                               id: paymentId,
                               status: form.status,
-                              reference: form.reference ?? null,
                               totalAmount: String(totalPreview.toFixed(2)),
                               project: payment?.project ?? null,
                               lines: form.lines,

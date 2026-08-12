@@ -100,10 +100,10 @@ Prefer extending these over new ad-hoc `fetch` calls.
 ## Feature notes
 
 - **Projects**: detail — employee: Resumen + Config; admin: + Horas + Pagos. Create requires Jira space + create|link. Sync on open + background batch on Home/list (60s throttle). Status/priority read-only when linked. `VITE_JIRA_BASE_URL` optional link fallback (no token).
-- **Billing**: Summary shows expanded KPIs + monthly chart. Payments/Expenses support installments (method Select, paidOn, notes). Payments: multi-línea `lines` (qty + P.U. + % dto → base derived); IVA/IRPF a nivel factura. Payrolls tab. No R2 upload UI yet (invoiceUrl stub kept in types).
+- **Billing**: Summary shows expanded KPIs + monthly chart. Payments/Expenses support installments (method Select, paidOn, notes). Payments: multi-línea `lines` (qty + P.U. + % dto → base derived); IVA/IRPF a nivel factura. Emit → PDF R2; **Enviar al cliente** (`previewInvoiceSend` / `sendInvoice`, doble confirmación) aparte del emit. Lista ingresos: filtro **Factura** (`invoice_filter` = draft|issued|no_number), no status ledger. Sin UI `reference`. Clientes: campo **provincia** (emit/PDF). Configuración: emisor/IBAN/numeración + plantilla email factura (`getInvoiceEmailTemplate` / `updateInvoiceEmailTemplate`). Payrolls tab.
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.
-- **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled.
+- **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled. Plantilla de factura también editable desde Billing (billing role) sin abrir `/emails`.
 
 ## Conventions for agents
 

@@ -43,7 +43,7 @@ export function EmitPaymentDialog({ open, payment, onOpenChange, onEmitted }: Pr
     const lines = payment?.lines?.filter((l) => l.description?.toString().trim()) ?? [];
     const concept =
         lines.length === 0
-            ? payment?.reference?.trim() || '—'
+            ? '—'
             : lines.length === 1
               ? lines[0].description
               : `${lines[0].description} (+${lines.length - 1})`;

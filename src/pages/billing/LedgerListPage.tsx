@@ -6,6 +6,7 @@ import {
     Download,
     Eye,
     FileWarning,
+    Mail,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -23,12 +24,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
 import { Badge } from '@/components/ui/badge';
 import {
+    INVOICE_FILTERS,
+    INVOICE_FILTER_LABELS,
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
     PAYROLL_STATUS_LABELS,
     downloadPaymentInvoice,
     formatMoney,
     isPaymentIssued,
+    type InvoiceFilter,
     type PayrollStatus,
     type BillingMeta,
     type LedgerStatus,
@@ -37,6 +41,7 @@ import { toastError, toastSuccess } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
+import { SendInvoiceDialog } from '@/pages/billing/SendInvoiceDialog';
 import { useAuth } from '@/auth/AuthContext';
 import { cn } from '@/lib/utils';
 import type { Payment } from '@/lib/billing';
@@ -57,6 +62,7 @@ export type LedgerRowBase = {
     baseAmount?: string;
     status: LedgerStatus;
     invoiceUrl: string | null;
+    invoiceNumber?: string | null;
     lastPaymentDate?: string | null;
     paymentDate?: string | null;
     project?: {
@@ -90,6 +96,7 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
             page?: number;
             perPage?: number;
             status?: string;
+            invoiceFilter?: string;
         },
         signal?: AbortSignal,
     ) => Promise<{ data: TRow[]; meta: BillingMeta }>;
@@ -105,6 +112,7 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
         onOpenChange: (open: boolean) => void;
         onSubmit: (data: TInput) => Promise<void>;
         onReload: () => void;
+        onSendInvoice?: () => void;
     }) => ReactNode;
 };
 
@@ -116,6 +124,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const perPage = parsePerPage(searchParams.get('per_page'));
     const urlSearch = searchParams.get('search') ?? '';
     const urlStatus = searchParams.get('status') ?? '';
+    const urlInvoiceFilter = searchParams.get('invoice_filter') ?? '';
 
     const [searchInput, setSearchInput] = useState(urlSearch);
     const [rows, setRows] = useState<TRow[]>([]);
@@ -128,6 +137,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [deleteTarget, setDeleteTarget] = useState<TRow | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [emitTarget, setEmitTarget] = useState<TRow | null>(null);
+    const [sendTarget, setSendTarget] = useState<TRow | null>(null);
     const [pdfBusyId, setPdfBusyId] = useState<number | null>(null);
 
     const {
@@ -188,6 +198,19 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         );
     }, [isPayrollLayout, searchParams, setSearchParams]);
 
+    // Ingresos: filtro factura (no status ledger residual)
+    useEffect(() => {
+        if (!invoiceActions || !searchParams.has('status')) return;
+        setSearchParams(
+            (prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete('status');
+                return p;
+            },
+            { replace: true },
+        );
+    }, [invoiceActions, searchParams, setSearchParams]);
+
     useEffect(() => {
         const t = setTimeout(() => {
             const next = searchInput.trim();
@@ -218,7 +241,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                         search: urlSearch || undefined,
                         page,
                         perPage,
-                        status: isPayrollLayout ? undefined : urlStatus || undefined,
+                        status: invoiceActions || isPayrollLayout ? undefined : urlStatus || undefined,
+                        invoiceFilter: invoiceActions ? urlInvoiceFilter || undefined : undefined,
                     },
                     ac.signal,
                 );
@@ -239,7 +263,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
             cancelled = true;
             ac.abort();
         };
-    }, [urlSearch, page, perPage, urlStatus, tick, list, isPayrollLayout]);
+    }, [urlSearch, page, perPage, urlStatus, urlInvoiceFilter, tick, list, isPayrollLayout, invoiceActions]);
 
     function patch(next: Record<string, string | null>) {
         setSearchParams((prev) => {
@@ -318,7 +342,25 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             />
                         </div>
                         <div className="flex flex-wrap items-end gap-2">
-                            {!isPayrollLayout ? (
+                            {invoiceActions ? (
+                                <ToolbarSelect
+                                    id="invoice-filter"
+                                    label="Factura"
+                                    items={[
+                                        { label: 'Todos', value: null },
+                                        ...INVOICE_FILTERS.map((f) => ({
+                                            label: INVOICE_FILTER_LABELS[f],
+                                            value: f,
+                                        })),
+                                    ]}
+                                    value={
+                                        INVOICE_FILTERS.includes(urlInvoiceFilter as InvoiceFilter)
+                                            ? urlInvoiceFilter
+                                            : null
+                                    }
+                                    onValueChange={(value) => patch({ invoice_filter: value, page: '1' })}
+                                />
+                            ) : !isPayrollLayout ? (
                                 <ToolbarSelect
                                     id="ledger-status"
                                     label="Estado"
@@ -358,6 +400,18 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="w-12" />
                                     </>
+                                ) : invoiceActions ? (
+                                    <>
+                                        <TableHead>Nº</TableHead>
+                                        <TableHead>F. Factura</TableHead>
+                                        <TableHead>Cliente</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
+                                        <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
+                                        <TableHead className="text-right">Total</TableHead>
+                                        <TableHead className="w-12" />
+                                    </>
                                 ) : (
                                     <>
                                         <TableHead>F. Factura</TableHead>
@@ -386,6 +440,36 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-8" />
+                                                </TableCell>
+                                            </>
+                                        ) : invoiceActions ? (
+                                            <>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-16" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -428,7 +512,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             {!loading && total === 0 && (
                                 <TableRow className="hover:bg-transparent">
                                     <TableCell
-                                        colSpan={isPayrollLayout ? 5 : 8}
+                                        colSpan={isPayrollLayout ? 5 : invoiceActions ? 9 : 8}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         {emptyLabel}
@@ -457,6 +541,39 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                 >
                                                     {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? '—'}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-foreground">
+                                                {formatMoney(row.totalAmount)}
+                                            </TableCell>
+                                        </>
+                                    ) : invoiceActions ? (
+                                        <>
+                                            <TableCell className="font-mono text-foreground whitespace-nowrap">
+                                                {row.invoiceNumber?.trim() || '—'}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                {rowDate(row) || '—'}
+                                            </TableCell>
+                                            <TableCell
+                                                className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[12rem]"
+                                                title={row.project?.client?.name || undefined}
+                                            >
+                                                {row.project?.client?.name || '—'}
+                                            </TableCell>
+                                            <TableCell
+                                                className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[14rem]"
+                                                title={row.project?.name || undefined}
+                                            >
+                                                {row.project?.name || '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <LedgerStatusBadge status={row.status} />
+                                            </TableCell>
+                                            <TableCell className="hidden text-muted-foreground md:table-cell whitespace-nowrap">
+                                                {row.lastPaymentDate || row.paymentDate || '—'}
+                                            </TableCell>
+                                            <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
+                                                {formatMoney(row.baseAmount ?? 0)}
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">
                                                 {formatMoney(row.totalAmount)}
@@ -532,6 +649,15 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                 {isPaymentIssued(row.status)
                                                                     ? 'Descargar PDF'
                                                                     : 'Vista borrador PDF'}
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        {invoiceActions && isPaymentIssued(row.status) ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                onClick={() => setSendTarget(row)}
+                                                            >
+                                                                <Mail />
+                                                                Enviar al cliente
                                                             </DropdownMenuItem>
                                                         ) : null}
                                                         {(!invoiceActions || row.status === 'draft') && (
@@ -622,6 +748,10 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 onOpenChange: setSheetOpen,
                 onSubmit: handleSave,
                 onReload: reload,
+                onSendInvoice:
+                    invoiceActions && editing && isPaymentIssued(editing.status)
+                        ? () => setSendTarget(editing)
+                        : undefined,
             })}
 
             {invoiceActions ? (
@@ -633,6 +763,20 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     }}
                     onEmitted={() => {
                         setEmitTarget(null);
+                        reload();
+                    }}
+                />
+            ) : null}
+
+            {invoiceActions ? (
+                <SendInvoiceDialog
+                    open={Boolean(sendTarget)}
+                    payment={(sendTarget as Payment | null) ?? null}
+                    onOpenChange={(o) => {
+                        if (!o) setSendTarget(null);
+                    }}
+                    onSent={() => {
+                        setSendTarget(null);
                         reload();
                     }}
                 />

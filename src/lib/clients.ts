@@ -8,6 +8,7 @@ export type Client = {
     phone: string | null;
     address: string | null;
     city: string | null;
+    province: string | null;
     postalCode: string | null;
     country: string | null;
     notes: string | null;
@@ -22,6 +23,7 @@ export type ClientInput = {
     phone?: string | null;
     address?: string | null;
     city?: string | null;
+    province?: string | null;
     postalCode?: string | null;
     country?: string | null;
     notes?: string | null;
