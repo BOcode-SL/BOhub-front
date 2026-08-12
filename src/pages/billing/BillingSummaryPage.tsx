@@ -1,5 +1,5 @@
 import { ReceiptEuro } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ListPageShell } from '@/components/list-page-shell';
@@ -18,6 +18,7 @@ import { toastError } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingExportDialog } from '@/pages/billing/BillingExportDialog';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
+import { cn } from '@/lib/utils';
 
 function parseYear(v: string | null): number {
     const n = Number(v);
@@ -75,6 +76,13 @@ export function BillingSummaryPage() {
         setSearchParams({ year: String(nextYear), quarter: String(nextQuarter) });
     }
 
+    const resultValue = summary ? Number(summary.result ?? summary.net ?? 0) : 0;
+    const grossResultValue = summary
+        ? Number(summary.grossIncome ?? summary.income.total ?? 0) -
+          Number(summary.grossExpenses ?? summary.expense.total ?? 0) -
+          Number(summary.payrollExpenses ?? 0)
+        : 0;
+
     return (
         <ListPageShell
             title="Resumen"
@@ -120,64 +128,126 @@ export function BillingSummaryPage() {
         >
             <BillingExportDialog open={exportOpen} onOpenChange={setExportOpen} defaultYear={year} />
             {loading && !summary && (
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {Array.from({ length: 11 }).map((_, i) => (
-                        <Skeleton key={i} className="h-28 w-full rounded-xl" />
-                    ))}
+                <div className="flex min-w-0 flex-col gap-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Skeleton className="h-28 w-full rounded-xl" />
+                        <Skeleton className="h-28 w-full rounded-xl" />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={`i-${i}`} className="h-24 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={`g-${i}`} className="h-24 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <Skeleton key={`t-${i}`} className="h-24 w-full rounded-xl" />
+                        ))}
+                    </div>
                 </div>
             )}
 
             {summary && (
-                <>
-                    <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex min-w-0 flex-col gap-6">
+                    <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                         <SummaryCard
-                            title="Resultado / Beneficio neto"
+                            title="Beneficio bruto"
+                            value={formatMoney(grossResultValue)}
+                            hint="Bruto ingresos − Bruto gastos − Nóminas"
+                            valueClassName={grossResultValue >= 0 ? 'text-primary' : 'text-destructive'}
+                        />
+                        <SummaryCard
+                            title="Beneficio neto"
                             value={formatMoney(summary.result ?? summary.net)}
-                            emphasize
+                            hint="Neto ingresos − Neto gastos − Nóminas"
+                            valueClassName={resultValue >= 0 ? 'text-primary' : 'text-destructive'}
                         />
-                        <SummaryCard title="Total Bruto" value={formatMoney(summary.grossIncome ?? summary.income.total)} />
-                        <SummaryCard title="Total Neto" value={formatMoney(summary.netIncome ?? summary.income.total)} />
-                        <SummaryCard
-                            title="Pendiente"
-                            value={formatMoney(summary.pending ?? summary.income.pendingTotal)}
-                        />
-                        <SummaryCard
-                            title="Bruto Gastos"
-                            value={formatMoney(summary.grossExpenses ?? summary.expense.total)}
-                        />
-                        <SummaryCard title="Neto Gastos" value={formatMoney(summary.netExpenses ?? summary.expense.total)} />
-                        <SummaryCard title="Gastos Nóminas" value={formatMoney(summary.payrollExpenses ?? '0')} />
-                        <SummaryCard title="IVA Repercutido" value={formatMoney(summary.ivaCollected ?? '0')} />
-                        <SummaryCard title="IVA Soportado" value={formatMoney(summary.ivaPaid ?? '0')} />
-                        <SummaryCard title="Balance IVA" value={formatMoney(summary.ivaBalance ?? '0')} />
-                        <SummaryCard title="IRPF a Pagar" value={formatMoney(summary.irpfPayable ?? '0')} />
                     </div>
+
+                    <SummarySection title="Ingresos">
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <SummaryCard title="Bruto" value={formatMoney(summary.grossIncome ?? summary.income.total)} />
+                            <SummaryCard title="Neto" value={formatMoney(summary.netIncome ?? summary.income.total)} />
+                            <SummaryCard
+                                title="Pendiente"
+                                value={formatMoney(summary.pending ?? summary.income.pendingTotal)}
+                            />
+                        </div>
+                    </SummarySection>
+
+                    <SummarySection title="Gastos">
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <SummaryCard
+                                title="Bruto"
+                                value={formatMoney(summary.grossExpenses ?? summary.expense.total)}
+                            />
+                            <SummaryCard
+                                title="Neto"
+                                value={formatMoney(summary.netExpenses ?? summary.expense.total)}
+                            />
+                            <SummaryCard title="Nóminas" value={formatMoney(summary.payrollExpenses ?? '0')} />
+                        </div>
+                    </SummarySection>
+
+                    <SummarySection title="Impuestos">
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <SummaryCard title="IVA repercutido" value={formatMoney(summary.ivaCollected ?? '0')} />
+                            <SummaryCard title="IVA soportado" value={formatMoney(summary.ivaPaid ?? '0')} />
+                            <SummaryCard title="Balance IVA" value={formatMoney(summary.ivaBalance ?? '0')} />
+                            <SummaryCard title="IRPF a pagar" value={formatMoney(summary.irpfPayable ?? '0')} />
+                        </div>
+                    </SummarySection>
 
                     {summary.months && summary.months.length > 0 && (
                         <MonthChart year={summary.year} quarter={summary.quarter} months={summary.months} />
                     )}
-                </>
+                </div>
             )}
         </ListPageShell>
     );
 }
 
-function SummaryCard({ title, value, emphasize }: { title: string; value: string; emphasize?: boolean }) {
+function SummarySection({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="min-w-0 rounded-xl border border-border bg-card/50 p-4">
+        <section className="min-w-0 space-y-3">
+            <h2 className="text-sm font-medium text-foreground">{title}</h2>
+            {children}
+        </section>
+    );
+}
+
+function SummaryCard({
+    title,
+    value,
+    hint,
+    valueClassName,
+    className,
+}: {
+    title: string;
+    value: string;
+    hint?: string;
+    valueClassName?: string;
+    className?: string;
+}) {
+    return (
+        <div className={cn('min-w-0 rounded-xl border border-border bg-card/50 p-4', className)}>
             <p className="truncate text-sm text-muted-foreground" title={title}>
                 {title}
             </p>
             <p
-                className={
-                    emphasize
-                        ? 'mt-2 truncate text-2xl font-semibold tracking-tight text-primary'
-                        : 'mt-2 truncate text-2xl font-semibold tracking-tight text-foreground'
-                }
+                className={cn(
+                    'mt-2 truncate text-2xl font-semibold tracking-tight text-foreground',
+                    valueClassName,
+                )}
                 title={value}
             >
                 {value}
             </p>
+            {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
         </div>
     );
 }
