@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download, ExternalLink, FileWarning, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, FileWarning, Mail, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
@@ -37,6 +37,9 @@ import {
 } from '@/lib/billing';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
+import { ExpenseSheet } from '@/pages/billing/ExpenseSheet';
+import { PaymentSheet } from '@/pages/billing/PaymentSheet';
+import { SendInvoiceDialog } from '@/pages/billing/SendInvoiceDialog';
 import {
     getJiraChangelog,
     listJiraProjects,
@@ -73,8 +76,6 @@ import { formatHoursFromSeconds } from '@/lib/time';
 import { listTeamHours, type Hour, type HoursMeta } from '@/lib/timer';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { cn } from '@/lib/utils';
-import { ExpenseSheet } from '@/pages/billing/ExpenseSheet';
-import { PaymentSheet } from '@/pages/billing/PaymentSheet';
 import { HoursTable } from '@/pages/timer/HoursTable';
 
 type Tab = 'summary' | 'hours' | 'billing' | 'config';
@@ -221,6 +222,7 @@ export function ProjectDetailPage() {
     >(null);
     const [ledgerDeleting, setLedgerDeleting] = useState(false);
     const [emitPaymentTarget, setEmitPaymentTarget] = useState<Payment | null>(null);
+    const [sendInvoicePayment, setSendInvoicePayment] = useState<Payment | null>(null);
 
     usePageCrumb(project?.name);
 
@@ -945,7 +947,18 @@ export function ProjectDetailPage() {
                                                         {description}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <LedgerStatusBadge status={payment.status} />
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            <LedgerStatusBadge status={payment.status} />
+                                                            {isPaymentIssued(payment.status) &&
+                                                            !payment.storageKey?.trim() ? (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                                >
+                                                                    Sin archivo
+                                                                </Badge>
+                                                            ) : null}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="hidden text-right text-muted-foreground whitespace-nowrap sm:table-cell">
                                                         {formatMoney(payment.baseAmount ?? 0)}
@@ -994,25 +1007,37 @@ export function ProjectDetailPage() {
                                                                         Emitir factura
                                                                     </DropdownMenuItem>
                                                                 ) : null}
-                                                                <DropdownMenuItem
-                                                                    className="cursor-pointer"
-                                                                    onClick={() => {
-                                                                        void downloadPaymentInvoice(payment.id)
-                                                                            .then(() =>
-                                                                                toastSuccess(
-                                                                                    isPaymentIssued(payment.status)
-                                                                                        ? 'PDF descargado'
-                                                                                        : 'Borrador PDF descargado',
-                                                                                ),
-                                                                            )
-                                                                            .catch((err) => toastError(err));
-                                                                    }}
-                                                                >
-                                                                    <Download />
-                                                                    {isPaymentIssued(payment.status)
-                                                                        ? 'Descargar PDF'
-                                                                        : 'Vista borrador PDF'}
-                                                                </DropdownMenuItem>
+                                                                {!isPaymentIssued(payment.status) ||
+                                                                payment.storageKey?.trim() ? (
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer"
+                                                                        onClick={() => {
+                                                                            void downloadPaymentInvoice(payment.id)
+                                                                                .then(() =>
+                                                                                    toastSuccess(
+                                                                                        isPaymentIssued(payment.status)
+                                                                                            ? 'PDF descargado'
+                                                                                            : 'Borrador PDF descargado',
+                                                                                    ),
+                                                                                )
+                                                                                .catch((err) => toastError(err));
+                                                                        }}
+                                                                    >
+                                                                        <Download />
+                                                                        {isPaymentIssued(payment.status)
+                                                                            ? 'Descargar PDF'
+                                                                            : 'Vista borrador PDF'}
+                                                                    </DropdownMenuItem>
+                                                                ) : null}
+                                                                {isPaymentIssued(payment.status) ? (
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer"
+                                                                        onClick={() => setSendInvoicePayment(payment)}
+                                                                    >
+                                                                        <Mail />
+                                                                        Enviar factura
+                                                                    </DropdownMenuItem>
+                                                                ) : null}
                                                                 {payment.status === 'draft' ? (
                                                                     <DropdownMenuItem
                                                                         variant="destructive"
@@ -1103,7 +1128,17 @@ export function ProjectDetailPage() {
                                                         {description}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <LedgerStatusBadge status={expense.status} />
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            <LedgerStatusBadge status={expense.status} />
+                                                            {!expense.storageKey?.trim() ? (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                                >
+                                                                    Sin archivo
+                                                                </Badge>
+                                                            ) : null}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="hidden text-right text-muted-foreground whitespace-nowrap sm:table-cell">
                                                         {formatMoney(expense.baseAmount ?? 0)}
@@ -1455,6 +1490,11 @@ export function ProjectDetailPage() {
                     setEditingPayment(emitted);
                     void loadBilling();
                 }}
+                onSendInvoice={
+                    editingPayment && isPaymentIssued(editingPayment.status)
+                        ? () => setSendInvoicePayment(editingPayment)
+                        : undefined
+                }
             />
             <EmitPaymentDialog
                 open={Boolean(emitPaymentTarget)}
@@ -1464,6 +1504,17 @@ export function ProjectDetailPage() {
                 }}
                 onEmitted={() => {
                     setEmitPaymentTarget(null);
+                    void loadBilling();
+                }}
+            />
+            <SendInvoiceDialog
+                open={Boolean(sendInvoicePayment)}
+                payment={sendInvoicePayment}
+                onOpenChange={(o) => {
+                    if (!o) setSendInvoicePayment(null);
+                }}
+                onSent={() => {
+                    setSendInvoicePayment(null);
                     void loadBilling();
                 }}
             />

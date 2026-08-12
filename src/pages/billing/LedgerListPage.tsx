@@ -404,7 +404,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     </>
                                 ) : invoiceActions ? (
                                     <>
-                                        <TableHead>Nº</TableHead>
+                                        <TableHead>Nº Factura</TableHead>
                                         <TableHead>F. Factura</TableHead>
                                         <TableHead>Cliente</TableHead>
                                         <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
