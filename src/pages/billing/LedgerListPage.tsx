@@ -569,7 +569,17 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                 {row.project?.name || '—'}
                                             </TableCell>
                                             <TableCell>
-                                                <LedgerStatusBadge status={row.status} />
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <LedgerStatusBadge status={row.status} />
+                                                    {isPaymentIssued(row.status) && !row.storageKey?.trim() ? (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                        >
+                                                            Sin archivo
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="hidden text-muted-foreground md:table-cell whitespace-nowrap">
                                                 {row.lastPaymentDate || row.paymentDate || '—'}
