@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
-import { Download, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -15,7 +15,6 @@ import {
     PAYMENT_METHODS,
     calcTotal,
     calcBaseFromTotal,
-    downloadExpenseFile,
     expenseHasStoredFile,
     fetchExpenseFileBlob,
     getExpense,
@@ -470,20 +469,6 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                 : 'PDF, JPG, PNG o WebP · máx. 10 MB'
                         }
                     />
-                ) : null}
-                {hasR2 && meta.id > 0 ? (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-fit cursor-pointer"
-                        onClick={() =>
-                            void downloadExpenseFile(meta.id, meta.fileName ?? `gasto-${meta.id}`).catch(toastError)
-                        }
-                    >
-                        <Download className="size-4" />
-                        Descargar
-                    </Button>
                 ) : null}
             </div>
             {ocrLoading ? <p className="text-xs text-muted-foreground">Leyendo factura con IA…</p> : null}
