@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { FormField } from '@/components/form-field';
 import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
     type InvoiceSendPreview,
     type Payment,
 } from '@/lib/billing';
-import { fqdnEmailError, substituteVars } from '@/lib/emails';
+import { fqdnEmailError } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { EmailHtmlPane } from '@/pages/emails/EmailHtmlPane';
 import { cn } from '@/lib/utils';
@@ -91,36 +91,9 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
         });
     }
 
-    const deferredVars = useDeferredValue(vars);
-    const previewHtml = useMemo(() => {
-        if (!preview?.htmlPreview) return '';
-        // ponytail: re-apply vars over already-substituted preview by replacing known values is fragile;
-        // rebuild from placeholders if still present, else patch server preview with known values.
-        let html = preview.htmlPreview;
-        const original = preview.variables ?? {};
-        for (const [key, value] of Object.entries(deferredVars)) {
-            const prev = original[key];
-            if (prev != null && prev !== '' && prev !== value) {
-                html = html.split(prev).join(value);
-            }
-            html = substituteVars(html, { [key]: value });
-        }
-        return html;
-    }, [preview, deferredVars]);
-
-    const subjectPreview = useMemo(() => {
-        if (!preview?.subject) return '';
-        let subject = preview.subject;
-        const original = preview.variables ?? {};
-        for (const [key, value] of Object.entries(deferredVars)) {
-            const prev = original[key];
-            if (prev != null && prev !== '' && prev !== value) {
-                subject = subject.split(prev).join(value);
-            }
-            subject = substituteVars(subject, { [key]: value });
-        }
-        return subject;
-    }, [preview, deferredVars]);
+    // ponytail: no var editors here — use API-substituted preview as-is (avoid html.split of values)
+    const previewHtml = preview?.htmlPreview ?? '';
+    const subjectPreview = preview?.subject ?? '';
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
@@ -248,13 +221,13 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
                                         id="inv-send-cc"
                                         label="CC"
                                         error={fieldErrors.cc}
-                                        description="Siempre se incluye hola@bocode.es. Añade más separados por coma."
+                                        description="Añade más separados por coma."
                                     >
                                         <Input
                                             id="inv-send-cc"
                                             type="text"
                                             maxLength={255}
-                                            placeholder="hola@bocode.es, otro@bocode.es"
+                                            placeholder="oscar@bocode.es, brian@bocode.es, otro@empresa.com"
                                             value={cc}
                                             onChange={(e) => {
                                                 setCc(e.target.value);

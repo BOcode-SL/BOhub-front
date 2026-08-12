@@ -35,7 +35,7 @@ export function EmailHtmlPane({ html, subject, emptyLabel = 'Escribe HTML para p
             ) : null}
 
             {src ? (
-                <iframe title="Vista previa email" srcDoc={src} sandbox="" className="min-h-0 w-full flex-1 border-0 bg-white" />
+                <iframe title="Vista previa email" srcDoc={src} sandbox="allow-same-origin" className="min-h-0 w-full flex-1 border-0 bg-white" />
             ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground">
                     <FileText className="size-8 opacity-40" />
