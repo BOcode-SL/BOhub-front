@@ -8,24 +8,32 @@ export function IncomePage() {
     const config = useMemo<LedgerListConfig<Payment, PaymentInput>>(
         () => ({
             title: 'Ingresos',
-            description: 'Facturas emitidas del periodo.',
+            description: 'Borradores y facturas emitidas del periodo.',
             icon: ReceiptEuro,
-            searchPlaceholder: 'Buscar referencia o nº factura…',
+            searchPlaceholder: 'Buscar concepto o nº factura…',
             searchAriaLabel: 'Buscar ingresos',
             addLabel: 'Añadir ingreso',
             emptyLabel: 'No hay ingresos. Añade el primero.',
             deleteTitle: 'Eliminar ingreso',
             paginationAriaLabel: 'Paginación ingresos',
-            successCreate: 'Pago creado',
-            successUpdate: 'Pago actualizado',
-            successDelete: 'Pago eliminado',
+            successCreate: 'Ingreso creado',
+            successUpdate: 'Ingreso actualizado',
+            successDelete: 'Ingreso eliminado',
+            invoiceActions: true,
             list: listPayments,
             create: createPayment,
             update: updatePayment,
             remove: deletePayment,
             rowDate: (row) => row.invoiceDate,
-            renderSheet: ({ open, mode, editing, onOpenChange, onSubmit }) => (
-                <PaymentSheet open={open} mode={mode} payment={editing} onOpenChange={onOpenChange} onSubmit={onSubmit} />
+            renderSheet: ({ open, mode, editing, onOpenChange, onSubmit, onReload }) => (
+                <PaymentSheet
+                    open={open}
+                    mode={mode}
+                    payment={editing}
+                    onOpenChange={onOpenChange}
+                    onSubmit={onSubmit}
+                    onEmitted={() => onReload()}
+                />
             ),
         }),
         [],

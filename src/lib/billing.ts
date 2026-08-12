@@ -1,4 +1,4 @@
-import { request, apiErrorMessage } from './api';
+import { request, apiErrorMessage, ensureCsrf, getBaseUrl, ApiError } from './api';
 
 export const LEDGER_STATUSES = ['draft', 'pending', 'paid', 'partially_paid'] as const;
 
@@ -40,6 +40,16 @@ export type Installment = {
     notes?: string | null;
 };
 
+export type PaymentLine = {
+    id?: number;
+    description: string;
+    quantity: string | number;
+    unitPrice: string | number;
+    discountPercent?: string | number;
+    lineNet?: string;
+    sortOrder?: number;
+};
+
 export type Payment = {
     id: number;
     projectId: number | null;
@@ -64,13 +74,14 @@ export type Payment = {
     storageKey?: string | null;
     fileName?: string | null;
     installments?: Installment[];
+    lines?: PaymentLine[];
     paidAmount?: string;
     remainingAmount?: string;
 };
 
 export type PaymentInput = {
     projectId?: number | null;
-    baseAmount: number | string;
+    baseAmount?: number | string;
     ivaRate?: number | string;
     irpfRate?: number | string;
     status: LedgerStatus;
@@ -86,6 +97,7 @@ export type PaymentInput = {
     invoiceUrl?: string | null;
     fileName?: string | null;
     installments?: Installment[];
+    lines?: PaymentLine[];
 };
 
 export type Expense = {
@@ -188,6 +200,27 @@ export function calcBaseFromTotal(total: number, ivaRate: number, irpfRate: numb
     return factor !== 0 ? Math.round((total / factor) * 100) / 100 : 0;
 }
 
+/** lineNet = round(qty × unitPrice × (1 − dto%/100), 2) */
+export function calcLineNet(quantity: number, unitPrice: number, discountPercent = 0): number {
+    const gross = quantity * unitPrice;
+    return Math.round(gross * (1 - discountPercent / 100) * 100) / 100;
+}
+
+export function sumLineNets(lines: PaymentLine[]): number {
+    return lines.reduce((acc, line) => {
+        const net = calcLineNet(
+            Number(line.quantity) || 0,
+            Number(line.unitPrice) || 0,
+            Number(line.discountPercent) || 0,
+        );
+        return acc + net;
+    }, 0);
+}
+
+export function emptyPaymentLine(): PaymentLine {
+    return { description: '', quantity: '1', unitPrice: '', discountPercent: '0' };
+}
+
 export function formatMoney(value: string | number): string {
     const n = typeof value === 'string' ? Number(value) : value;
     if (!Number.isFinite(n)) return '—';
@@ -283,6 +316,53 @@ export async function deletePayment(id: number): Promise<void> {
     await request<{ ok: boolean }>(`/api/payments/${id}`, {
         method: 'DELETE',
     });
+}
+
+export function isPaymentIssued(status: LedgerStatus): boolean {
+    return status !== 'draft';
+}
+
+export async function emitPayment(id: number): Promise<Payment> {
+    return request<Payment>(`/api/payments/${id}/emit`, { method: 'POST' });
+}
+
+/** Download Dompdf invoice (draft or official) as a file. */
+export async function downloadPaymentInvoice(id: number): Promise<void> {
+    await ensureCsrf();
+    const res = await fetch(`${getBaseUrl()}/api/payments/${id}/invoice`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            Accept: 'application/pdf,application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    });
+    if (!res.ok) {
+        let message = `Error ${res.status}`;
+        try {
+            const data = (await res.json()) as { message?: string };
+            if (data.message) message = data.message;
+        } catch {
+            /* ignore */
+        }
+        throw new ApiError(message, res.status);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') ?? '';
+    let filename = `factura-${id}.pdf`;
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+    const plain = /filename="?([^";]+)"?/i.exec(cd);
+    if (star?.[1]) filename = decodeURIComponent(star[1]);
+    else if (plain?.[1]) filename = plain[1];
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 }
 
 export async function listExpenses(
@@ -403,5 +483,61 @@ export async function updatePayroll(id: number, body: Partial<PayrollInput>): Pr
 export async function deletePayroll(id: number): Promise<void> {
     await request<{ ok: boolean }>(`/api/payrolls/${id}`, {
         method: 'DELETE',
+    });
+}
+
+export type InvoiceSettings = {
+    id: number;
+    name: string;
+    taxId: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    province: string | null;
+    country: string;
+    email: string;
+    website: string | null;
+    roleLabel: string | null;
+    iban: string;
+    bankName: string | null;
+    numberPrefix: string;
+    nextSequence: number;
+};
+
+export type InvoiceSettingsInput = {
+    name: string;
+    taxId: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    province?: string | null;
+    country: string;
+    email: string;
+    website?: string | null;
+    roleLabel?: string | null;
+    iban: string;
+    bankName?: string | null;
+    numberPrefix: string;
+    nextSequence: number;
+};
+
+/** Resolve `{year}` in invoice number prefix (client preview). */
+export function resolveInvoiceNumberPrefix(prefix: string, year = new Date().getFullYear()): string {
+    return prefix.replaceAll('{year}', String(year));
+}
+
+export function previewNextInvoiceNumber(prefix: string, nextSequence: number): string {
+    const seq = Number.isFinite(nextSequence) && nextSequence >= 1 ? Math.floor(nextSequence) : 1;
+    return `${resolveInvoiceNumberPrefix(prefix)}${seq}`;
+}
+
+export async function getInvoiceSettings(): Promise<InvoiceSettings> {
+    return request<InvoiceSettings>('/api/billing/invoice-settings');
+}
+
+export async function updateInvoiceSettings(body: InvoiceSettingsInput): Promise<InvoiceSettings> {
+    return request<InvoiceSettings>('/api/billing/invoice-settings', {
+        method: 'PUT',
+        body,
     });
 }

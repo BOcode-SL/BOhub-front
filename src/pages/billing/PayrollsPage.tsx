@@ -76,7 +76,9 @@ const config: LedgerListConfig<PayrollRow, PayrollInput> = {
             </span>
         </div>
     ),
-    renderSheet: (props) => <PayrollSheet {...props} />,
+    renderSheet: ({ open, mode, editing, onOpenChange, onSubmit }) => (
+        <PayrollSheet open={open} mode={mode} editing={editing} onOpenChange={onOpenChange} onSubmit={onSubmit} />
+    ),
 };
 
 export function PayrollsPage() {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, FileWarning, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
@@ -23,7 +23,9 @@ import {
     createPayment,
     deleteExpense,
     deletePayment,
+    downloadPaymentInvoice,
     formatMoney,
+    isPaymentIssued,
     listExpenses,
     listPayments,
     updateExpense,
@@ -34,6 +36,7 @@ import {
     type PaymentInput,
 } from '@/lib/billing';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
+import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import {
     getJiraChangelog,
     listJiraProjects,
@@ -217,6 +220,7 @@ export function ProjectDetailPage() {
         { kind: 'payment'; row: Payment } | { kind: 'expense'; row: Expense } | null
     >(null);
     const [ledgerDeleting, setLedgerDeleting] = useState(false);
+    const [emitPaymentTarget, setEmitPaymentTarget] = useState<Payment | null>(null);
 
     usePageCrumb(project?.name);
 
@@ -977,19 +981,49 @@ export function ProjectDetailPage() {
                                                                     <Pencil />
                                                                     Editar
                                                                 </DropdownMenuItem>
+                                                                {payment.status === 'draft' ? (
+                                                                    <DropdownMenuItem
+                                                                        className="cursor-pointer"
+                                                                        onClick={() => setEmitPaymentTarget(payment)}
+                                                                    >
+                                                                        <FileWarning />
+                                                                        Emitir factura
+                                                                    </DropdownMenuItem>
+                                                                ) : null}
                                                                 <DropdownMenuItem
-                                                                    variant="destructive"
                                                                     className="cursor-pointer"
-                                                                    onClick={() =>
-                                                                        setLedgerDeleteTarget({
-                                                                            kind: 'payment',
-                                                                            row: payment,
-                                                                        })
-                                                                    }
+                                                                    onClick={() => {
+                                                                        void downloadPaymentInvoice(payment.id)
+                                                                            .then(() =>
+                                                                                toastSuccess(
+                                                                                    isPaymentIssued(payment.status)
+                                                                                        ? 'PDF descargado'
+                                                                                        : 'Borrador PDF descargado',
+                                                                                ),
+                                                                            )
+                                                                            .catch((err) => toastError(err));
+                                                                    }}
                                                                 >
-                                                                    <Trash2 />
-                                                                    Eliminar
+                                                                    <Download />
+                                                                    {isPaymentIssued(payment.status)
+                                                                        ? 'Descargar PDF'
+                                                                        : 'Vista borrador PDF'}
                                                                 </DropdownMenuItem>
+                                                                {payment.status === 'draft' ? (
+                                                                    <DropdownMenuItem
+                                                                        variant="destructive"
+                                                                        className="cursor-pointer"
+                                                                        onClick={() =>
+                                                                            setLedgerDeleteTarget({
+                                                                                kind: 'payment',
+                                                                                row: payment,
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        <Trash2 />
+                                                                        Eliminar
+                                                                    </DropdownMenuItem>
+                                                                ) : null}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
@@ -1413,6 +1447,21 @@ export function ProjectDetailPage() {
                     if (!open) setEditingPayment(null);
                 }}
                 onSubmit={handleSavePayment}
+                onEmitted={(emitted) => {
+                    setEditingPayment(emitted);
+                    void loadBilling();
+                }}
+            />
+            <EmitPaymentDialog
+                open={Boolean(emitPaymentTarget)}
+                payment={emitPaymentTarget}
+                onOpenChange={(o) => {
+                    if (!o) setEmitPaymentTarget(null);
+                }}
+                onEmitted={() => {
+                    setEmitPaymentTarget(null);
+                    void loadBilling();
+                }}
             />
             <ExpenseSheet
                 open={expenseOpen}

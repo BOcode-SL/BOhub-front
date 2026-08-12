@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
+    Download,
     Eye,
+    FileWarning,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -24,16 +26,20 @@ import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
     PAYROLL_STATUS_LABELS,
-    type PayrollStatus,
+    downloadPaymentInvoice,
     formatMoney,
+    isPaymentIssued,
+    type PayrollStatus,
     type BillingMeta,
     type LedgerStatus,
 } from '@/lib/billing';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
+import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import { useAuth } from '@/auth/AuthContext';
 import { cn } from '@/lib/utils';
+import type { Payment } from '@/lib/billing';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
 function parsePage(v: string | null) {
@@ -76,6 +82,8 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     /** Default ledger (ingresos/gastos). `payroll` = compact columns. */
     layout?: 'ledger' | 'payroll';
     titleColumnHeader?: string;
+    /** Ingresos: Emitir + PDF + delete solo draft */
+    invoiceActions?: boolean;
     list: (
         params: {
             search?: string;
@@ -96,12 +104,13 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
         editing: TRow | null;
         onOpenChange: (open: boolean) => void;
         onSubmit: (data: TInput) => Promise<void>;
+        onReload: () => void;
     }) => ReactNode;
 };
 
 export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: { config: LedgerListConfig<TRow, TInput> }) {
     const { user } = useAuth();
-    const canMutate = user?.role === 'admin'; // billing = read-only; employee blocked by route
+    const canMutate = user?.role === 'admin' || user?.role === 'billing';
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parsePage(searchParams.get('page'));
     const perPage = parsePerPage(searchParams.get('per_page'));
@@ -118,6 +127,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [editing, setEditing] = useState<TRow | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<TRow | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [emitTarget, setEmitTarget] = useState<TRow | null>(null);
+    const [pdfBusyId, setPdfBusyId] = useState<number | null>(null);
 
     const {
         list,
@@ -142,6 +153,23 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         successDelete,
     } = config;
     const isPayrollLayout = config.layout === 'payroll';
+    const invoiceActions = Boolean(config.invoiceActions);
+
+    function reload() {
+        setTick((t) => t + 1);
+    }
+
+    async function handleDownloadPdf(row: TRow) {
+        setPdfBusyId(row.id);
+        try {
+            await downloadPaymentInvoice(row.id);
+            toastSuccess(isPaymentIssued(row.status) ? 'PDF descargado' : 'Borrador PDF descargado');
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setPdfBusyId(null);
+        }
+    }
 
     useEffect(() => {
         setSearchInput(urlSearch);
@@ -485,27 +513,64 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                             <Pencil />
                                                             Editar
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            variant="destructive"
-                                                            className="cursor-pointer"
-                                                            onClick={() => setDeleteTarget(row)}
-                                                        >
-                                                            <Trash2 />
-                                                            Eliminar
-                                                        </DropdownMenuItem>
+                                                        {invoiceActions && row.status === 'draft' ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                onClick={() => setEmitTarget(row)}
+                                                            >
+                                                                <FileWarning />
+                                                                Emitir factura
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        {invoiceActions ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                disabled={pdfBusyId === row.id}
+                                                                onClick={() => void handleDownloadPdf(row)}
+                                                            >
+                                                                <Download />
+                                                                {isPaymentIssued(row.status)
+                                                                    ? 'Descargar PDF'
+                                                                    : 'Vista borrador PDF'}
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        {(!invoiceActions || row.status === 'draft') && (
+                                                            <DropdownMenuItem
+                                                                variant="destructive"
+                                                                className="cursor-pointer"
+                                                                onClick={() => setDeleteTarget(row)}
+                                                            >
+                                                                <Trash2 />
+                                                                Eliminar
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </>
                                                 ) : (
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer"
-                                                        onClick={() => {
-                                                            setSheetMode('view');
-                                                            setEditing(row);
-                                                            setSheetOpen(true);
-                                                        }}
-                                                    >
-                                                        <Eye />
-                                                        Ver
-                                                    </DropdownMenuItem>
+                                                    <>
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer"
+                                                            onClick={() => {
+                                                                setSheetMode('view');
+                                                                setEditing(row);
+                                                                setSheetOpen(true);
+                                                            }}
+                                                        >
+                                                            <Eye />
+                                                            Ver
+                                                        </DropdownMenuItem>
+                                                        {invoiceActions ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                disabled={pdfBusyId === row.id}
+                                                                onClick={() => void handleDownloadPdf(row)}
+                                                            >
+                                                                <Download />
+                                                                {isPaymentIssued(row.status)
+                                                                    ? 'Descargar PDF'
+                                                                    : 'Vista borrador PDF'}
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                    </>
                                                 )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -556,7 +621,22 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 editing,
                 onOpenChange: setSheetOpen,
                 onSubmit: handleSave,
+                onReload: reload,
             })}
+
+            {invoiceActions ? (
+                <EmitPaymentDialog
+                    open={Boolean(emitTarget)}
+                    payment={(emitTarget as Payment | null) ?? null}
+                    onOpenChange={(o) => {
+                        if (!o) setEmitTarget(null);
+                    }}
+                    onEmitted={() => {
+                        setEmitTarget(null);
+                        reload();
+                    }}
+                />
+            ) : null}
 
             <Dialog
                 open={Boolean(deleteTarget)}

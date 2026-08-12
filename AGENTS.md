@@ -49,9 +49,10 @@ src/
 | `/dashboard/projects`         | Projects list                               | admin, employee |
 | `/dashboard/projects/:id`     | Project detail (Resumen/Config; Horas+Pagos = admin) | admin, employee |
 | `/dashboard/billing`          | Billing summary (quarter default) + KPIs + chart | admin, billing  |
-| `/dashboard/billing/income`   | Payments (billing = read-only). Installments. | admin, billing  |
-| `/dashboard/billing/expenses` | Expenses (billing = read-only). Installments. | admin, billing  |
-| `/dashboard/billing/payrolls` | Payrolls (admin mutate, billing read)      | admin, billing  |
+| `/dashboard/billing/income`   | Payments (admin+billing mutate). Installments. | admin, billing  |
+| `/dashboard/billing/expenses` | Expenses (admin+billing mutate). Installments. | admin, billing  |
+| `/dashboard/billing/payrolls` | Payrolls (admin+billing mutate)            | admin, billing  |
+| `/dashboard/billing/settings` | Emisor/IBAN + numeración factura (`numberPrefix`/`nextSequence`) | admin, billing  |
 | `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics | admin, employee |
 | `/dashboard/emails`           | Templates                                   | admin           |
 | `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin           |
@@ -99,7 +100,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 ## Feature notes
 
 - **Projects**: detail — employee: Resumen + Config; admin: + Horas + Pagos. Create requires Jira space + create|link. Sync on open + background batch on Home/list (60s throttle). Status/priority read-only when linked. `VITE_JIRA_BASE_URL` optional link fallback (no token).
-- **Billing**: Summary shows expanded KPIs + monthly chart. Payments/Expenses support installments (method Select, paidOn, notes). Base ↔ Total dual input. Payrolls tab. No R2 upload UI yet (invoiceUrl stub kept in types).
+- **Billing**: Summary shows expanded KPIs + monthly chart. Payments/Expenses support installments (method Select, paidOn, notes). Payments: multi-línea `lines` (qty + P.U. + % dto → base derived); IVA/IRPF a nivel factura. Payrolls tab. No R2 upload UI yet (invoiceUrl stub kept in types).
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.
 - **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled.
