@@ -12,13 +12,15 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
     LEDGER_STATUS_LABELS,
     PAYMENT_METHODS,
+    attachPaymentInvoice,
     calcLineNet,
     calcTotal,
     downloadPaymentInvoice,
-    drivePreviewUrl,
     emptyPaymentLine,
+    fetchPaymentInvoiceBlob,
     formatMoney,
     getPayment,
+    hasArchivedInvoice,
     isPaymentIssued,
     sumLineNets,
     type Installment,
@@ -30,11 +32,13 @@ import {
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
-import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
+import { BillingFilePane } from '@/pages/billing/BillingFilePane';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
+
+const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 const empty: PaymentInput = {
     projectId: null,
@@ -46,7 +50,6 @@ const empty: PaymentInput = {
     invoiceDate: '',
     paymentDate: '',
     notes: '',
-    invoiceUrl: '',
     installments: [],
     lines: [emptyPaymentLine()],
 };
@@ -64,7 +67,6 @@ function formSnapshot(f: PaymentInput): string {
         invoiceDate: f.invoiceDate || null,
         paymentDate: f.paymentDate || null,
         notes: f.notes || null,
-        invoiceUrl: f.invoiceUrl || null,
         lines: (f.lines ?? []).map((l) => ({
             description: l.description?.toString().trim() ?? '',
             quantity: Number(l.quantity) || 0,
@@ -104,9 +106,16 @@ function toForm(p: Payment): PaymentInput {
         invoiceDate: p.invoiceDate ?? '',
         paymentDate: p.paymentDate ?? '',
         notes: p.notes ?? '',
-        invoiceUrl: p.invoiceUrl ?? '',
         installments: p.installments ?? [],
         lines,
+    };
+}
+
+function archiveMeta(p: Pick<Payment, 'storageKey' | 'storageProvider' | 'fileName'> | null | undefined) {
+    return {
+        storageKey: p?.storageKey ?? null,
+        storageProvider: p?.storageProvider ?? null,
+        fileName: p?.fileName ?? null,
     };
 }
 
@@ -134,6 +143,11 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const [emitOpen, setEmitOpen] = useState(false);
     const [pdfBusy, setPdfBusy] = useState(false);
     const [baseline, setBaseline] = useState('');
+    const [attachFile, setAttachFile] = useState<File | null>(null);
+    const [archive, setArchive] = useState(archiveMeta(null));
+    const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
+    const [remoteBlobUrl, setRemoteBlobUrl] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
@@ -153,12 +167,14 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         if (!open) return;
         setFieldErrors({});
         setEmitOpen(false);
+        setAttachFile(null);
         if (mode === 'add' || !payment) {
             setHydrating(false);
             const next = { ...empty, projectId: lockedProjectId ?? null, lines: [emptyPaymentLine()] };
             setForm(next);
             setBaseline(formSnapshot(next));
             setInvoiceNumber(null);
+            setArchive(archiveMeta(null));
             return;
         }
         // list omits iva/lines/installments — hydrate when rates or lines missing
@@ -168,12 +184,14 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
             setForm(next);
             setBaseline(formSnapshot(next));
             setInvoiceNumber(payment.invoiceNumber);
+            setArchive(archiveMeta(payment));
             return;
         }
         setHydrating(true);
         setForm({ ...empty, projectId: lockedProjectId ?? null });
         setBaseline('');
         setInvoiceNumber(payment.invoiceNumber);
+        setArchive(archiveMeta(payment));
         let cancelled = false;
         void getPayment(payment.id)
             .then((full) => {
@@ -182,6 +200,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 setForm(next);
                 setBaseline(formSnapshot(next));
                 setInvoiceNumber(full.invoiceNumber);
+                setArchive(archiveMeta(full));
             })
             .catch((err) => {
                 if (cancelled) return;
@@ -199,6 +218,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const fiscalLocked = isPaymentIssued(form.status);
     const dirty = !hydrating && baseline !== '' && formSnapshot(form) !== baseline;
     const paymentId = mode !== 'add' ? payment?.id : undefined;
+    const archived = hasArchivedInvoice(archive);
     const lines = form.lines ?? [];
     const basePreview = sumLineNets(lines);
     const ivaRate = Number(form.ivaRate) || 0;
@@ -206,6 +226,47 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const ivaAmt = Math.round(((basePreview * ivaRate) / 100) * 100) / 100;
     const irpfAmt = Math.round(((basePreview * irpfRate) / 100) * 100) / 100;
     const totalPreview = calcTotal(basePreview, ivaRate, irpfRate);
+
+    useEffect(() => {
+        if (!attachFile) {
+            setLocalBlobUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(attachFile);
+        setLocalBlobUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [attachFile]);
+
+    useEffect(() => {
+        // Draft → Dompdf; issued con R2 → archivo; issued sin R2 → vacío (salvo file local)
+        const canFetchRemote = Boolean(paymentId) && !attachFile && (!fiscalLocked || archived);
+        if (!open || !canFetchRemote || !paymentId) {
+            setRemoteBlobUrl(null);
+            setPreviewLoading(false);
+            return;
+        }
+        let cancelled = false;
+        let objectUrl: string | null = null;
+        setPreviewLoading(true);
+        void fetchPaymentInvoiceBlob(paymentId)
+            .then((blob) => {
+                if (cancelled) return;
+                objectUrl = URL.createObjectURL(blob);
+                setRemoteBlobUrl(objectUrl);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setRemoteBlobUrl(null);
+                if (fiscalLocked) toastError(err);
+            })
+            .finally(() => {
+                if (!cancelled) setPreviewLoading(false);
+            });
+        return () => {
+            cancelled = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [open, paymentId, attachFile, fiscalLocked, archived, archive.storageKey]);
 
     async function handleDownloadPdf() {
         if (!paymentId) return;
@@ -316,16 +377,22 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         const installmentPayload =
             installments.length > 0 || hadInstallments ? { installments } : {};
 
-        // post-emit: solo plazos / cobro / notes — omitir lines + campos fiscales (assertLinesEditable)
+        // post-emit: solo plazos / cobro / notes (+ attach PDF si hay file)
         if (fiscalLocked) {
             setSaving(true);
             try {
+                if (attachFile && paymentId) {
+                    const attached = await attachPaymentInvoice(paymentId, attachFile);
+                    setArchive(archiveMeta(attached));
+                    setAttachFile(null);
+                    onEmitted?.(attached);
+                    toastSuccess('PDF adjuntado');
+                }
                 await onSubmit({
                     status: suggested ?? form.status,
                     paymentMethod: form.paymentMethod?.toString().trim() || null,
                     paymentDate: form.paymentDate?.toString().trim() || null,
                     notes: form.notes?.toString().trim() || null,
-                    invoiceUrl: form.invoiceUrl?.toString().trim() || null,
                     ...installmentPayload,
                 });
                 onOpenChange(false);
@@ -357,7 +424,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 invoiceDate: form.invoiceDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
-                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
                 lines: validLines.map((l, i) => ({
                     description: l.description.toString().trim(),
                     quantity: Number(l.quantity) || 1,
@@ -378,30 +444,41 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         }
     }
 
-    // R2/local archive: no Drive UI. Legacy import: keep Drive if only invoiceUrl.
-    const storageProvider = payment?.storageProvider ?? 'url_stub';
-    const archivedPdf = storageProvider === 'r2' || storageProvider === 'local';
-    const showDriveUi = !archivedPdf && (!fiscalLocked || !!form.invoiceUrl);
-    const previewSrc = showDriveUi ? drivePreviewUrl(form.invoiceUrl) : null;
+    const previewUrl = localBlobUrl ?? remoteBlobUrl;
+    const previewName = attachFile?.name ?? archive.fileName ?? (fiscalLocked ? null : 'Borrador.pdf');
+    const showPreviewPane = Boolean(paymentId);
+    const canDownloadPdf = Boolean(paymentId) && (!fiscalLocked || archived);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 className={cn(
                     'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    previewSrc ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
+                    showPreviewPane
+                        ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]'
+                        : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
                 )}
             >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-                    {previewSrc ? (
+                    {showPreviewPane ? (
                         <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
-                            <DrivePdfPane url={form.invoiceUrl} className="h-full min-h-0 shadow-lg" />
+                            <BillingFilePane
+                                blobUrl={previewUrl}
+                                fileName={previewName}
+                                loading={previewLoading && !localBlobUrl}
+                                emptyLabel={
+                                    fiscalLocked
+                                        ? 'Adjunta el PDF para verlo en BOhub'
+                                        : 'Vista previa del borrador'
+                                }
+                                className="h-full min-h-0 shadow-lg"
+                            />
                         </div>
                     ) : null}
                     <div
                         className={cn(
                             'order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2',
-                            previewSrc ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
+                            showPreviewPane ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
                 <SheetHeader>
@@ -738,18 +815,34 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </Button>
                     </fieldset>
 
-                    {showDriveUi ? (
-                        <FormField id="pay-drive" label="URL Drive" error={fieldErrors.invoiceUrl}>
+                    {fiscalLocked && !readOnly ? (
+                        <FormField
+                            id="pay-file"
+                            label={archived ? 'PDF factura' : 'Adjuntar PDF (obligatorio para export)'}
+                            error={fieldErrors.file}
+                            description={
+                                archived && !attachFile
+                                    ? archive.fileName ?? 'Archivo en BOhub'
+                                    : 'PDF, JPG, PNG o WebP · máx. 10 MB. Se sube al guardar.'
+                            }
+                        >
                             <Input
-                                id="pay-drive"
-                                type="text"
-                                inputMode="url"
-                                placeholder="https://drive.google.com/file/d/…/view"
-                                value={form.invoiceUrl ?? ''}
-                                onChange={(e) => setField('invoiceUrl', e.target.value)}
-                                aria-invalid={!!fieldErrors.invoiceUrl}
-                                className="bg-card"
+                                id="pay-file"
+                                type="file"
+                                accept={FILE_ACCEPT}
+                                onChange={(e) => {
+                                    setAttachFile(e.target.files?.[0] ?? null);
+                                    clearFieldError('file');
+                                }}
+                                aria-invalid={!!fieldErrors.file}
+                                className="bg-card file:mr-3 file:cursor-pointer"
                             />
+                            {attachFile ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Nuevo: <span className="font-medium text-foreground">{attachFile.name}</span>
+                                    {archived ? ' (reemplaza al guardar)' : ''}
+                                </p>
+                            ) : null}
                         </FormField>
                     ) : null}
 
@@ -768,7 +861,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 )}
 
                 <SheetFooter className="flex-wrap gap-2">
-                    {paymentId ? (
+                    {canDownloadPdf ? (
                         <Button
                             type="button"
                             variant="outline"
@@ -874,6 +967,8 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         return next;
                     });
                     setInvoiceNumber(emitted.invoiceNumber);
+                    setArchive(archiveMeta(emitted));
+                    setAttachFile(null);
                     onEmitted?.(emitted);
                 }}
             />

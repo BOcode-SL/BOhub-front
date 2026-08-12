@@ -65,6 +65,8 @@ export type LedgerRowBase = {
     invoiceNumber?: string | null;
     lastPaymentDate?: string | null;
     paymentDate?: string | null;
+    /** Gastos: R2 key; null/empty = legacy sin archivo */
+    storageKey?: string | null;
     project?: {
         id: number;
         name: string;
@@ -598,7 +600,17 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                 {row.project?.client?.name || '—'}
                                             </TableCell>
                                             <TableCell>
-                                                <LedgerStatusBadge status={row.status} />
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <LedgerStatusBadge status={row.status} />
+                                                    {!row.storageKey?.trim() ? (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                        >
+                                                            Sin archivo
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
                                                 {formatMoney(row.baseAmount ?? 0)}

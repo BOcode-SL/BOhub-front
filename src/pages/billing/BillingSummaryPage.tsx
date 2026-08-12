@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ListPageShell } from '@/components/list-page-shell';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     ChartContainer,
@@ -15,6 +16,7 @@ import {
 import { currentQuarter, formatMoney, getBillingSummary, type BillingSummary } from '@/lib/billing';
 import { toastError } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
+import { BillingExportDialog } from '@/pages/billing/BillingExportDialog';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 
 function parseYear(v: string | null): number {
@@ -38,6 +40,7 @@ export function BillingSummaryPage() {
 
     const [summary, setSummary] = useState<BillingSummary | null>(null);
     const [loading, setLoading] = useState(true);
+    const [exportOpen, setExportOpen] = useState(false);
 
     useEffect(() => {
         if (!urlHasPeriod) {
@@ -104,9 +107,18 @@ export function BillingSummaryPage() {
                             if (value) setPeriod(year, value === 'all' ? 'all' : (Number(value) as 1 | 2 | 3 | 4));
                         }}
                     />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="cursor-pointer"
+                        onClick={() => setExportOpen(true)}
+                    >
+                        Exportar para gestoría
+                    </Button>
                 </div>
             }
         >
+            <BillingExportDialog open={exportOpen} onOpenChange={setExportOpen} defaultYear={year} />
             {loading && !summary && (
                 <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {Array.from({ length: 11 }).map((_, i) => (

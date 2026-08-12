@@ -1,4 +1,4 @@
-import { request, apiErrorMessage, ensureCsrf, getBaseUrl, ApiError } from './api';
+import { request, requestFormData, apiErrorMessage, ensureCsrf, getBaseUrl, ApiError } from './api';
 import type { EmailMessage, EmailTemplate } from './emails';
 
 export const LEDGER_STATUSES = ['draft', 'pending', 'paid', 'partially_paid'] as const;
@@ -116,10 +116,12 @@ export type Expense = {
     expenseDate: string | null;
     paymentDate?: string | null;
     lastPaymentDate?: string | null;
+    /** @deprecated Drive; no usar para preview */
     invoiceUrl: string | null;
     project?: BillingProject | null;
     notes?: string | null;
     storageProvider?: string | null;
+    storageKey?: string | null;
     fileName?: string | null;
     installments?: Installment[];
     paidAmount?: string;
@@ -138,10 +140,44 @@ export type ExpenseInput = {
     expenseDate?: string | null;
     paymentDate?: string | null;
     notes?: string | null;
-    invoiceUrl?: string | null;
-    fileName?: string | null;
+    /** Multipart justificante (create required; update si no hay R2) */
+    file?: File | null;
     installments?: Installment[];
 };
+
+/** True if expense has R2/local archive (not Drive stub). */
+export function expenseHasStoredFile(
+    e: Pick<Expense, 'storageKey' | 'storageProvider'> | null | undefined,
+): boolean {
+    if (!e?.storageKey?.trim()) return false;
+    const p = e.storageProvider;
+    return p === 'r2' || p === 'local';
+}
+
+function appendExpenseFields(fd: FormData, body: Partial<ExpenseInput> & Pick<ExpenseInput, 'description' | 'baseAmount' | 'status'> | ExpenseInput): void {
+    if (body.projectId != null) {
+        fd.append('projectId', String(body.projectId));
+    }
+    if (body.description !== undefined) fd.append('description', body.description);
+    if (body.recipient !== undefined) fd.append('recipient', body.recipient ?? '');
+    if (body.category !== undefined) fd.append('category', body.category ?? '');
+    if (body.baseAmount !== undefined) fd.append('baseAmount', String(body.baseAmount));
+    if (body.ivaRate !== undefined) fd.append('ivaRate', String(body.ivaRate));
+    if (body.irpfRate !== undefined) fd.append('irpfRate', String(body.irpfRate));
+    if (body.status !== undefined) fd.append('status', body.status);
+    if (body.expenseDate !== undefined) fd.append('expenseDate', body.expenseDate ?? '');
+    if (body.paymentDate !== undefined) fd.append('paymentDate', body.paymentDate ?? '');
+    if (body.notes !== undefined) fd.append('notes', body.notes ?? '');
+    if (body.installments) {
+        body.installments.forEach((inst, i) => {
+            fd.append(`installments[${i}][amount]`, String(inst.amount ?? ''));
+            fd.append(`installments[${i}][paidOn]`, String(inst.paidOn ?? ''));
+            if (inst.method) fd.append(`installments[${i}][method]`, inst.method);
+            if (inst.notes) fd.append(`installments[${i}][notes]`, inst.notes);
+        });
+    }
+    if (body.file) fd.append('file', body.file);
+}
 
 export type BillingMeta = {
     current_page: number;
@@ -276,6 +312,92 @@ export async function getBillingSummary(
     });
 }
 
+export type BillingExportItem = {
+    id: number;
+    label: string;
+    date: string | null;
+    totalAmount: string;
+    invoiceNumber?: string | null;
+    fileName: string | null;
+    hasFile: boolean;
+};
+
+export type BillingExportPreview = {
+    year: number;
+    month: number;
+    payments: BillingExportItem[];
+    expenses: BillingExportItem[];
+};
+
+export async function previewBillingExport(
+    params: { year: number; month: number },
+    signal?: AbortSignal,
+): Promise<BillingExportPreview> {
+    const q = new URLSearchParams({
+        year: String(params.year),
+        month: String(params.month),
+    });
+    return request<BillingExportPreview>(`/api/billing/export/preview?${q}`, { signal });
+}
+
+/** POST export → download ZIP blob. */
+export async function downloadBillingExport(body: {
+    year: number;
+    month: number;
+    paymentIds: number[];
+    expenseIds: number[];
+    confirmed: true;
+}): Promise<void> {
+    await ensureCsrf();
+    const xsrfMatch = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    const headers: Record<string, string> = {
+        Accept: 'application/zip,application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (xsrfMatch?.[1]) {
+        headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrfMatch[1]);
+    }
+    const res = await fetch(`${getBaseUrl()}/api/billing/export`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        let message = `Error ${res.status}`;
+        let fieldErrors: Record<string, string[]> | undefined;
+        try {
+            const data = (await res.json()) as { message?: string; errors?: Record<string, string[]> };
+            if (data.message) message = data.message;
+            if (data.errors) fieldErrors = data.errors;
+            if (fieldErrors) {
+                const first = Object.values(fieldErrors)[0]?.[0];
+                if (first) message = first;
+            }
+        } catch {
+            /* ignore */
+        }
+        throw new ApiError(message, res.status, fieldErrors);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') ?? '';
+    let filename = `BOhub-gestoria-${body.year}-${String(body.month).padStart(2, '0')}.zip`;
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+    const plain = /filename="?([^";]+)"?/i.exec(cd);
+    if (star?.[1]) filename = decodeURIComponent(star[1]);
+    else if (plain?.[1]) filename = plain[1];
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
 export async function listPayments(
     params: {
         search?: string;
@@ -325,8 +447,48 @@ export function isPaymentIssued(status: LedgerStatus): boolean {
     return status !== 'draft';
 }
 
+/** True if payment has R2/local archive (not Drive stub). */
+export function hasArchivedInvoice(
+    p: Pick<Payment, 'storageKey' | 'storageProvider'> | null | undefined,
+): boolean {
+    if (!p?.storageKey?.trim()) return false;
+    const provider = p.storageProvider;
+    return provider === 'r2' || provider === 'local';
+}
+
 export async function emitPayment(id: number): Promise<Payment> {
     return request<Payment>(`/api/payments/${id}/emit`, { method: 'POST' });
+}
+
+/** Attach / replace invoice file on R2 (non-draft only). */
+export async function attachPaymentInvoice(id: number, file: File): Promise<Payment> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return requestFormData<Payment>(`/api/payments/${id}/attach-invoice`, fd);
+}
+
+/** Fetch invoice PDF/bytes (draft Dompdf or R2 archive). */
+export async function fetchPaymentInvoiceBlob(id: number): Promise<Blob> {
+    await ensureCsrf();
+    const res = await fetch(`${getBaseUrl()}/api/payments/${id}/invoice`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            Accept: 'application/pdf,image/*,application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    });
+    if (!res.ok) {
+        let message = `Error ${res.status}`;
+        try {
+            const data = (await res.json()) as { message?: string };
+            if (data.message) message = data.message;
+        } catch {
+            /* ignore */
+        }
+        throw new ApiError(message, res.status);
+    }
+    return res.blob();
 }
 
 /** Download Dompdf invoice (draft or official) as a file. */
@@ -336,7 +498,7 @@ export async function downloadPaymentInvoice(id: number): Promise<void> {
         method: 'GET',
         credentials: 'include',
         headers: {
-            Accept: 'application/pdf,application/json',
+            Accept: 'application/pdf,image/*,application/json',
             'X-Requested-With': 'XMLHttpRequest',
         },
     });
@@ -429,15 +591,101 @@ export async function getExpense(id: number): Promise<Expense> {
     return request<Expense>(`/api/expenses/${id}`, {});
 }
 
+export type ExpenseOcrDraft = {
+    recipient: string | null;
+    description: string | null;
+    expenseDate: string | null;
+    baseAmount: string | null;
+    ivaRate: string | null;
+    irpfRate: string | null;
+    totalAmount: string | null;
+    category: string | null;
+    confidence: number | null;
+    rawNotes: string | null;
+};
+
+export type ExpenseOcrPreview = {
+    draft: ExpenseOcrDraft;
+    fileMeta: { name: string; size: number; mime: string };
+};
+
+/** Vision OCR draft — does not create expense; front keeps File for create. */
+export async function ocrExpensePreview(file: File): Promise<ExpenseOcrPreview> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return requestFormData<ExpenseOcrPreview>('/api/expenses/ocr-preview', fd);
+}
+
 export async function createExpense(body: ExpenseInput): Promise<Expense> {
-    return request<Expense>('/api/expenses', { method: 'POST', body });
+    const fd = new FormData();
+    appendExpenseFields(fd, body);
+    if (!body.file) {
+        throw new ApiError('Adjunta el justificante (PDF o imagen).', 422, {
+            file: ['Adjunta el justificante (PDF o imagen).'],
+        });
+    }
+    return requestFormData<Expense>('/api/expenses', fd);
 }
 
 export async function updateExpense(id: number, body: Partial<ExpenseInput>): Promise<Expense> {
+    if (body.file) {
+        const fd = new FormData();
+        // Laravel method spoof — browsers/PHP multipart on PUT is unreliable
+        fd.append('_method', 'PUT');
+        appendExpenseFields(fd, {
+            description: body.description ?? '',
+            baseAmount: body.baseAmount ?? 0,
+            status: body.status ?? 'pending',
+            ...body,
+        });
+        return requestFormData<Expense>(`/api/expenses/${id}`, fd);
+    }
+
+    const { file: _file, ...json } = body;
     return request<Expense>(`/api/expenses/${id}`, {
         method: 'PUT',
-        body,
+        body: json,
     });
+}
+
+export async function fetchExpenseFileBlob(
+    id: number,
+    opts: { inline?: boolean } = {},
+): Promise<Blob> {
+    await ensureCsrf();
+    const q = opts.inline ? '?inline=1' : '';
+    const res = await fetch(`${getBaseUrl()}/api/expenses/${id}/file${q}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            Accept: 'application/pdf,image/*,application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    });
+    if (!res.ok) {
+        let message = `Error ${res.status}`;
+        try {
+            const data = (await res.json()) as { message?: string };
+            if (data.message) message = data.message;
+        } catch {
+            /* ignore */
+        }
+        throw new ApiError(message, res.status);
+    }
+    return res.blob();
+}
+
+/** Download expense receipt from R2/local. */
+export async function downloadExpenseFile(id: number, fallbackName = `gasto-${id}`): Promise<void> {
+    const blob = await fetchExpenseFileBlob(id, { inline: false });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fallbackName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 }
 
 export async function deleteExpense(id: number): Promise<void> {

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, type FormEvent } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Download, Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -15,20 +15,25 @@ import {
     PAYMENT_METHODS,
     calcTotal,
     calcBaseFromTotal,
-    drivePreviewUrl,
+    downloadExpenseFile,
+    expenseHasStoredFile,
+    fetchExpenseFileBlob,
     getExpense,
+    ocrExpensePreview,
     type Expense,
     type ExpenseInput,
+    type ExpenseOcrDraft,
     type Installment,
     type LedgerStatus,
 } from '@/lib/billing';
-import { ApiError, flattenFieldErrors } from '@/lib/api';
+import { ApiError, apiErrorMessage, flattenFieldErrors } from '@/lib/api';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
-import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
+import { BillingFilePane } from '@/pages/billing/BillingFilePane';
 import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
+type CreateEntry = 'ocr' | 'manual';
 
 const empty: ExpenseInput = {
     projectId: null,
@@ -42,9 +47,19 @@ const empty: ExpenseInput = {
     expenseDate: '',
     paymentDate: '',
     notes: '',
-    invoiceUrl: '',
     installments: [],
 };
+
+const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
+
+const entryChipClass = (active: boolean) =>
+    cn(
+        'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200',
+        'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+        active
+            ? 'bg-sidebar-accent font-medium text-primary'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+    );
 
 function toForm(e: Expense): ExpenseInput {
     return {
@@ -59,7 +74,6 @@ function toForm(e: Expense): ExpenseInput {
         expenseDate: e.expenseDate ?? '',
         paymentDate: e.paymentDate ?? '',
         notes: e.notes ?? '',
-        invoiceUrl: e.invoiceUrl ?? '',
         installments: e.installments ?? [],
     };
 }
@@ -82,6 +96,24 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     const [hydrating, setHydrating] = useState(false);
     const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
     const [totalInput, setTotalInput] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [createEntry, setCreateEntry] = useState<CreateEntry>('ocr');
+    const [ocrLoading, setOcrLoading] = useState(false);
+    const [ocrError, setOcrError] = useState<string | null>(null);
+    const [meta, setMeta] = useState<Pick<Expense, 'id' | 'storageKey' | 'storageProvider' | 'fileName'>>({
+        id: 0,
+        storageKey: null,
+        storageProvider: null,
+        fileName: null,
+    });
+    const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
+    const [remoteBlobUrl, setRemoteBlobUrl] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    const hasR2 = expenseHasStoredFile(meta);
+    const previewUrl = localBlobUrl ?? remoteBlobUrl;
+    const previewName = file?.name ?? meta.fileName ?? null;
+    const isAdd = mode === 'add';
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
@@ -100,18 +132,28 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     useLayoutEffect(() => {
         if (!open) return;
         setFieldErrors({});
+        setFile(null);
+        setOcrLoading(false);
+        setOcrError(null);
         if (mode === 'add' || !expense) {
             setHydrating(false);
+            setCreateEntry('ocr');
             setForm({ ...empty, projectId: lockedProjectId ?? null });
+            setMeta({ id: 0, storageKey: null, storageProvider: null, fileName: null });
             setTotalInput('');
             setLastEdited('base');
             return;
         }
-        // list has baseAmount but omits iva/installments — hydrate when rates missing
         if (expense.ivaRate !== undefined) {
             setHydrating(false);
             const f = { ...toForm(expense), projectId: lockedProjectId ?? expense.projectId };
             setForm(f);
+            setMeta({
+                id: expense.id,
+                storageKey: expense.storageKey ?? null,
+                storageProvider: expense.storageProvider ?? null,
+                fileName: expense.fileName ?? null,
+            });
             const previewTotal = calcTotal(Number(f.baseAmount) || 0, Number(f.ivaRate) || 0, Number(f.irpfRate) || 0);
             setTotalInput(previewTotal.toFixed(2));
             setLastEdited('base');
@@ -119,6 +161,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         }
         setHydrating(true);
         setForm({ ...empty, projectId: lockedProjectId ?? null });
+        setMeta({ id: expense.id, storageKey: null, storageProvider: null, fileName: null });
         setTotalInput('');
         setLastEdited('base');
         let cancelled = false;
@@ -127,6 +170,12 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                 if (cancelled) return;
                 const fullForm = { ...toForm(full), projectId: lockedProjectId ?? full.projectId };
                 setForm(fullForm);
+                setMeta({
+                    id: full.id,
+                    storageKey: full.storageKey ?? null,
+                    storageProvider: full.storageProvider ?? null,
+                    fileName: full.fileName ?? null,
+                });
                 const t = calcTotal(
                     Number(fullForm.baseAmount) || 0,
                     Number(fullForm.ivaRate) || 0,
@@ -145,7 +194,46 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         return () => {
             cancelled = true;
         };
-    }, [open, mode, expense, lockedProjectId]);
+    }, [open, mode, expense, lockedProjectId, onOpenChange]);
+
+    useEffect(() => {
+        if (!file) {
+            setLocalBlobUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        setLocalBlobUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    useEffect(() => {
+        if (!open || file || !expenseHasStoredFile(meta) || !meta.id) {
+            setRemoteBlobUrl(null);
+            setPreviewLoading(false);
+            return;
+        }
+        let cancelled = false;
+        let objectUrl: string | null = null;
+        setPreviewLoading(true);
+        void fetchExpenseFileBlob(meta.id, { inline: true })
+            .then((blob) => {
+                if (cancelled) return;
+                objectUrl = URL.createObjectURL(blob);
+                setRemoteBlobUrl(objectUrl);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setRemoteBlobUrl(null);
+                toastError(err);
+            })
+            .finally(() => {
+                if (!cancelled) setPreviewLoading(false);
+            });
+        return () => {
+            cancelled = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [open, file, meta.id, meta.storageKey, meta.storageProvider]);
 
     function clearFieldError(key: string) {
         setFieldErrors((prev) => {
@@ -160,14 +248,77 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         clearFieldError(String(key));
     }
 
-    function recalcFromBase() {
-        const t = calcTotal(Number(form.baseAmount) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
-        setTotalInput(t.toFixed(2));
+    function applyOcrDraft(draft: ExpenseOcrDraft) {
+        const baseAmount = draft.baseAmount ?? '';
+        const ivaRate = draft.ivaRate != null && draft.ivaRate !== '' ? Number(draft.ivaRate) : 21;
+        const irpfRate = draft.irpfRate != null && draft.irpfRate !== '' ? Number(draft.irpfRate) : 0;
+        setForm((prev) => ({
+            ...prev,
+            description: draft.description?.trim() || prev.description,
+            recipient: draft.recipient?.trim() || '',
+            category: draft.category?.trim() || '',
+            baseAmount: baseAmount || prev.baseAmount,
+            ivaRate: Number.isFinite(ivaRate) ? ivaRate : prev.ivaRate,
+            irpfRate: Number.isFinite(irpfRate) ? irpfRate : prev.irpfRate,
+            expenseDate: draft.expenseDate?.trim() || prev.expenseDate,
+            notes: draft.rawNotes?.trim() || prev.notes,
+        }));
+        if (draft.totalAmount?.trim()) {
+            setTotalInput(draft.totalAmount.trim());
+            setLastEdited('total');
+            if (!baseAmount) {
+                const b = calcBaseFromTotal(
+                    Number(draft.totalAmount) || 0,
+                    Number.isFinite(ivaRate) ? ivaRate : 21,
+                    Number.isFinite(irpfRate) ? irpfRate : 0,
+                );
+                setForm((prev) => ({ ...prev, baseAmount: b.toFixed(2) }));
+            }
+        } else if (baseAmount) {
+            const t = calcTotal(
+                Number(baseAmount) || 0,
+                Number.isFinite(ivaRate) ? ivaRate : 21,
+                Number.isFinite(irpfRate) ? irpfRate : 0,
+            );
+            setTotalInput(t.toFixed(2));
+            setLastEdited('base');
+        }
     }
 
-    function recalcFromTotal() {
-        const b = calcBaseFromTotal(Number(totalInput) || 0, Number(form.ivaRate) || 0, Number(form.irpfRate) || 0);
-        setForm((prev) => ({ ...prev, baseAmount: b.toFixed(2) }));
+    function switchCreateEntry(next: CreateEntry) {
+        if (next === createEntry) return;
+        setCreateEntry(next);
+        setFile(null);
+        setOcrLoading(false);
+        setOcrError(null);
+        setFieldErrors({});
+        setForm({ ...empty, projectId: lockedProjectId ?? null });
+        setTotalInput('');
+        setLastEdited('base');
+    }
+
+    function onFilePicked(list: FileList | null) {
+        const next = list?.[0] ?? null;
+        setFile(next);
+        clearFieldError('file');
+        setOcrError(null);
+        if (!next || !isAdd || createEntry !== 'ocr') return;
+        setOcrLoading(true);
+        void ocrExpensePreview(next)
+            .then(({ draft }) => {
+                applyOcrDraft(draft);
+                setOcrError(null);
+            })
+            .catch((err) => {
+                toastError(err);
+                const detail = apiErrorMessage(err);
+                setOcrError(
+                    detail
+                        ? `No se pudo leer la factura con IA (${detail}). Rellena el formulario a mano; el archivo se guardará al crear.`
+                        : 'No se pudo leer la factura con IA. Rellena el formulario a mano; el archivo se guardará al crear.',
+                );
+            })
+            .finally(() => setOcrLoading(false));
     }
 
     function handleBaseChange(value: string) {
@@ -184,11 +335,15 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         setField('baseAmount', b.toFixed(2));
     }
 
-    function handleRateChange() {
+    /** Use event rates — setField is async and form would be stale. */
+    function recalcWithRates(nextIva: number, nextIrpf: number) {
         if (lastEdited === 'base') {
-            recalcFromBase();
+            setTotalInput(calcTotal(Number(form.baseAmount) || 0, nextIva, nextIrpf).toFixed(2));
         } else {
-            recalcFromTotal();
+            setField(
+                'baseAmount',
+                calcBaseFromTotal(Number(totalInput) || 0, nextIva, nextIrpf).toFixed(2),
+            );
         }
     }
 
@@ -232,7 +387,11 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        if (readOnly) return;
+        if (readOnly || ocrLoading) return;
+        if (!file && !hasR2) {
+            setFieldErrors((prev) => ({ ...prev, file: 'Adjunta el justificante (PDF o imagen).' }));
+            return;
+        }
         setSaving(true);
         try {
             const suggested = suggestStatus();
@@ -250,7 +409,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                 expenseDate: form.expenseDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
                 notes: form.notes?.toString().trim() || null,
-                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
+                file: file ?? null,
                 ...(installments.length > 0 || hadInstallments ? { installments } : {}),
             });
             onOpenChange(false);
@@ -264,312 +423,409 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         }
     }
 
-    const previewSrc = drivePreviewUrl(form.invoiceUrl);
+    const emptyPreviewLabel =
+        readOnly && !hasR2 && !file
+            ? 'Sin archivo en BOhub'
+            : hasR2
+              ? 'No se pudo cargar el archivo'
+              : 'Adjunta el archivo para verlo en BOhub';
+
+    // Single file block: top of form. View = download only (no input). Hide entirely if view && !R2.
+    const showFileBlock = !readOnly || hasR2;
+    const fileField = showFileBlock ? (
+        <FormField
+            id="exp-file"
+            label={
+                readOnly
+                    ? 'Justificante'
+                    : hasR2
+                      ? 'Justificante'
+                      : 'Justificante (obligatorio)'
+            }
+            error={readOnly ? undefined : fieldErrors.file}
+            description={
+                readOnly
+                    ? meta.fileName ?? 'Archivo en BOhub'
+                    : hasR2 && !file
+                      ? `${meta.fileName ?? 'Archivo en BOhub'} · puedes reemplazar`
+                      : 'PDF, JPG, PNG o WebP · máx. 10 MB'
+            }
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                {!readOnly ? (
+                    <Input
+                        id="exp-file"
+                        type="file"
+                        accept={FILE_ACCEPT}
+                        onChange={(e) => onFilePicked(e.target.files)}
+                        aria-invalid={!!fieldErrors.file}
+                        disabled={ocrLoading}
+                        className="bg-card file:mr-3 file:cursor-pointer"
+                    />
+                ) : null}
+                {hasR2 && meta.id > 0 ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() =>
+                            void downloadExpenseFile(meta.id, meta.fileName ?? `gasto-${meta.id}`).catch(toastError)
+                        }
+                    >
+                        <Download className="size-4" />
+                        Descargar
+                    </Button>
+                ) : null}
+            </div>
+            {ocrLoading ? <p className="text-xs text-muted-foreground">Leyendo factura con IA…</p> : null}
+            {ocrError ? <p className="text-sm text-amber-500">{ocrError}</p> : null}
+            {file && !ocrLoading && !readOnly ? (
+                <p className="text-xs text-muted-foreground">
+                    Nuevo: <span className="font-medium text-foreground">{file.name}</span>
+                    {hasR2 ? ' (reemplaza al guardar)' : ''}
+                </p>
+            ) : null}
+        </FormField>
+    ) : null;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 className={cn(
                     'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    previewSrc ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
+                    'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]',
                 )}
             >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-                    {previewSrc ? (
-                        <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
-                            <DrivePdfPane url={form.invoiceUrl} className="h-full min-h-0 shadow-lg" />
-                        </div>
-                    ) : null}
-                    <div
-                        className={cn(
-                            'order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2',
-                            previewSrc ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
-                        )}
-                    >
-                <SheetHeader>
-                    <SheetTitle>
-                        {mode === 'add' ? 'Añadir gasto' : mode === 'view' ? 'Ver gasto' : 'Editar gasto'}
-                    </SheetTitle>
-                    <SheetDescription>
-                        {readOnly ? 'Detalle ledger (solo lectura).' : 'Factura recibida / gasto interno.'}
-                    </SheetDescription>
-                </SheetHeader>
-
-                {hydrating ? (
-                    <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
-                        <FormFieldsSkeleton fields={8} />
-                    </div>
-                ) : (
-                <form
-                    id="expense-form"
-                    noValidate
-                    className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
-                    onSubmit={(e) => void handleSubmit(e)}
-                >
-                    <fieldset disabled={readOnly} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
-                    <FormField id="exp-desc" label="Descripción" error={fieldErrors.description}>
-                        <Input
-                            id="exp-desc"
-                            required
-                            maxLength={255}
-                            value={form.description}
-                            onChange={(e) => setField('description', e.target.value)}
-                            aria-invalid={!!fieldErrors.description}
-                            className="bg-card"
+                    <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                        <BillingFilePane
+                            blobUrl={previewUrl}
+                            fileName={previewName}
+                            loading={(previewLoading && !localBlobUrl) || ocrLoading}
+                            emptyLabel={emptyPreviewLabel}
+                            className="h-full min-h-0 shadow-lg"
                         />
-                    </FormField>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField id="exp-recipient" label="Proveedor" error={fieldErrors.recipient}>
-                            <Input
-                                id="exp-recipient"
-                                maxLength={255}
-                                value={form.recipient ?? ''}
-                                onChange={(e) => setField('recipient', e.target.value)}
-                                aria-invalid={!!fieldErrors.recipient}
-                                className="bg-card"
-                            />
-                        </FormField>
-                        <FormField id="exp-cat" label="Categoría" error={fieldErrors.category}>
-                            <Input
-                                id="exp-cat"
-                                value={form.category ?? ''}
-                                onChange={(e) => setField('category', e.target.value)}
-                                maxLength={120}
-                                aria-invalid={!!fieldErrors.category}
-                                className="bg-card"
-                            />
-                        </FormField>
                     </div>
+                    <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2 md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
+                        <SheetHeader className="gap-1 pb-2">
+                            <SheetTitle>
+                                {mode === 'add' ? 'Añadir gasto' : mode === 'view' ? 'Ver gasto' : 'Editar gasto'}
+                            </SheetTitle>
+                            <SheetDescription>
+                                {readOnly ? 'Detalle ledger (solo lectura).' : 'Factura recibida / gasto interno.'}
+                            </SheetDescription>
+                        </SheetHeader>
 
-                    {!lockedProjectId && (
-                        <FormField id="exp-project" label="Proyecto" error={fieldErrors.projectId}>
-                            <EntitySelect
-                                id="exp-project"
-                                value={form.projectId ?? null}
-                                onValueChange={(id) => setField('projectId', id)}
-                                items={projects}
-                                allowClear
-                                placeholder="Sin proyecto"
-                                aria-invalid={!!fieldErrors.projectId}
-                            />
-                        </FormField>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField id="exp-base" label="Base" error={fieldErrors.baseAmount}>
-                            <Input
-                                id="exp-base"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                required
-                                value={form.baseAmount}
-                                onChange={(e) => handleBaseChange(e.target.value)}
-                                aria-invalid={!!fieldErrors.baseAmount}
-                                className="bg-card"
-                            />
-                        </FormField>
-                        <FormField id="exp-total" label="Total">
-                            <Input
-                                id="exp-total"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={totalInput}
-                                onChange={(e) => handleTotalChange(e.target.value)}
-                                className="bg-card"
-                            />
-                        </FormField>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField id="exp-iva" label="IVA %" error={fieldErrors.ivaRate}>
-                            <Input
-                                id="exp-iva"
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                max={100}
-                                value={form.ivaRate}
-                                onChange={(e) => {
-                                    setField('ivaRate', e.target.value);
-                                    handleRateChange();
-                                }}
-                                aria-invalid={!!fieldErrors.ivaRate}
-                                className="bg-card"
-                            />
-                        </FormField>
-                        <FormField id="exp-irpf" label="IRPF %" error={fieldErrors.irpfRate}>
-                            <Input
-                                id="exp-irpf"
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                max={100}
-                                value={form.irpfRate}
-                                onChange={(e) => {
-                                    setField('irpfRate', e.target.value);
-                                    handleRateChange();
-                                }}
-                                aria-invalid={!!fieldErrors.irpfRate}
-                                className="bg-card"
-                            />
-                        </FormField>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField id="exp-status" label="Estado" error={fieldErrors.status}>
-                            <AppSelect
-                                id="exp-status"
-                                items={LEDGER_STATUSES.map((status) => ({
-                                    label: LEDGER_STATUS_LABELS[status],
-                                    value: status,
-                                }))}
-                                value={form.status}
-                                onValueChange={(value) => setField('status', value as LedgerStatus)}
-                                aria-invalid={!!fieldErrors.status}
-                            />
-                        </FormField>
-                        <FormField id="exp-date" label="Fecha gasto" error={fieldErrors.expenseDate}>
-                            <Input
-                                id="exp-date"
-                                type="date"
-                                value={form.expenseDate ?? ''}
-                                onChange={(e) => setField('expenseDate', e.target.value)}
-                                aria-invalid={!!fieldErrors.expenseDate}
-                                className="bg-card"
-                            />
-                        </FormField>
-                    </div>
-
-                    <fieldset className="grid gap-3 rounded-lg border border-border p-3">
-                        <legend className="px-1 text-sm font-medium text-foreground">Plazos de pago</legend>
-                        {fieldErrors.installments ? (
-                            <p className="text-sm text-destructive">{fieldErrors.installments}</p>
+                        {isAdd && !readOnly ? (
+                            <div className="flex flex-col gap-2.5 border-b border-border px-4 pb-4 pt-2">
+                                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Modo de alta">
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={createEntry === 'ocr'}
+                                        className={entryChipClass(createEntry === 'ocr')}
+                                        onClick={() => switchCreateEntry('ocr')}
+                                        disabled={saving || ocrLoading}
+                                    >
+                                        Subir archivo (OCR)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={createEntry === 'manual'}
+                                        className={entryChipClass(createEntry === 'manual')}
+                                        onClick={() => switchCreateEntry('manual')}
+                                        disabled={saving || ocrLoading}
+                                    >
+                                        Manual
+                                    </button>
+                                </div>
+                                {createEntry === 'ocr' ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        La IA propone los datos; revísalos antes de guardar.
+                                    </p>
+                                ) : null}
+                            </div>
                         ) : null}
-                        {(form.installments ?? []).length === 0 && (
-                            <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
+
+                        {hydrating ? (
+                            <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4 pt-4">
+                                <FormFieldsSkeleton fields={8} />
+                            </div>
+                        ) : (
+                            <form
+                                id="expense-form"
+                                noValidate
+                                className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4"
+                                onSubmit={(e) => void handleSubmit(e)}
+                            >
+                                {fileField}
+                                <fieldset
+                                    disabled={readOnly || ocrLoading}
+                                    className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0"
+                                >
+                                    <FormField id="exp-desc" label="Descripción" error={fieldErrors.description}>
+                                        <Input
+                                            id="exp-desc"
+                                            required
+                                            maxLength={255}
+                                            value={form.description}
+                                            onChange={(e) => setField('description', e.target.value)}
+                                            aria-invalid={!!fieldErrors.description}
+                                            className="bg-card"
+                                        />
+                                    </FormField>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <FormField id="exp-recipient" label="Proveedor" error={fieldErrors.recipient}>
+                                            <Input
+                                                id="exp-recipient"
+                                                maxLength={255}
+                                                value={form.recipient ?? ''}
+                                                onChange={(e) => setField('recipient', e.target.value)}
+                                                aria-invalid={!!fieldErrors.recipient}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                        <FormField id="exp-cat" label="Categoría" error={fieldErrors.category}>
+                                            <Input
+                                                id="exp-cat"
+                                                value={form.category ?? ''}
+                                                onChange={(e) => setField('category', e.target.value)}
+                                                maxLength={120}
+                                                aria-invalid={!!fieldErrors.category}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                    </div>
+
+                                    {!lockedProjectId && (
+                                        <FormField id="exp-project" label="Proyecto" error={fieldErrors.projectId}>
+                                            <EntitySelect
+                                                id="exp-project"
+                                                value={form.projectId ?? null}
+                                                onValueChange={(id) => setField('projectId', id)}
+                                                items={projects}
+                                                allowClear
+                                                placeholder="Sin proyecto"
+                                                aria-invalid={!!fieldErrors.projectId}
+                                            />
+                                        </FormField>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <FormField id="exp-base" label="Base" error={fieldErrors.baseAmount}>
+                                            <Input
+                                                id="exp-base"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                required
+                                                value={form.baseAmount}
+                                                onChange={(e) => handleBaseChange(e.target.value)}
+                                                aria-invalid={!!fieldErrors.baseAmount}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                        <FormField id="exp-total" label="Total">
+                                            <Input
+                                                id="exp-total"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={totalInput}
+                                                onChange={(e) => handleTotalChange(e.target.value)}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <FormField id="exp-iva" label="IVA %" error={fieldErrors.ivaRate}>
+                                            <Input
+                                                id="exp-iva"
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                max={100}
+                                                value={form.ivaRate}
+                                                onChange={(e) => {
+                                                    const next = e.target.value;
+                                                    setField('ivaRate', next);
+                                                    recalcWithRates(Number(next) || 0, Number(form.irpfRate) || 0);
+                                                }}
+                                                aria-invalid={!!fieldErrors.ivaRate}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                        <FormField id="exp-irpf" label="IRPF %" error={fieldErrors.irpfRate}>
+                                            <Input
+                                                id="exp-irpf"
+                                                type="number"
+                                                step="0.01"
+                                                min={0}
+                                                max={100}
+                                                value={form.irpfRate}
+                                                onChange={(e) => {
+                                                    const next = e.target.value;
+                                                    setField('irpfRate', next);
+                                                    recalcWithRates(Number(form.ivaRate) || 0, Number(next) || 0);
+                                                }}
+                                                aria-invalid={!!fieldErrors.irpfRate}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <FormField id="exp-status" label="Estado" error={fieldErrors.status}>
+                                            <AppSelect
+                                                id="exp-status"
+                                                items={LEDGER_STATUSES.map((status) => ({
+                                                    label: LEDGER_STATUS_LABELS[status],
+                                                    value: status,
+                                                }))}
+                                                value={form.status}
+                                                onValueChange={(value) => setField('status', value as LedgerStatus)}
+                                                aria-invalid={!!fieldErrors.status}
+                                            />
+                                        </FormField>
+                                        <FormField id="exp-date" label="Fecha gasto" error={fieldErrors.expenseDate}>
+                                            <Input
+                                                id="exp-date"
+                                                type="date"
+                                                value={form.expenseDate ?? ''}
+                                                onChange={(e) => setField('expenseDate', e.target.value)}
+                                                aria-invalid={!!fieldErrors.expenseDate}
+                                                className="bg-card"
+                                            />
+                                        </FormField>
+                                    </div>
+
+                                    <fieldset className="grid gap-3 rounded-lg border border-border p-3">
+                                        <legend className="px-1 text-sm font-medium text-foreground">Plazos de pago</legend>
+                                        {fieldErrors.installments ? (
+                                            <p className="text-sm text-destructive">{fieldErrors.installments}</p>
+                                        ) : null}
+                                        {(form.installments ?? []).length === 0 && (
+                                            <p className="text-xs text-muted-foreground">Sin plazos (pago único)</p>
+                                        )}
+                                        {(form.installments ?? []).map((inst, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="grid gap-2 border-t border-border pt-3 first:border-0 first:pt-0"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">Plazo {idx + 1}</span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        onClick={() => removeInstallment(idx)}
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                </div>
+                                                <div className="grid gap-1.5">
+                                                    <Label htmlFor={`inst-${idx}-amt`} className="text-xs">
+                                                        Importe
+                                                    </Label>
+                                                    <Input
+                                                        id={`inst-${idx}-amt`}
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={inst.amount ?? ''}
+                                                        onChange={(e) => updateInstallment(idx, 'amount', e.target.value)}
+                                                        className="h-8 bg-card text-sm"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1.5">
+                                                    <Label htmlFor={`inst-${idx}-date`} className="text-xs">
+                                                        Fecha
+                                                    </Label>
+                                                    <Input
+                                                        id={`inst-${idx}-date`}
+                                                        type="date"
+                                                        value={inst.paidOn ?? ''}
+                                                        onChange={(e) => updateInstallment(idx, 'paidOn', e.target.value)}
+                                                        className="h-8 bg-card text-sm"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1.5">
+                                                    <Label htmlFor={`inst-${idx}-method`} className="text-xs">
+                                                        Método
+                                                    </Label>
+                                                    <AppSelect
+                                                        id={`inst-${idx}-method`}
+                                                        items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
+                                                        value={inst.method ?? 'Transferencia Bancaria'}
+                                                        onValueChange={(value) => updateInstallment(idx, 'method', value)}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={addInstallment}
+                                            className="w-full"
+                                        >
+                                            <Plus />
+                                            Añadir plazo
+                                        </Button>
+                                    </fieldset>
+
+                                    <FormField id="exp-notes" label="Notas" error={fieldErrors.notes}>
+                                        <Textarea
+                                            id="exp-notes"
+                                            value={form.notes ?? ''}
+                                            onChange={(e) => setField('notes', e.target.value)}
+                                            aria-invalid={!!fieldErrors.notes}
+                                            rows={3}
+                                            className="bg-card"
+                                        />
+                                    </FormField>
+                                </fieldset>
+                            </form>
                         )}
-                        {(form.installments ?? []).map((inst, idx) => (
-                            <div key={idx} className="grid gap-2 border-t border-border pt-3 first:border-0 first:pt-0">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted-foreground">Plazo {idx + 1}</span>
+
+                        <SheetFooter>
+                            {readOnly ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="cursor-pointer"
+                                    onClick={() => onOpenChange(false)}
+                                    disabled={hydrating}
+                                >
+                                    Cerrar
+                                </Button>
+                            ) : (
+                                <>
                                     <Button
                                         type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        onClick={() => removeInstallment(idx)}
+                                        variant="outline"
+                                        className="cursor-pointer"
+                                        onClick={() => onOpenChange(false)}
+                                        disabled={hydrating || saving || ocrLoading}
                                     >
-                                        <Trash2 className="size-4" />
+                                        Cancelar
                                     </Button>
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor={`inst-${idx}-amt`} className="text-xs">
-                                        Importe
-                                    </Label>
-                                    <Input
-                                        id={`inst-${idx}-amt`}
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={inst.amount ?? ''}
-                                        onChange={(e) => updateInstallment(idx, 'amount', e.target.value)}
-                                        className="h-8 bg-card text-sm"
-                                    />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor={`inst-${idx}-date`} className="text-xs">
-                                        Fecha
-                                    </Label>
-                                    <Input
-                                        id={`inst-${idx}-date`}
-                                        type="date"
-                                        value={inst.paidOn ?? ''}
-                                        onChange={(e) => updateInstallment(idx, 'paidOn', e.target.value)}
-                                        className="h-8 bg-card text-sm"
-                                    />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor={`inst-${idx}-method`} className="text-xs">
-                                        Método
-                                    </Label>
-                                    <AppSelect
-                                        id={`inst-${idx}-method`}
-                                        items={PAYMENT_METHODS.map((m) => ({ label: m, value: m }))}
-                                        value={inst.method ?? 'Transferencia Bancaria'}
-                                        onValueChange={(value) => updateInstallment(idx, 'method', value)}
-                                        className="h-8 text-sm"
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={addInstallment} className="w-full">
-                            <Plus />
-                            Añadir plazo
-                        </Button>
-                    </fieldset>
-
-                    <FormField id="exp-drive" label="URL Drive" error={fieldErrors.invoiceUrl}>
-                        <Input
-                            id="exp-drive"
-                            type="text"
-                            inputMode="url"
-                            placeholder="https://drive.google.com/file/d/…/view"
-                            value={form.invoiceUrl ?? ''}
-                            onChange={(e) => setField('invoiceUrl', e.target.value)}
-                            aria-invalid={!!fieldErrors.invoiceUrl}
-                            className="bg-card"
-                        />
-                    </FormField>
-
-                    <FormField id="exp-notes" label="Notas" error={fieldErrors.notes}>
-                        <Textarea
-                            id="exp-notes"
-                            value={form.notes ?? ''}
-                            onChange={(e) => setField('notes', e.target.value)}
-                            aria-invalid={!!fieldErrors.notes}
-                            rows={3}
-                            className="bg-card"
-                        />
-                    </FormField>
-                    </fieldset>
-                </form>
-                )}
-
-                <SheetFooter>
-                    {readOnly ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="cursor-pointer"
-                            onClick={() => onOpenChange(false)}
-                            disabled={hydrating}
-                        >
-                            Cerrar
-                        </Button>
-                    ) : (
-                        <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="cursor-pointer"
-                                onClick={() => onOpenChange(false)}
-                                disabled={hydrating || saving}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="submit"
-                                form="expense-form"
-                                className="cursor-pointer"
-                                disabled={hydrating || saving}
-                            >
-                                {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
-                            </Button>
-                        </>
-                    )}
-                </SheetFooter>
+                                    <Button
+                                        type="submit"
+                                        form="expense-form"
+                                        className="cursor-pointer"
+                                        disabled={hydrating || saving || ocrLoading}
+                                    >
+                                        {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
+                                    </Button>
+                                </>
+                            )}
+                        </SheetFooter>
                     </div>
                 </div>
             </SheetContent>
