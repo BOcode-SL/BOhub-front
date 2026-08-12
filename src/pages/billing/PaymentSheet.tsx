@@ -32,13 +32,13 @@ import {
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
+import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
 import { BillingFilePane } from '@/pages/billing/BillingFilePane';
+import { BillingTotalsCard } from '@/pages/billing/BillingTotalsCard';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
-
-const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 const empty: PaymentInput = {
     projectId: null,
@@ -650,25 +650,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     </fieldset>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <FormField id="pay-base" label="Base" error={fieldErrors.baseAmount} description="Σ neto líneas">
-                            <Input
-                                id="pay-base"
-                                readOnly
-                                value={basePreview.toFixed(2)}
-                                className="bg-muted"
-                            />
-                        </FormField>
-                        <FormField id="pay-total" label="Total">
-                            <Input
-                                id="pay-total"
-                                readOnly
-                                value={totalPreview.toFixed(2)}
-                                className="bg-muted"
-                            />
-                        </FormField>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
                         <FormField id="pay-iva" label="IVA %" error={fieldErrors.ivaRate}>
                             <Input
                                 id="pay-iva"
@@ -698,9 +679,13 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             />
                         </FormField>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        IVA {formatMoney(ivaAmt)} · IRPF {formatMoney(irpfAmt)}
-                    </p>
+
+                    <BillingTotalsCard
+                        base={basePreview}
+                        iva={ivaAmt}
+                        irpf={irpfAmt}
+                        total={totalPreview}
+                    />
 
                     <div className="grid grid-cols-2 gap-3">
                         <FormField id="pay-status" label="Estado" error={fieldErrors.status}>
@@ -823,25 +808,21 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             description={
                                 archived && !attachFile
                                     ? archive.fileName ?? 'Archivo en BOhub'
-                                    : 'PDF, JPG, PNG o WebP · máx. 10 MB. Se sube al guardar.'
+                                    : undefined
                             }
                         >
-                            <Input
+                            <BillingFileDropzone
                                 id="pay-file"
-                                type="file"
-                                accept={FILE_ACCEPT}
-                                onChange={(e) => {
-                                    setAttachFile(e.target.files?.[0] ?? null);
+                                fileName={attachFile?.name ?? null}
+                                invalid={!!fieldErrors.file}
+                                onFile={(f) => {
+                                    setAttachFile(f);
                                     clearFieldError('file');
                                 }}
-                                aria-invalid={!!fieldErrors.file}
-                                className="bg-card file:mr-3 file:cursor-pointer"
+                                emptyHint="PDF, JPG, PNG o WebP · máx. 10 MB · se sube al guardar"
                             />
-                            {attachFile ? (
-                                <p className="text-xs text-muted-foreground">
-                                    Nuevo: <span className="font-medium text-foreground">{attachFile.name}</span>
-                                    {archived ? ' (reemplaza al guardar)' : ''}
-                                </p>
+                            {attachFile && archived ? (
+                                <p className="text-xs text-muted-foreground">Al guardar reemplaza el archivo en BOhub.</p>
                             ) : null}
                         </FormField>
                     ) : null}

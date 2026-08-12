@@ -29,7 +29,9 @@ import {
 import { ApiError, apiErrorMessage, flattenFieldErrors } from '@/lib/api';
 import { toastError } from '@/lib/toast';
 import { listProjectOptions } from '@/lib/projects';
+import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
 import { BillingFilePane } from '@/pages/billing/BillingFilePane';
+import { BillingTotalsCard } from '@/pages/billing/BillingTotalsCard';
 import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
@@ -49,8 +51,6 @@ const empty: ExpenseInput = {
     notes: '',
     installments: [],
 };
-
-const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 const entryChipClass = (active: boolean) =>
     cn(
@@ -114,6 +114,12 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     const previewUrl = localBlobUrl ?? remoteBlobUrl;
     const previewName = file?.name ?? meta.fileName ?? null;
     const isAdd = mode === 'add';
+    const baseAmt = Number(form.baseAmount) || 0;
+    const ivaRateN = Number(form.ivaRate) || 0;
+    const irpfRateN = Number(form.irpfRate) || 0;
+    const ivaAmt = Math.round(((baseAmt * ivaRateN) / 100) * 100) / 100;
+    const irpfAmt = Math.round(((baseAmt * irpfRateN) / 100) * 100) / 100;
+    const totalAmt = Number(totalInput) || 0;
 
     useEffect(() => {
         if (!open || lockedProjectId) return;
@@ -297,8 +303,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
         setLastEdited('base');
     }
 
-    function onFilePicked(list: FileList | null) {
-        const next = list?.[0] ?? null;
+    function onFilePicked(next: File | null) {
         setFile(next);
         clearFieldError('file');
         setOcrError(null);
@@ -448,19 +453,22 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                     ? meta.fileName ?? 'Archivo en BOhub'
                     : hasR2 && !file
                       ? `${meta.fileName ?? 'Archivo en BOhub'} · puedes reemplazar`
-                      : 'PDF, JPG, PNG o WebP · máx. 10 MB'
+                      : undefined
             }
         >
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2">
                 {!readOnly ? (
-                    <Input
+                    <BillingFileDropzone
                         id="exp-file"
-                        type="file"
-                        accept={FILE_ACCEPT}
-                        onChange={(e) => onFilePicked(e.target.files)}
-                        aria-invalid={!!fieldErrors.file}
+                        fileName={file?.name ?? null}
                         disabled={ocrLoading}
-                        className="bg-card file:mr-3 file:cursor-pointer"
+                        invalid={!!fieldErrors.file}
+                        onFile={onFilePicked}
+                        emptyHint={
+                            isAdd && createEntry === 'ocr'
+                                ? 'PDF, JPG, PNG o WebP · máx. 10 MB · la IA propone los datos'
+                                : 'PDF, JPG, PNG o WebP · máx. 10 MB'
+                        }
                     />
                 ) : null}
                 {hasR2 && meta.id > 0 ? (
@@ -468,7 +476,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="cursor-pointer"
+                        className="w-fit cursor-pointer"
                         onClick={() =>
                             void downloadExpenseFile(meta.id, meta.fileName ?? `gasto-${meta.id}`).catch(toastError)
                         }
@@ -480,11 +488,8 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
             </div>
             {ocrLoading ? <p className="text-xs text-muted-foreground">Leyendo factura con IA…</p> : null}
             {ocrError ? <p className="text-sm text-amber-500">{ocrError}</p> : null}
-            {file && !ocrLoading && !readOnly ? (
-                <p className="text-xs text-muted-foreground">
-                    Nuevo: <span className="font-medium text-foreground">{file.name}</span>
-                    {hasR2 ? ' (reemplaza al guardar)' : ''}
-                </p>
+            {file && !ocrLoading && !readOnly && hasR2 ? (
+                <p className="text-xs text-muted-foreground">Al guardar reemplaza el archivo en BOhub.</p>
             ) : null}
         </FormField>
     ) : null;
@@ -677,6 +682,8 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                             />
                                         </FormField>
                                     </div>
+
+                                    <BillingTotalsCard base={baseAmt} iva={ivaAmt} irpf={irpfAmt} total={totalAmt} />
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <FormField id="exp-status" label="Estado" error={fieldErrors.status}>
