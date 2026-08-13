@@ -62,4 +62,18 @@ export default defineConfig({
     server: {
         port: 5173,
     },
+    build: {
+        rollupOptions: {
+            output: {
+                // Hostinger serves .mjs as text/plain; worker as .js → application/javascript
+                assetFileNames(info) {
+                    const names = [info.name, ...(info.names ?? []), ...(info.originalFileNames ?? [])]
+                    if (names.some((n) => n?.includes('pdf.worker'))) {
+                        return 'assets/[name]-[hash].js'
+                    }
+                    return 'assets/[name]-[hash][extname]'
+                },
+            },
+        },
+    },
 })

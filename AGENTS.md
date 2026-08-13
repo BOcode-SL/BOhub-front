@@ -99,7 +99,7 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 | `maintenance.ts` | maintenance periods                  |
 | `emails.ts`      | templates, send, messages            |
 | `contracts.ts`   | SES envelopes: CRUD, docs, signers, fields, send, email + pack templates |
-| `pdfJsPreview.ts`| 1 `getDocument`/blob + render page (hub Campos + `/sign`) |
+| `pdfJsPreview.ts`| 1 `getDocument`/blob + render page (hub Campos + `/sign`); worker emit `.js` (Hostinger `.mjs` = text/plain) |
 | `contractSign.ts`| Público `/api/sign/*` (`credentials: 'omit'`) |
 
 Prefer extending these over new ad-hoc `fetch` calls.
