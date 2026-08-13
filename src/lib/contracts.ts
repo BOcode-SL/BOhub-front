@@ -52,6 +52,7 @@ export const CONTRACT_EVENT_LABELS: Record<string, string> = {
     reminded: 'Recordatorio',
     cancelled: 'Cancelado',
     expired: 'Caducado',
+    pack_sent: 'Pack enviado',
 };
 
 export type ContractClient = { id: number; name: string };
@@ -382,6 +383,21 @@ export async function updateContractEmailTemplate(input: {
     description?: string | null;
 }): Promise<EmailTemplate> {
     return request<EmailTemplate>('/api/contracts/email-template', {
+        method: 'PUT',
+        body: input,
+    });
+}
+
+export async function getContractPackEmailTemplate(signal?: AbortSignal): Promise<EmailTemplate> {
+    return request<EmailTemplate>('/api/contracts/pack-email-template', { signal });
+}
+
+export async function updateContractPackEmailTemplate(input: {
+    subject: string;
+    htmlBody: string;
+    description?: string | null;
+}): Promise<EmailTemplate> {
+    return request<EmailTemplate>('/api/contracts/pack-email-template', {
         method: 'PUT',
         body: input,
     });

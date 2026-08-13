@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, lazy, Suspense } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Download, FilePen, Plus, Trash2 } from 'lucide-react';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -19,6 +19,7 @@ import {
     CONTRACT_STATUS_LABELS,
     addSigner,
     cancelContract,
+    deleteContract,
     deleteDocument,
     deleteSigner,
     downloadContractPack,
@@ -71,6 +72,7 @@ function formatWhen(iso: string | null | undefined): string {
 
 export function ContractDetailPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const contractId = Number(id);
     const [contract, setContract] = useState<Contract | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
@@ -89,7 +91,7 @@ export function ContractDetailPage() {
     const [fieldsDirty, setFieldsDirty] = useState(false);
     const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
     const [selectedSignerId, setSelectedSignerId] = useState<number | null>(null);
-    const [confirm, setConfirm] = useState<'send' | 'cancel' | null>(null);
+    const [confirm, setConfirm] = useState<'send' | 'cancel' | 'delete' | null>(null);
 
     const draft = contract ? isDraft(contract.status) : false;
     usePageCrumb(contract?.title);
@@ -388,6 +390,20 @@ export function ContractDetailPage() {
         }
     }
 
+    async function handleDelete() {
+        if (!contract) return;
+        setSaving(true);
+        try {
+            await deleteContract(contract.id);
+            toastSuccess('Contrato eliminado');
+            navigate('/dashboard/contracts');
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setSaving(false);
+        }
+    }
+
     async function handleDownload() {
         if (!contract) return;
         try {
@@ -445,26 +461,31 @@ export function ContractDetailPage() {
                 </p>
             </div>
 
-            {!draft && (
-                <div className="flex flex-wrap gap-2">
-                    {(status === 'sent' || status === 'partially_signed') && (
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => void handleRemind()}>
-                            Recordatorio
-                        </Button>
-                    )}
-                    {status !== 'signed' && (
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setConfirm('cancel')}>
-                            Cancelar sobre
-                        </Button>
-                    )}
-                    {status === 'signed' && (
-                        <Button type="button" disabled={saving} onClick={() => void handleDownload()}>
-                            <Download />
-                            Descargar pack
-                        </Button>
-                    )}
-                </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+                {!draft && (
+                    <>
+                        {(status === 'sent' || status === 'partially_signed') && (
+                            <Button type="button" variant="outline" disabled={saving} onClick={() => void handleRemind()}>
+                                Recordatorio
+                            </Button>
+                        )}
+                        {status !== 'signed' && (
+                            <Button type="button" variant="outline" disabled={saving} onClick={() => setConfirm('cancel')}>
+                                Cancelar sobre
+                            </Button>
+                        )}
+                        {status === 'signed' && (
+                            <Button type="button" disabled={saving} onClick={() => void handleDownload()}>
+                                <Download />
+                                Descargar pack
+                            </Button>
+                        )}
+                    </>
+                )}
+                <Button type="button" variant="outline" disabled={saving} onClick={() => setConfirm('delete')}>
+                    Eliminar
+                </Button>
+            </div>
 
             <nav aria-label="Pasos del contrato" className="flex flex-wrap gap-2 border-b border-border pb-3">
                 {STEPS.map((s) => (
@@ -758,11 +779,21 @@ export function ContractDetailPage() {
             <Dialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{confirm === 'send' ? 'Enviar sobre' : 'Cancelar sobre'}</DialogTitle>
+                        <DialogTitle>
+                            {confirm === 'send'
+                                ? 'Enviar sobre'
+                                : confirm === 'delete'
+                                  ? 'Eliminar contrato'
+                                  : 'Cancelar sobre'}
+                        </DialogTitle>
                         <DialogDescription>
                             {confirm === 'send'
                                 ? 'Se enviará el enlace de firma al primer firmante. No podrás editar documentos ni campos.'
-                                : 'Los enlaces de firma dejarán de valer.'}
+                                : confirm === 'delete'
+                                  ? status === 'signed' || status === 'partially_signed'
+                                      ? 'Se borra el pack, las evidencias en R2 y el registro. No se puede deshacer.'
+                                      : `¿Eliminar «${contract.title}»?`
+                                  : 'Los enlaces de firma dejarán de valer.'}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -772,6 +803,10 @@ export function ContractDetailPage() {
                         {confirm === 'send' ? (
                             <Button type="button" disabled={saving} onClick={() => void handleSend()}>
                                 {saving ? 'Enviando…' : 'Enviar'}
+                            </Button>
+                        ) : confirm === 'delete' ? (
+                            <Button type="button" variant="destructive" disabled={saving} onClick={() => void handleDelete()}>
+                                {saving ? 'Eliminando…' : 'Eliminar'}
                             </Button>
                         ) : (
                             <Button type="button" variant="destructive" disabled={saving} onClick={() => void handleCancel()}>

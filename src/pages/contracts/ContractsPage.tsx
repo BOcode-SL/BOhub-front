@@ -263,20 +263,18 @@ export function ContractsPage() {
                                     <TableCell className="hidden md:table-cell">{formatDay(row.expiresAt)}</TableCell>
                                     <TableCell className="hidden md:table-cell">{formatDay(row.sentAt)}</TableCell>
                                     <TableCell onClick={(e) => e.stopPropagation()}>
-                                        {(row.status === 'draft' || row.status === 'cancelled') && (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-xs" />}>
-                                                    <MoreHorizontal />
-                                                    <span className="sr-only">Acciones</span>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem onClick={() => setDeleteTarget(row)}>
-                                                        <Trash2 />
-                                                        Eliminar
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-xs" />}>
+                                                <MoreHorizontal />
+                                                <span className="sr-only">Acciones</span>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem onClick={() => setDeleteTarget(row)}>
+                                                    <Trash2 />
+                                                    Eliminar
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -325,7 +323,11 @@ export function ContractsPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Eliminar contrato</DialogTitle>
-                        <DialogDescription>¿Eliminar «{deleteTarget?.title}»?</DialogDescription>
+                        <DialogDescription>
+                            {deleteTarget?.status === 'signed' || deleteTarget?.status === 'partially_signed'
+                                ? 'Se borra el pack, las evidencias en R2 y el registro. No se puede deshacer.'
+                                : `¿Eliminar «${deleteTarget?.title}»?`}
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
