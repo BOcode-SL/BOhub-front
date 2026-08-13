@@ -19,6 +19,10 @@ import { HomePage } from '@/pages/home/HomePage';
 import { EmailsPage } from '@/pages/emails/EmailsPage';
 import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage';
 import { UsersPage } from '@/pages/users/UsersPage';
+import { ContractsPage } from '@/pages/contracts/ContractsPage';
+import { ContractDetailPage } from '@/pages/contracts/ContractDetailPage';
+import { ContractEmailSettingsPage } from '@/pages/contracts/ContractEmailSettingsPage';
+import { SignContractPage } from '@/pages/sign/SignContractPage';
 
 /** Bookmarks: /app and /app/* → /dashboard/* */
 function LegacyAppRedirect() {
@@ -37,6 +41,8 @@ export default function App() {
                         <Route element={<PublicOnlyRoute />}>
                             <Route path="/login" element={<LoginPage />} />
                         </Route>
+
+                        <Route path="/sign/:token" element={<SignContractPage />} />
 
                         <Route element={<ProtectedRoute />}>
                             <Route path="/dashboard" element={<AppLayout />}>
@@ -60,6 +66,9 @@ export default function App() {
                                 <Route element={<AdminRoute />}>
                                     <Route path="emails" element={<EmailsPage />} />
                                     <Route path="emails/messages" element={<EmailMessagesPage />} />
+                                    <Route path="contracts" element={<ContractsPage />} />
+                                    <Route path="contracts/settings" element={<ContractEmailSettingsPage />} />
+                                    <Route path="contracts/:id" element={<ContractDetailPage />} />
                                     <Route path="users" element={<UsersPage />} />
                                 </Route>
                             </Route>

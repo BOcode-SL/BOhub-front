@@ -35,7 +35,7 @@ src/
   lib/                    # API clients (one file per domain)
   pages/
     home/                 # dashboard home (reference UI)
-    clients|projects|billing|timer|emails|maintenance|users/
+    clients|projects|billing|timer|emails|contracts|sign|maintenance|users/
   index.css               # design tokens
 ```
 
@@ -44,6 +44,7 @@ src/
 | Path                          | Page                                        | Roles           |
 | ----------------------------- | ------------------------------------------- | --------------- |
 | `/login`                      | Login                                       | public          |
+| `/sign/:token`                | Firma SES (sin login, sin CSRF)             | public          |
 | `/dashboard`                  | Home (widgets + charts)                     | admin, employee |
 | `/dashboard/clients`          | Clients CRUD                                | admin, employee |
 | `/dashboard/projects`         | Projects list                               | admin, employee |
@@ -56,6 +57,9 @@ src/
 | `/dashboard/timer`            | Live timer + Mis horas / Equipo / Analytics | admin, employee |
 | `/dashboard/emails`           | Templates                                   | admin           |
 | `/dashboard/emails/messages`  | Sent + scheduled (tabs)                     | admin           |
+| `/dashboard/contracts`        | Contratos SES lista                         | admin           |
+| `/dashboard/contracts/settings` | Plantilla email solicitud de firma        | admin           |
+| `/dashboard/contracts/:id`    | Wizard / detalle sobre (PDFs, firmantes, campos) | admin      |
 | `/dashboard/users`            | Users CRUD                                  | admin           |
 | `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
 
@@ -94,6 +98,8 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 | `time.ts`        | month bounds, formatHours, colors    |
 | `maintenance.ts` | maintenance periods                  |
 | `emails.ts`      | templates, send, messages            |
+| `contracts.ts`   | SES envelopes: CRUD, docs, signers, fields, send, email template |
+| `contractSign.ts`| Público `/api/sign/*` (`credentials: 'omit'`) |
 
 Prefer extending these over new ad-hoc `fetch` calls.
 
@@ -104,6 +110,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.
 - **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled. Plantilla de factura también editable desde Billing (billing role) sin abrir `/emails`.
+- **Contracts (SES)**: admin only. Lista + detalle wizard (datos → PDFs → firmantes → editor pdfjs drag % top-left → enviar). Plantilla email `/dashboard/contracts/settings`. Público `/sign/:token` (ruta fuera de `ProtectedRoute`; fetch sin cookie). Employee/billing no ven nav.
 
 ## Conventions for agents
 

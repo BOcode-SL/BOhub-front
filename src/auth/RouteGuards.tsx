@@ -33,7 +33,7 @@ export function PublicOnlyRoute() {
     return <Outlet />;
 }
 
-/** Emails + Usuarios — admin only. */
+/** Emails + Usuarios + Contratos — admin only. */
 export function AdminRoute() {
     const { user, loading } = useAuth();
 
