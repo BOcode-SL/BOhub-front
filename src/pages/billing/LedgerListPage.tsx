@@ -740,7 +740,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                 Enviar al cliente
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {(!invoiceActions || row.status === 'draft') && (
+                                                        {(!invoiceActions ||
+                                                            row.status === 'draft' ||
+                                                            isPaymentWithoutInvoice(row)) && (
                                                             <DropdownMenuItem
                                                                 variant="destructive"
                                                                 className="cursor-pointer"
@@ -898,7 +900,12 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{deleteTitle}</DialogTitle>
-                        <DialogDescription>Soft delete del registro ledger.</DialogDescription>
+                        <DialogDescription>
+                            Soft delete del registro ledger.
+                            {invoiceActions && deleteTarget && isPaymentWithoutInvoice(deleteTarget)
+                                ? ' No hay factura legal ni PDF que anular.'
+                                : null}
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button
