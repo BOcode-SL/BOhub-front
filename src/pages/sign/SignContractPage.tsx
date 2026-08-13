@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,8 @@ export function SignContractPage() {
     const [declineOpen, setDeclineOpen] = useState(false);
     const [declineReason, setDeclineReason] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const sheetRef = useRef<HTMLDivElement>(null);
+    const [sheetH, setSheetH] = useState(56);
 
     const markReadToEnd = useCallback(() => setHasReadToEnd(true), []);
 
@@ -147,6 +149,17 @@ export function SignContractPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token, screen, docIdsKey]);
 
+    useEffect(() => {
+        if (screen !== 'ready') return;
+        const el = sheetRef.current;
+        if (!el) return;
+        const apply = () => setSheetH(Math.ceil(el.getBoundingClientRect().height));
+        apply();
+        const ro = new ResizeObserver(apply);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [screen, hasReadToEnd]);
+
     const allFilled = !!meta && meta.fields.every((f) => fieldFilled(f, values[f.id]));
     const hasSignatureFields = !!meta && meta.fields.some((f) => f.type === 'signature');
 
@@ -214,7 +227,7 @@ export function SignContractPage() {
     return (
         <main className="min-h-screen bg-[#1a1d1e] text-foreground">
             <header className="border-b border-border px-4 py-4">
-                <div className="mx-auto flex max-w-4xl items-center gap-3">
+                <div className="mx-auto flex max-w-5xl items-center gap-3">
                     <span className="rounded bg-primary px-2 py-0.5 text-xs font-bold tracking-wide text-primary-foreground">
                         BO
                     </span>
@@ -240,13 +253,8 @@ export function SignContractPage() {
             </header>
 
             <div
-                className={
-                    screen === 'ready'
-                        ? hasReadToEnd
-                            ? 'mx-auto max-w-4xl px-4 py-6 pb-[min(90vh,28rem)]'
-                            : 'mx-auto max-w-4xl px-4 py-6 pb-24'
-                        : 'mx-auto max-w-4xl px-4 py-6'
-                }
+                className="mx-auto max-w-5xl px-3 py-6 sm:px-6"
+                style={screen === 'ready' ? { paddingBottom: sheetH + 16 } : undefined}
             >
                 {screen === 'loading' && (
                     <p className="text-sm text-muted-foreground">Cargando documento…</p>
@@ -327,24 +335,31 @@ export function SignContractPage() {
             {screen === 'ready' && meta ? (
                 <Sheet open modal={false} disablePointerDismissal onOpenChange={() => {}}>
                     <SheetContent
+                        ref={sheetRef}
                         side="bottom"
                         showOverlay={false}
                         showCloseButton={false}
                         initialFocus={false}
-                        className="max-h-[min(85vh,32rem)] gap-0 overflow-y-auto sm:max-w-none"
+                        className={
+                            hasReadToEnd
+                                ? 'max-h-[min(85vh,32rem)] gap-0 overflow-y-auto sm:max-w-none'
+                                : 'gap-0 py-0 sm:max-w-none'
+                        }
                     >
-                        <SheetHeader>
-                            <SheetTitle className="text-sm font-medium">
-                                Desplázate hasta el final del documento para firmar.
-                            </SheetTitle>
-                            {hasReadToEnd ? (
-                                <SheetDescription>
-                                    Esta firma se usará en todos los campos
-                                </SheetDescription>
-                            ) : null}
-                        </SheetHeader>
-                        {hasReadToEnd ? (
+                        {!hasReadToEnd ? (
+                            <SheetHeader className="py-3">
+                                <SheetTitle className="text-sm font-medium">
+                                    Sigue hasta el final para firmar
+                                </SheetTitle>
+                            </SheetHeader>
+                        ) : (
                             <>
+                                <SheetHeader>
+                                    <SheetTitle className="text-sm font-medium">Tu firma</SheetTitle>
+                                    <SheetDescription>
+                                        Esta firma se usará en todos los campos
+                                    </SheetDescription>
+                                </SheetHeader>
                                 {hasSignatureFields ? (
                                     <div className="px-4">
                                         <SignaturePad onConfirm={applySignature} />
@@ -376,7 +391,7 @@ export function SignContractPage() {
                                     </Button>
                                 </SheetFooter>
                             </>
-                        ) : null}
+                        )}
                     </SheetContent>
                 </Sheet>
             ) : null}

@@ -44,17 +44,17 @@ export function SignPdfViewer({ blobUrls, documents, fields, values, onEndVisibl
                     ))}
                 </nav>
             ) : null}
-            <div ref={containerRef} className="min-w-0 overflow-x-auto rounded-md border border-border bg-muted/20 p-2">
+            <div ref={containerRef} className="min-w-0">
                 {documents.length === 0 ? (
                     <p className="p-8 text-center text-sm text-muted-foreground">Cargando documento…</p>
                 ) : (
-                    <div className="flex flex-col gap-8">
+                    <div className="flex flex-col gap-10">
                         {documents.map((doc, i) => (
                             <SignDocumentPages
                                 key={doc.id}
                                 document={doc}
                                 blobUrl={blobUrls[doc.id] ?? null}
-                                width={width > 16 ? width - 16 : 0}
+                                width={width}
                                 fields={fields.filter((f) => f.documentId === doc.id)}
                                 values={values}
                                 showEndSentinel={blobsReady && i === documents.length - 1}
@@ -106,13 +106,13 @@ function SignDocumentPages({
 
     return (
         <section id={`sign-doc-${document.id}`} className="scroll-mt-4">
-            <h3 className="mb-3 truncate text-sm font-medium text-foreground">{document.fileName}</h3>
+            <h3 className="mb-3 truncate text-xs text-muted-foreground">{document.fileName}</h3>
             {!blobUrl ? (
                 <p className="p-6 text-center text-sm text-muted-foreground">Cargando PDF…</p>
             ) : !pdf || width < 1 ? (
                 <p className="p-6 text-center text-sm text-muted-foreground">Leyendo PDF…</p>
             ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-6">
                     {/* ponytail: all pages off one proxy. If a 50-page envelope lags, IntersectionObserver. */}
                     {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
                         <SignPdfPage
@@ -176,14 +176,19 @@ function SignPdfPage({
 
     return (
         <div className="relative mx-auto" style={{ width }}>
-            <p className="mb-1 text-xs text-muted-foreground">Página {page}</p>
-            <div className="relative" style={{ width, height: cssH || 80 }}>
+            <div
+                className="relative overflow-hidden bg-white shadow-[0_8px_28px_rgba(0,0,0,0.45)]"
+                style={{ width, height: cssH || 80 }}
+            >
+                <span className="pointer-events-none absolute top-2 right-2 z-10 rounded bg-[#1a1d1e]/70 px-1.5 py-0.5 text-[10px] text-white">
+                    {page}
+                </span>
                 {cssH < 1 ? (
                     <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
                         Pintando página {page}…
                     </p>
                 ) : null}
-                <canvas ref={canvasRef} className="block h-full w-full bg-white" />
+                <canvas ref={canvasRef} className="block bg-white" />
                 <div className="absolute inset-0">
                     {fields.map((field) => {
                         const filled = Boolean(values[field.id]?.pngBase64 || values[field.id]?.value);
@@ -223,6 +228,49 @@ function SignPdfPage({
             </div>
         </div>
     );
+}
+
+/** Crop white canvas to ink bbox (+8px CSS pad). Null if no ink. */
+function cropInkToDataUrl(canvas: HTMLCanvasElement): string | null {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w < 1 || h < 1) return null;
+    const { data } = ctx.getImageData(0, 0, w, h);
+    let minX = w;
+    let minY = h;
+    let maxX = -1;
+    let maxY = -1;
+    for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a < 16) continue;
+        if (data[i] > 245 && data[i + 1] > 245 && data[i + 2] > 245) continue;
+        const p = i / 4;
+        const x = p % w;
+        const y = (p / w) | 0;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    }
+    if (maxX < 0) return null;
+    const pad = Math.round(8 * (window.devicePixelRatio || 1));
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(w - 1, maxX + pad);
+    maxY = Math.min(h - 1, maxY + pad);
+    const cw = maxX - minX + 1;
+    const ch = maxY - minY + 1;
+    const out = document.createElement('canvas');
+    out.width = cw;
+    out.height = ch;
+    const octx = out.getContext('2d');
+    if (!octx) return null;
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0, 0, cw, ch);
+    octx.drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out.toDataURL('image/png');
 }
 
 /** Draw signature → PNG data URL. Parent wraps (Sheet). */
@@ -309,10 +357,10 @@ export function SignaturePad({ onConfirm }: { onConfirm: (dataUrl: string) => vo
     }
 
     return (
-        <div>
+        <div className="mx-auto w-full max-w-lg">
             <canvas
                 ref={canvasRef}
-                className="h-32 w-full touch-none rounded-md border border-border bg-white sm:h-40"
+                className="mx-auto h-36 w-full touch-none rounded-md border border-border bg-white sm:h-40"
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -331,7 +379,9 @@ export function SignaturePad({ onConfirm }: { onConfirm: (dataUrl: string) => vo
                     className="cursor-pointer rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
                     disabled={!hasInk}
                     onClick={() => {
-                        const dataUrl = canvasRef.current?.toDataURL('image/png');
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+                        const dataUrl = cropInkToDataUrl(canvas);
                         if (dataUrl) onConfirm(dataUrl);
                     }}
                 >

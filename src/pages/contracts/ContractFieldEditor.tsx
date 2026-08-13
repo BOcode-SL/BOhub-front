@@ -404,7 +404,7 @@ function PdfPage({
                         Pintando página {page}…
                     </p>
                 ) : null}
-                <canvas ref={canvasRef} className="block h-full w-full bg-white" />
+                <canvas ref={canvasRef} className="block bg-white" />
                 <div
                     className={cn('absolute inset-0', canPlace ? 'cursor-crosshair' : 'cursor-default')}
                     onClick={(e) => {

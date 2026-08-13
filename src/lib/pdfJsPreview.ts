@@ -41,16 +41,21 @@ export async function renderPdfPage(
     pdf: PDFDocumentProxy,
     pageNumber: number,
     canvas: HTMLCanvasElement,
-    width: number,
+    cssWidth: number,
 ): Promise<{ height: number; task: RenderTask }> {
     const pdfPage = await pdf.getPage(pageNumber);
     const unscaled = pdfPage.getViewport({ scale: 1 });
-    const scale = width / unscaled.width;
+    // ponytail: cap 2 — a 50-page envelope at 3× DPR would thrash
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scale = (cssWidth / unscaled.width) * dpr;
     const viewport = pdfPage.getViewport({ scale });
     canvas.width = Math.floor(viewport.width);
     canvas.height = Math.floor(viewport.height);
+    const cssHeight = viewport.height / dpr;
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
     const task = pdfPage.render({ canvas, viewport });
-    return { height: viewport.height, task };
+    return { height: cssHeight, task };
 }
 
 export function isRenderCancelled(err: unknown): boolean {
