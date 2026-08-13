@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
     ChevronLeft,
     ChevronRight,
+    CircleCheck,
     Download,
     Eye,
     FileWarning,
@@ -33,7 +34,9 @@ import {
     downloadPaymentInvoice,
     formatMoney,
     isPaymentIssued,
+    isPaymentWithoutInvoice,
     type InvoiceFilter,
+    type InvoiceMode,
     type PayrollStatus,
     type BillingMeta,
     type LedgerStatus,
@@ -42,6 +45,7 @@ import { toastError, toastSuccess } from '@/lib/toast';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
+import { ConfirmWithoutInvoiceDialog } from '@/pages/billing/ConfirmWithoutInvoiceDialog';
 import { SendInvoiceDialog } from '@/pages/billing/SendInvoiceDialog';
 import { useAuth } from '@/auth/AuthContext';
 import { cn } from '@/lib/utils';
@@ -64,6 +68,7 @@ export type LedgerRowBase = {
     status: LedgerStatus;
     invoiceUrl: string | null;
     invoiceNumber?: string | null;
+    invoiceMode?: InvoiceMode;
     lastPaymentDate?: string | null;
     paymentDate?: string | null;
     /** Gastos (y list ingresos): R2 key; null/empty = sin archivo */
@@ -143,6 +148,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [deleteTarget, setDeleteTarget] = useState<TRow | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [emitTarget, setEmitTarget] = useState<TRow | null>(null);
+    const [confirmNoInvTarget, setConfirmNoInvTarget] = useState<TRow | null>(null);
     const [sendTarget, setSendTarget] = useState<TRow | null>(null);
     const [pdfBusyId, setPdfBusyId] = useState<number | null>(null);
 
@@ -567,7 +573,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     ) : invoiceActions ? (
                                         <>
                                             <TableCell className="font-mono text-foreground whitespace-nowrap">
-                                                {row.invoiceNumber?.trim() || '—'}
+                                                {isPaymentWithoutInvoice(row)
+                                                    ? '—'
+                                                    : row.invoiceNumber?.trim() || '—'}
                                             </TableCell>
                                             <TableCell className="text-muted-foreground whitespace-nowrap">
                                                 {rowDate(row) || '—'}
@@ -581,7 +589,17 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             <TableCell>
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <LedgerStatusBadge status={row.status} />
-                                                    {isPaymentIssued(row.status) && !row.storageKey?.trim() ? (
+                                                    {isPaymentWithoutInvoice(row) ? (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-transparent bg-muted font-normal text-muted-foreground"
+                                                        >
+                                                            Sin factura
+                                                        </Badge>
+                                                    ) : null}
+                                                    {isPaymentIssued(row.status) &&
+                                                    !isPaymentWithoutInvoice(row) &&
+                                                    !row.storageKey?.trim() ? (
                                                         <Badge
                                                             variant="outline"
                                                             className="border-transparent bg-amber-500/15 font-normal text-amber-300"
@@ -670,7 +688,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                             <Pencil />
                                                             Editar
                                                         </DropdownMenuItem>
-                                                        {invoiceActions && row.status === 'draft' ? (
+                                                        {invoiceActions && row.status === 'draft' && !isPaymentWithoutInvoice(row) ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 onClick={() => setEmitTarget(row)}
@@ -679,7 +697,17 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                 Emitir factura
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {invoiceActions ? (
+                                                        {invoiceActions && row.status === 'draft' ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                onClick={() => setConfirmNoInvTarget(row)}
+                                                            >
+                                                                <CircleCheck />
+                                                                Confirmar cobro (sin factura)
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        {invoiceActions &&
+                                                        !(isPaymentWithoutInvoice(row) && isPaymentIssued(row.status)) ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 disabled={pdfBusyId === row.id}
@@ -690,7 +718,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                     ? 'Descargar PDF'
                                                                     : 'Vista borrador PDF'}
                                                             </DropdownMenuItem>
-                                                        ) : row.storageKey?.trim() ? (
+                                                        ) : null}
+                                                        {invoiceActions ? null : row.storageKey?.trim() ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 disabled={pdfBusyId === row.id}
@@ -700,7 +729,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                 Descargar PDF
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {invoiceActions && isPaymentIssued(row.status) ? (
+                                                        {invoiceActions &&
+                                                        isPaymentIssued(row.status) &&
+                                                        !isPaymentWithoutInvoice(row) ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 onClick={() => setSendTarget(row)}
@@ -733,7 +764,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                             <Eye />
                                                             Ver
                                                         </DropdownMenuItem>
-                                                        {invoiceActions ? (
+                                                        {invoiceActions &&
+                                                        !(isPaymentWithoutInvoice(row) && isPaymentIssued(row.status)) ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 disabled={pdfBusyId === row.id}
@@ -807,7 +839,10 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 onSubmit: handleSave,
                 onReload: reload,
                 onSendInvoice:
-                    invoiceActions && editing && isPaymentIssued(editing.status)
+                    invoiceActions &&
+                    editing &&
+                    isPaymentIssued(editing.status) &&
+                    !isPaymentWithoutInvoice(editing)
                         ? () => setSendTarget(editing)
                         : undefined,
             })}
@@ -821,6 +856,20 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     }}
                     onEmitted={() => {
                         setEmitTarget(null);
+                        reload();
+                    }}
+                />
+            ) : null}
+
+            {invoiceActions ? (
+                <ConfirmWithoutInvoiceDialog
+                    open={Boolean(confirmNoInvTarget)}
+                    payment={(confirmNoInvTarget as Payment | null) ?? null}
+                    onOpenChange={(o) => {
+                        if (!o) setConfirmNoInvTarget(null);
+                    }}
+                    onConfirmed={() => {
+                        setConfirmNoInvTarget(null);
                         reload();
                     }}
                 />

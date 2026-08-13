@@ -294,6 +294,24 @@ export function TimerAnalytics({ above }: Props) {
                                                 const row = payload?.[0]?.payload as { dayKey?: string } | undefined;
                                                 return row?.dayKey ?? '';
                                             }}
+                                            formatter={(value, name, item) => {
+                                                const hours = typeof value === 'number' ? value : Number(value);
+                                                const sec = Math.round((Number.isFinite(hours) ? hours : 0) * 3600);
+                                                return (
+                                                    <div className="flex w-full flex-wrap items-center gap-2">
+                                                        <div
+                                                            className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                                            style={{ backgroundColor: item.color }}
+                                                        />
+                                                        <div className="flex flex-1 items-center justify-between gap-4 leading-none">
+                                                            <span className="text-muted-foreground">{name}</span>
+                                                            <span className="font-mono font-medium text-foreground tabular-nums">
+                                                                {formatHoursFromSeconds(sec)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
                                         />
                                     }
                                 />

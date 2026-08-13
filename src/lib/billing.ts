@@ -51,6 +51,8 @@ export type PaymentLine = {
     sortOrder?: number;
 };
 
+export type InvoiceMode = 'legal' | 'none';
+
 export type Payment = {
     id: number;
     projectId: number | null;
@@ -65,6 +67,8 @@ export type Payment = {
     lastPaymentDate?: string | null;
     reference: string | null;
     invoiceNumber: string | null;
+    /** legal = factura; none = cobro sin factura */
+    invoiceMode?: InvoiceMode;
     invoiceUrl: string | null;
     project?: BillingProject | null;
     notes?: string | null;
@@ -94,6 +98,7 @@ export type PaymentInput = {
     externalSystem?: string | null;
     externalInvoiceId?: string | null;
     invoiceNumber?: string | null;
+    invoiceMode?: InvoiceMode;
     externalUrl?: string | null;
     invoiceUrl?: string | null;
     fileName?: string | null;
@@ -460,6 +465,17 @@ export async function emitPayment(id: number): Promise<Payment> {
     return request<Payment>(`/api/payments/${id}/emit`, { method: 'POST' });
 }
 
+/** Draft → pending without invoice number / PDF. */
+export async function confirmPaymentWithoutInvoice(id: number): Promise<Payment> {
+    return request<Payment>(`/api/payments/${id}/confirm-without-invoice`, { method: 'POST' });
+}
+
+export function isPaymentWithoutInvoice(
+    p: Pick<Payment, 'invoiceMode'> | null | undefined,
+): boolean {
+    return p?.invoiceMode === 'none';
+}
+
 /** Attach / replace invoice file on R2 (non-draft only). */
 export async function attachPaymentInvoice(id: number, file: File): Promise<Payment> {
     const fd = new FormData();
@@ -530,12 +546,13 @@ export async function downloadPaymentInvoice(id: number): Promise<void> {
     URL.revokeObjectURL(url);
 }
 
-export const INVOICE_FILTERS = ['draft', 'issued', 'no_number'] as const;
+export const INVOICE_FILTERS = ['draft', 'issued', 'no_invoice', 'no_number'] as const;
 export type InvoiceFilter = (typeof INVOICE_FILTERS)[number];
 
 export const INVOICE_FILTER_LABELS: Record<InvoiceFilter, string> = {
     draft: 'Borrador',
     issued: 'Emitida',
+    no_invoice: 'Sin factura',
     no_number: 'Sin número',
 };
 

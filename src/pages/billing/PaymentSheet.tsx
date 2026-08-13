@@ -15,6 +15,7 @@ import {
     attachPaymentInvoice,
     calcLineNet,
     calcTotal,
+    confirmPaymentWithoutInvoice,
     downloadPaymentInvoice,
     emptyPaymentLine,
     fetchPaymentInvoiceBlob,
@@ -22,8 +23,10 @@ import {
     getPayment,
     hasArchivedInvoice,
     isPaymentIssued,
+    isPaymentWithoutInvoice,
     sumLineNets,
     type Installment,
+    type InvoiceMode,
     type LedgerStatus,
     type Payment,
     type PaymentInput,
@@ -36,6 +39,7 @@ import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
 import { BillingFilePane } from '@/pages/billing/BillingFilePane';
 import { BillingTotalsCard } from '@/pages/billing/BillingTotalsCard';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 type ProjectOpt = { id: number; name: string };
@@ -46,6 +50,7 @@ const empty: PaymentInput = {
     ivaRate: 21,
     irpfRate: 0,
     status: 'draft',
+    invoiceMode: 'legal',
     paymentMethod: 'Transferencia Bancaria',
     invoiceDate: '',
     paymentDate: '',
@@ -63,6 +68,7 @@ function formSnapshot(f: PaymentInput): string {
         ivaRate: Number(f.ivaRate) || 0,
         irpfRate: Number(f.irpfRate) || 0,
         status: f.status,
+        invoiceMode: f.invoiceMode ?? 'legal',
         paymentMethod: f.paymentMethod ?? null,
         invoiceDate: f.invoiceDate || null,
         paymentDate: f.paymentDate || null,
@@ -102,6 +108,7 @@ function toForm(p: Payment): PaymentInput {
         ivaRate: p.ivaRate ?? 21,
         irpfRate: p.irpfRate ?? 0,
         status: p.status,
+        invoiceMode: p.invoiceMode ?? 'legal',
         paymentMethod: p.paymentMethod ?? 'Transferencia Bancaria',
         invoiceDate: p.invoiceDate ?? '',
         paymentDate: p.paymentDate ?? '',
@@ -141,6 +148,8 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const [hydrating, setHydrating] = useState(false);
     const [invoiceNumber, setInvoiceNumber] = useState<string | null>(null);
     const [emitOpen, setEmitOpen] = useState(false);
+    const [confirmNoInvOpen, setConfirmNoInvOpen] = useState(false);
+    const [confirmNoInvBusy, setConfirmNoInvBusy] = useState(false);
     const [pdfBusy, setPdfBusy] = useState(false);
     const [baseline, setBaseline] = useState('');
     const [attachFile, setAttachFile] = useState<File | null>(null);
@@ -167,6 +176,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         if (!open) return;
         setFieldErrors({});
         setEmitOpen(false);
+        setConfirmNoInvOpen(false);
         setAttachFile(null);
         if (mode === 'add' || !payment) {
             setHydrating(false);
@@ -216,6 +226,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     }, [open, mode, payment, lockedProjectId, onOpenChange]);
 
     const fiscalLocked = isPaymentIssued(form.status);
+    const withoutInvoice = isPaymentWithoutInvoice(form) || isPaymentWithoutInvoice(payment);
     const dirty = !hydrating && baseline !== '' && formSnapshot(form) !== baseline;
     const paymentId = mode !== 'add' ? payment?.id : undefined;
     const archived = hasArchivedInvoice(archive);
@@ -226,6 +237,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     const ivaAmt = Math.round(((basePreview * ivaRate) / 100) * 100) / 100;
     const irpfAmt = Math.round(((basePreview * irpfRate) / 100) * 100) / 100;
     const totalPreview = calcTotal(basePreview, ivaRate, irpfRate);
+    const invoiceMode = (form.invoiceMode ?? 'legal') as InvoiceMode;
 
     useEffect(() => {
         if (!attachFile) {
@@ -420,6 +432,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 ivaRate: Number(form.ivaRate) || 0,
                 irpfRate: Number(form.irpfRate) || 0,
                 status: 'draft',
+                invoiceMode: form.invoiceMode ?? 'legal',
                 paymentMethod: form.paymentMethod?.toString().trim() || null,
                 invoiceDate: form.invoiceDate?.toString().trim() || null,
                 paymentDate: form.paymentDate?.toString().trim() || null,
@@ -446,8 +459,37 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
 
     const previewUrl = localBlobUrl ?? remoteBlobUrl;
     const previewName = attachFile?.name ?? archive.fileName ?? (fiscalLocked ? null : 'Borrador.pdf');
-    const showPreviewPane = Boolean(paymentId);
-    const canDownloadPdf = Boolean(paymentId) && (!fiscalLocked || archived);
+    const showPreviewPane = Boolean(paymentId) && !(fiscalLocked && withoutInvoice);
+    const canDownloadPdf =
+        Boolean(paymentId) && !withoutInvoice && (!fiscalLocked || archived);
+
+    async function handleConfirmWithoutInvoice() {
+        if (!paymentId || dirty || confirmNoInvBusy) return;
+        setConfirmNoInvBusy(true);
+        try {
+            const confirmed = await confirmPaymentWithoutInvoice(paymentId);
+            setForm((prev) => {
+                const next = {
+                    ...prev,
+                    status: confirmed.status,
+                    invoiceMode: 'none' as const,
+                    invoiceDate: confirmed.invoiceDate ?? prev.invoiceDate,
+                    lines: confirmed.lines ?? prev.lines,
+                };
+                setBaseline(formSnapshot(next));
+                return next;
+            });
+            setInvoiceNumber(confirmed.invoiceNumber);
+            setArchive(archiveMeta(confirmed));
+            setConfirmNoInvOpen(false);
+            toastSuccess('Cobro confirmado (sin factura)');
+            onEmitted?.(confirmed);
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setConfirmNoInvBusy(false);
+        }
+    }
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -722,12 +764,27 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </FormField>
                     </div>
 
+                    {!fiscalLocked ? (
+                        <FormField id="pay-inv-mode" label="Tipo de cobro" error={fieldErrors.invoiceMode}>
+                            <AppSelect
+                                id="pay-inv-mode"
+                                items={[
+                                    { label: 'Factura', value: 'legal' },
+                                    { label: 'Sin factura', value: 'none' },
+                                ]}
+                                value={invoiceMode}
+                                onValueChange={(value) => setField('invoiceMode', value as InvoiceMode)}
+                                aria-invalid={!!fieldErrors.invoiceMode}
+                            />
+                        </FormField>
+                    ) : null}
+
                     {fiscalLocked && (
-                        <FormField id="pay-inv-num" label="Nº factura">
+                        <FormField id="pay-inv-num" label={withoutInvoice ? 'Factura' : 'Nº factura'}>
                             <Input
                                 id="pay-inv-num"
                                 readOnly
-                                value={invoiceNumber ?? '—'}
+                                value={withoutInvoice ? 'Sin factura' : (invoiceNumber ?? '—')}
                                 className="bg-muted font-mono"
                             />
                         </FormField>
@@ -800,7 +857,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         </Button>
                     </fieldset>
 
-                    {fiscalLocked && !readOnly ? (
+                    {fiscalLocked && !readOnly && !withoutInvoice ? (
                         <FormField
                             id="pay-file"
                             label={archived ? 'PDF factura' : 'Adjuntar PDF (obligatorio para export)'}
@@ -854,7 +911,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             {fiscalLocked ? 'Descargar PDF' : 'Vista borrador PDF'}
                         </Button>
                     ) : null}
-                    {paymentId && fiscalLocked && onSendInvoice ? (
+                    {paymentId && fiscalLocked && onSendInvoice && !withoutInvoice ? (
                         <Button
                             type="button"
                             variant="outline"
@@ -871,18 +928,34 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     ) : null}
                     {!readOnly && paymentId && !fiscalLocked ? (
                         <div className="flex flex-col gap-1">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                className="cursor-pointer"
-                                disabled={hydrating || saving || dirty}
-                                onClick={() => setEmitOpen(true)}
-                            >
-                                <FileWarning />
-                                Emitir factura
-                            </Button>
+                            {invoiceMode === 'none' ? (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="cursor-pointer"
+                                    disabled={hydrating || saving || dirty || confirmNoInvBusy}
+                                    onClick={() => setConfirmNoInvOpen(true)}
+                                >
+                                    <FileWarning />
+                                    Confirmar cobro (sin factura)
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="cursor-pointer"
+                                    disabled={hydrating || saving || dirty}
+                                    onClick={() => setEmitOpen(true)}
+                                >
+                                    <FileWarning />
+                                    Emitir factura
+                                </Button>
+                            )}
                             {dirty ? (
-                                <p className="text-xs text-muted-foreground">Guarda los cambios antes de emitir.</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Guarda los cambios antes de{' '}
+                                    {invoiceMode === 'none' ? 'confirmar.' : 'emitir.'}
+                                </p>
                             ) : null}
                         </div>
                     ) : null}
@@ -941,6 +1014,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                         const next = {
                             ...prev,
                             status: emitted.status,
+                            invoiceMode: emitted.invoiceMode ?? 'legal',
                             invoiceDate: emitted.invoiceDate ?? prev.invoiceDate,
                             lines: emitted.lines ?? prev.lines,
                         };
@@ -953,6 +1027,43 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     onEmitted?.(emitted);
                 }}
             />
+            <Dialog
+                open={confirmNoInvOpen}
+                onOpenChange={(next) => {
+                    if (confirmNoInvBusy) return;
+                    setConfirmNoInvOpen(next);
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmar cobro (sin factura)</DialogTitle>
+                        <DialogDescription>
+                            El ingreso pasará a pendiente sin número de factura ni PDF. Contabiliza en el hub; no se
+                            envía al cliente como factura ni entra en el export de gestoría.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Total: <span className="font-medium text-foreground">{formatMoney(totalPreview)}</span>
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={confirmNoInvBusy}
+                            onClick={() => setConfirmNoInvOpen(false)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={confirmNoInvBusy}
+                            onClick={() => void handleConfirmWithoutInvoice()}
+                        >
+                            {confirmNoInvBusy ? 'Confirmando…' : 'Confirmar cobro (sin factura)'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Sheet>
     );
 }
