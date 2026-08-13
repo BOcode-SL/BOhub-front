@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     getSignDocumentBlob,
@@ -15,7 +22,6 @@ import {
 } from '@/lib/contractSign';
 import type { ContractField } from '@/lib/contracts';
 import { toastError, toastSuccess } from '@/lib/toast';
-import { cn } from '@/lib/utils';
 import { SignPdfViewer, SignaturePad } from '@/pages/sign/SignPdfViewer';
 
 type FieldValue = { pngBase64?: string; value?: string };
@@ -40,17 +46,17 @@ export function SignContractPage() {
     const [meta, setMeta] = useState<SignMeta | null>(null);
     const [waitEmail, setWaitEmail] = useState<string | null>(null);
     const [goneMsg, setGoneMsg] = useState('Enlace inválido, usado o caducado.');
-    const [docId, setDocId] = useState<number | null>(null);
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
     const [values, setValues] = useState<Record<number, FieldValue>>({});
     const [consent, setConsent] = useState(false);
+    const [hasReadToEnd, setHasReadToEnd] = useState(false);
     const [busy, setBusy] = useState(false);
     const [finalStatus, setFinalStatus] = useState<string | null>(null);
-    const [activeField, setActiveField] = useState<ContractField | null>(null);
-    const [textDraft, setTextDraft] = useState('');
     const [declineOpen, setDeclineOpen] = useState(false);
     const [declineReason, setDeclineReason] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    const markReadToEnd = useCallback(() => setHasReadToEnd(true), []);
 
     useEffect(() => {
         if (!token) {
@@ -60,11 +66,12 @@ export function SignContractPage() {
         const ac = new AbortController();
         let cancelled = false;
         setScreen('loading');
+        setHasReadToEnd(false);
+        setConsent(false);
         void getSignMeta(token, ac.signal)
             .then((data) => {
                 if (cancelled) return;
                 setMeta(data);
-                setDocId(data.documents[0]?.id ?? null);
                 const initial: Record<number, FieldValue> = {};
                 for (const f of data.fields) {
                     if (f.type === 'date') initial[f.id] = { value: todayDdMmYyyy() };
@@ -98,47 +105,64 @@ export function SignContractPage() {
         };
     }, [token]);
 
+    const docIdsKey = (meta?.documents ?? []).map((d) => d.id).join(',');
+
     useEffect(() => {
-        if (!token || !docId || screen !== 'ready') {
-            setBlobUrl(null);
+        if (!token || screen !== 'ready' || !docIdsKey) {
+            setBlobUrls({});
             return;
         }
-        let objectUrl: string | null = null;
+        const docs = meta?.documents ?? [];
         let cancelled = false;
-        void getSignDocumentBlob(token, docId)
-            .then((blob) => {
-                if (cancelled) return;
-                objectUrl = URL.createObjectURL(blob);
-                setBlobUrl(objectUrl);
+        const created: string[] = [];
+        void Promise.all(
+            docs.map(async (d) => {
+                const blob = await getSignDocumentBlob(token, d.id);
+                if (cancelled) return null;
+                const url = URL.createObjectURL(blob);
+                created.push(url);
+                return [d.id, url] as const;
+            }),
+        )
+            .then((pairs) => {
+                if (cancelled) {
+                    created.forEach((u) => URL.revokeObjectURL(u));
+                    return;
+                }
+                const next: Record<number, string> = {};
+                for (const p of pairs) {
+                    if (p) next[p[0]] = p[1];
+                }
+                setBlobUrls(next);
             })
             .catch((err) => {
                 if (!cancelled) toastError(err, 'No se pudo cargar el PDF.');
             });
         return () => {
             cancelled = true;
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            created.forEach((u) => URL.revokeObjectURL(u));
+            setBlobUrls({});
         };
-    }, [token, docId, screen]);
+        // ponytail: docIdsKey, not full meta
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token, screen, docIdsKey]);
 
-    const activeDoc = useMemo(
-        () => meta?.documents.find((d) => d.id === docId) ?? null,
-        [meta, docId],
-    );
+    const allFilled = !!meta && meta.fields.every((f) => fieldFilled(f, values[f.id]));
+    const hasSignatureFields = !!meta && meta.fields.some((f) => f.type === 'signature');
 
-    const allFilled =
-        !!meta && meta.fields.every((f) => fieldFilled(f, values[f.id]));
-
-    function openField(field: ContractField) {
-        setActiveField(field);
-        if (field.type === 'date') {
-            setTextDraft(values[field.id]?.value || todayDdMmYyyy());
-        } else if (field.type === 'name') {
-            setTextDraft(values[field.id]?.value || meta?.signer.name || '');
-        }
+    function applySignature(dataUrl: string) {
+        if (!meta) return;
+        setValues((prev) => {
+            const next = { ...prev };
+            for (const f of meta.fields) {
+                if (f.type === 'signature') next[f.id] = { pngBase64: dataUrl };
+            }
+            return next;
+        });
     }
 
     async function submitSign() {
-        if (!meta || !token || !consent || !allFilled) return;
+        if (!meta || !token || !consent || !allFilled || !hasReadToEnd) return;
         setBusy(true);
         setFieldErrors({});
         try {
@@ -194,16 +218,36 @@ export function SignContractPage() {
                     <span className="rounded bg-primary px-2 py-0.5 text-xs font-bold tracking-wide text-primary-foreground">
                         BO
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">BOcode · Firma electrónica</p>
                         {meta ? (
                             <p className="truncate text-xs text-muted-foreground">{meta.title}</p>
                         ) : null}
                     </div>
+                    {screen === 'ready' ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer shrink-0"
+                            disabled={busy}
+                            onClick={() => setDeclineOpen(true)}
+                        >
+                            Rechazar
+                        </Button>
+                    ) : null}
                 </div>
             </header>
 
-            <div className="mx-auto max-w-4xl px-4 py-6">
+            <div
+                className={
+                    screen === 'ready'
+                        ? hasReadToEnd
+                            ? 'mx-auto max-w-4xl px-4 py-6 pb-[min(90vh,28rem)]'
+                            : 'mx-auto max-w-4xl px-4 py-6 pb-24'
+                        : 'mx-auto max-w-4xl px-4 py-6'
+                }
+            >
                 {screen === 'loading' && (
                     <p className="text-sm text-muted-foreground">Cargando documento…</p>
                 )}
@@ -265,125 +309,80 @@ export function SignContractPage() {
                             </p>
                         </div>
 
-                        {meta.documents.length > 1 ? (
-                            <nav className="flex flex-wrap gap-2" aria-label="Documentos">
-                                {meta.documents.map((d) => (
-                                    <button
-                                        key={d.id}
-                                        type="button"
-                                        className={cn(
-                                            'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors',
-                                            docId === d.id
-                                                ? 'bg-sidebar-accent font-medium text-primary'
-                                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                        )}
-                                        onClick={() => setDocId(d.id)}
-                                    >
-                                        {d.fileName}
-                                    </button>
-                                ))}
-                            </nav>
-                        ) : null}
-
                         <p className="text-xs text-muted-foreground">
-                            Pulsa cada campo marcado para completar tu firma, fecha o nombre.
+                            Recorre el sobre hasta el final. Una sola firma se aplica a todos los campos.
                         </p>
 
                         <SignPdfViewer
-                            blobUrl={blobUrl}
-                            document={activeDoc}
+                            blobUrls={blobUrls}
+                            documents={meta.documents}
                             fields={meta.fields}
                             values={values}
-                            onFieldClick={openField}
+                            onEndVisible={markReadToEnd}
                         />
-
-                        <label className="flex cursor-pointer items-start gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                className="mt-1 size-4 accent-primary"
-                                checked={consent}
-                                onChange={(e) => setConsent(e.target.checked)}
-                                disabled={busy}
-                            />
-                            <span className="text-muted-foreground">{meta.consentText}</span>
-                        </label>
-                        {fieldErrors.consent ? (
-                            <p className="text-sm text-destructive">{fieldErrors.consent}</p>
-                        ) : null}
-
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                type="button"
-                                className="cursor-pointer"
-                                disabled={!allFilled || !consent || busy}
-                                onClick={() => void submitSign()}
-                            >
-                                {busy ? 'Enviando…' : 'Firmar'}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="cursor-pointer"
-                                disabled={busy}
-                                onClick={() => setDeclineOpen(true)}
-                            >
-                                Rechazar
-                            </Button>
-                        </div>
                     </div>
                 )}
             </div>
 
-            <SignaturePad
-                open={activeField?.type === 'signature'}
-                onClose={() => setActiveField(null)}
-                onConfirm={(dataUrl) => {
-                    if (!activeField) return;
-                    setValues((prev) => ({ ...prev, [activeField.id]: { pngBase64: dataUrl } }));
-                    setActiveField(null);
-                }}
-            />
-
-            {activeField && activeField.type !== 'signature' ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
-                    <div
-                        role="dialog"
-                        aria-modal
-                        className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-xl"
+            {screen === 'ready' && meta ? (
+                <Sheet open modal={false} disablePointerDismissal onOpenChange={() => {}}>
+                    <SheetContent
+                        side="bottom"
+                        showOverlay={false}
+                        showCloseButton={false}
+                        initialFocus={false}
+                        className="max-h-[min(85vh,32rem)] gap-0 overflow-y-auto sm:max-w-none"
                     >
-                        <Label htmlFor="sign-field-value" className="text-sm font-medium">
-                            {activeField.type === 'date' ? 'Fecha' : 'Nombre'}
-                        </Label>
-                        <Input
-                            id="sign-field-value"
-                            className="mt-2 bg-background"
-                            value={textDraft}
-                            onChange={(e) => setTextDraft(e.target.value)}
-                            autoFocus
-                        />
-                        <div className="mt-3 flex justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={() => setActiveField(null)}>
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={() => {
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        [activeField.id]: { value: textDraft.trim() },
-                                    }));
-                                    setActiveField(null);
-                                }}
-                            >
-                                Guardar
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                        <SheetHeader>
+                            <SheetTitle className="text-sm font-medium">
+                                Desplázate hasta el final del documento para firmar.
+                            </SheetTitle>
+                            {hasReadToEnd ? (
+                                <SheetDescription>
+                                    Esta firma se usará en todos los campos
+                                </SheetDescription>
+                            ) : null}
+                        </SheetHeader>
+                        {hasReadToEnd ? (
+                            <>
+                                {hasSignatureFields ? (
+                                    <div className="px-4">
+                                        <SignaturePad onConfirm={applySignature} />
+                                    </div>
+                                ) : null}
+                                <div className="space-y-2 px-4">
+                                    <label className="flex cursor-pointer items-start gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1 size-4 accent-primary"
+                                            checked={consent}
+                                            onChange={(e) => setConsent(e.target.checked)}
+                                            disabled={busy}
+                                        />
+                                        <span className="text-muted-foreground">{meta.consentText}</span>
+                                    </label>
+                                    {fieldErrors.consent ? (
+                                        <p className="text-sm text-destructive">{fieldErrors.consent}</p>
+                                    ) : null}
+                                </div>
+                                <SheetFooter className="flex-row flex-wrap justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        className="cursor-pointer"
+                                        disabled={!allFilled || !consent || busy}
+                                        onClick={() => void submitSign()}
+                                    >
+                                        {busy ? 'Enviando…' : 'Firmar'}
+                                    </Button>
+                                </SheetFooter>
+                            </>
+                        ) : null}
+                    </SheetContent>
+                </Sheet>
             ) : null}
 
             {declineOpen ? (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+                <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/60 p-4 sm:items-center">
                     <div role="dialog" aria-modal className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-xl">
                         <p className="text-sm font-medium">¿Rechazar la firma?</p>
                         <p className="mt-1 text-xs text-muted-foreground">Motivo opcional</p>

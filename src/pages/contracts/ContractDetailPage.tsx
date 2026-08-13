@@ -87,8 +87,7 @@ export function ContractDetailPage() {
     const [signerEmail, setSignerEmail] = useState('');
     const [editorFields, setEditorFields] = useState<EditorField[]>([]);
     const [fieldsDirty, setFieldsDirty] = useState(false);
-    const [docId, setDocId] = useState<number | null>(null);
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [blobUrls, setBlobUrls] = useState<Record<number, string>>({});
     const [selectedSignerId, setSelectedSignerId] = useState<number | null>(null);
     const [confirm, setConfirm] = useState<'send' | 'cancel' | null>(null);
 
@@ -104,8 +103,6 @@ export function ContractDetailPage() {
         setExpiresAt(c.expiresAt ?? '');
         setEditorFields(toEditorFields(c.fields));
         setFieldsDirty(false);
-        const firstDoc = c.documents?.[0]?.id ?? null;
-        setDocId((prev) => prev && c.documents?.some((d) => d.id === prev) ? prev : firstDoc);
         const firstSigner = c.signers?.[0]?.id ?? null;
         setSelectedSignerId((prev) => prev && c.signers?.some((s) => s.id === prev) ? prev : firstSigner);
         return c;
@@ -155,27 +152,49 @@ export function ContractDetailPage() {
         return () => ac.abort();
     }, [clientId]);
 
+    const docIdsKey = (contract?.documents ?? []).map((d) => d.id).join(',');
+    const previewDocs = contract?.documents ?? [];
+    const previewContractId = contract?.id;
+
     useEffect(() => {
-        if (!contract || !docId) {
-            setBlobUrl(null);
+        if (step !== 'fields' || !previewContractId || !docIdsKey) {
+            setBlobUrls({});
             return;
         }
-        let url: string | null = null;
+        const docs = previewDocs;
         let cancelled = false;
-        void getDocumentFileBlob(contract.id, docId)
-            .then((blob) => {
-                if (cancelled) return;
-                url = URL.createObjectURL(blob);
-                setBlobUrl(url);
+        const created: string[] = [];
+        void Promise.all(
+            docs.map(async (d) => {
+                const blob = await getDocumentFileBlob(previewContractId, d.id);
+                if (cancelled) return null;
+                const url = URL.createObjectURL(blob);
+                created.push(url);
+                return [d.id, url] as const;
+            }),
+        )
+            .then((pairs) => {
+                if (cancelled) {
+                    created.forEach((u) => URL.revokeObjectURL(u));
+                    return;
+                }
+                const next: Record<number, string> = {};
+                for (const p of pairs) {
+                    if (p) next[p[0]] = p[1];
+                }
+                setBlobUrls(next);
             })
             .catch((err) => {
                 if (!cancelled) toastError(err);
             });
         return () => {
             cancelled = true;
-            if (url) URL.revokeObjectURL(url);
+            created.forEach((u) => URL.revokeObjectURL(u));
+            setBlobUrls({});
         };
-    }, [contract, docId]);
+        // ponytail: docIdsKey, not `contract` — saveFields would refetch every PDF
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step, previewContractId, docIdsKey]);
 
     function onEditorChange(next: EditorField[]) {
         setEditorFields(next);
@@ -382,7 +401,6 @@ export function ContractDetailPage() {
         () => (contract ? sendBlockers(contract, editorFields) : []),
         [contract, editorFields],
     );
-    const currentDoc = contract?.documents?.find((d) => d.id === docId) ?? contract?.documents?.[0] ?? null;
 
     if (loadFailed && !contract) {
         return (
@@ -675,15 +693,13 @@ export function ContractDetailPage() {
                     <CardContent>
                         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
                             <ContractFieldEditor
-                            blobUrl={blobUrl}
-                            document={currentDoc}
+                            blobUrls={blobUrls}
                             documents={contract.documents ?? []}
                             signers={contract.signers ?? []}
                             fields={editorFields}
                             readOnly={!draft}
                             selectedSignerId={selectedSignerId}
                             onSelectSigner={setSelectedSignerId}
-                            onSelectDocument={setDocId}
                             onChange={onEditorChange}
                             />
                         </Suspense>
@@ -729,9 +745,9 @@ export function ContractDetailPage() {
                     <CardContent>
                         <ol className="flex flex-col gap-2 text-sm">
                             {(contract.events ?? []).map((ev) => (
-                                <li key={ev.id} className="flex flex-wrap gap-2 border-b border-border/60 py-1 last:border-0">
+                                <li key={ev.id} className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-border/60 py-1.5 last:border-0">
                                     <span className="text-muted-foreground">{formatWhen(ev.createdAt)}</span>
-                                    <span>{CONTRACT_EVENT_LABELS[ev.type] ?? ev.type}</span>
+                                    <span>{ev.label ?? CONTRACT_EVENT_LABELS[ev.type] ?? ev.type}</span>
                                 </li>
                             ))}
                         </ol>

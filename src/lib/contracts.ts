@@ -104,7 +104,9 @@ export type ContractEvent = {
     id: number;
     contractId: number;
     signerId: number | null;
+    signer?: { id: number; name: string; email: string } | null;
     type: string;
+    label?: string | null;
     ip?: string | null;
     userAgent?: string | null;
     meta?: Record<string, unknown> | null;
