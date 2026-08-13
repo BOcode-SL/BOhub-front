@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
@@ -24,6 +25,7 @@ import {
     fieldToInput,
     getContract,
     getDocumentFileBlob,
+    isBocodeSigner,
     isDraft,
     remindContract,
     reorderDocuments,
@@ -209,14 +211,16 @@ export function ContractDetailPage() {
         }
     }
 
-    async function onFiles(files: FileList | null) {
-        if (!contract || !draft || !files?.length) return;
+    async function onFiles(files: File[]) {
+        if (!contract || !draft) return;
+        const pdfs = files.filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (!pdfs.length) return;
         setSaving(true);
         try {
-            for (const file of Array.from(files)) {
+            for (const file of pdfs) {
                 await uploadContractDocument(contract.id, file);
             }
-            toastSuccess(files.length === 1 ? 'PDF subido' : `${files.length} PDFs subidos`);
+            toastSuccess(pdfs.length === 1 ? 'PDF subido' : `${pdfs.length} PDFs subidos`);
             await reload();
         } catch (err) {
             toastError(err);
@@ -532,18 +536,16 @@ export function ContractDetailPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
                         {draft && (
-                            <Input
-                                type="file"
-                                accept="application/pdf"
+                            <BillingFileDropzone
+                                id="contract-pdfs"
+                                accept=".pdf,application/pdf"
                                 multiple
                                 disabled={saving}
-                                onChange={(e) => {
-                                    void onFiles(e.target.files);
-                                    e.target.value = '';
-                                }}
+                                emptyHint="PDF · uno o varios · se suben al soltar"
+                                onFiles={(files) => void onFiles(files)}
                             />
                         )}
-                        {(contract.documents ?? []).length === 0 && (
+                        {(contract.documents ?? []).length === 0 && !draft && (
                             <p className="text-sm text-muted-foreground">Aún no hay documentos.</p>
                         )}
                         <ul className="flex flex-col gap-2">
@@ -594,6 +596,12 @@ export function ContractDetailPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
                         {draft && (
+                            <p className="text-sm text-muted-foreground">
+                                BOcode (BOCODE DEVELOPERS SL · hola@bocode.es) va siempre. Añade al cliente u otros
+                                firmantes.
+                            </p>
+                        )}
+                        {draft && (
                             <form noValidate className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(e) => void handleAddSigner(e)}>
                                 <FormField id="s-name" label="Nombre" className="flex-1">
                                     <Input id="s-name" value={signerName} onChange={(e) => setSignerName(e.target.value)} required />
@@ -614,6 +622,7 @@ export function ContractDetailPage() {
                                     <span className="min-w-0 flex-1 truncate">
                                         {s.name} · {s.email}
                                     </span>
+                                    {isBocodeSigner(s) ? <Badge variant="outline">BOcode</Badge> : null}
                                     <Badge variant="outline">{s.status === 'signed' ? 'Firmado' : s.status === 'declined' ? 'Declinó' : 'Pendiente'}</Badge>
                                     {draft && (
                                         <>
@@ -629,19 +638,21 @@ export function ContractDetailPage() {
                                             >
                                                 <ChevronDown />
                                             </Button>
-                                            <Button
-                                                type="button"
-                                                size="icon-xs"
-                                                variant="ghost"
-                                                disabled={saving}
-                                                onClick={() => {
-                                                    void deleteSigner(contract.id, s.id)
-                                                        .then(() => reload())
-                                                        .catch(toastError);
-                                                }}
-                                            >
-                                                <Trash2 />
-                                            </Button>
+                                            {!isBocodeSigner(s) ? (
+                                                <Button
+                                                    type="button"
+                                                    size="icon-xs"
+                                                    variant="ghost"
+                                                    disabled={saving}
+                                                    onClick={() => {
+                                                        void deleteSigner(contract.id, s.id)
+                                                            .then(() => reload())
+                                                            .catch(toastError);
+                                                    }}
+                                                >
+                                                    <Trash2 />
+                                                </Button>
+                                            ) : null}
                                         </>
                                     )}
                                 </li>

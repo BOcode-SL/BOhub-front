@@ -12,21 +12,25 @@ type Props = {
     disabled?: boolean;
     invalid?: boolean;
     accept?: string;
+    multiple?: boolean;
     /** Shown under the CTA when empty. */
     emptyHint?: string;
-    onFile: (file: File | null) => void;
+    onFile?: (file: File | null) => void;
+    onFiles?: (files: File[]) => void;
     className?: string;
 };
 
-/** Single-file dashed dropzone (PDF/imagen). Same idea as SendEmailSheet attachments. */
+/** Dashed dropzone (PDF/imagen). Same idea as SendEmailSheet attachments. */
 export function BillingFileDropzone({
     id,
     fileName,
     disabled,
     invalid,
     accept = BILLING_FILE_ACCEPT,
+    multiple = false,
     emptyHint = 'PDF, JPG, PNG o WebP · máx. 10 MB',
     onFile,
+    onFiles,
     className,
 }: Props) {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -34,8 +38,9 @@ export function BillingFileDropzone({
     const dragDepth = useRef(0);
 
     function pick(list: FileList | null) {
-        const next = list?.[0] ?? null;
-        onFile(next);
+        const files = list ? Array.from(list) : [];
+        if (multiple) onFiles?.(files);
+        else onFile?.(files[0] ?? null);
         if (inputRef.current) inputRef.current.value = '';
     }
 
@@ -104,13 +109,15 @@ export function BillingFileDropzone({
             >
                 <FileUp className="mx-auto mb-2 size-5 opacity-70" />
                 {dragging && !disabled ? (
-                    <p className="font-medium text-foreground">Suelta el archivo aquí</p>
+                    <p className="font-medium text-foreground">
+                        {multiple ? 'Suelta los archivos aquí' : 'Suelta el archivo aquí'}
+                    </p>
                 ) : (
                     <>
                         <p>
-                            Arrastra el archivo o{' '}
+                            {multiple ? 'Arrastra los archivos o ' : 'Arrastra el archivo o '}
                             <span className="font-medium text-primary underline-offset-2 hover:underline">
-                                selecciónalo
+                                {multiple ? 'selecciónalos' : 'selecciónalo'}
                             </span>
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">{emptyHint}</p>
@@ -121,6 +128,7 @@ export function BillingFileDropzone({
                     id={id}
                     type="file"
                     accept={accept}
+                    multiple={multiple || undefined}
                     disabled={disabled}
                     className="sr-only"
                     onChange={(e) => pick(e.target.files)}
@@ -129,7 +137,7 @@ export function BillingFileDropzone({
             {fileName ? (
                 <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs">
                     <span className="min-w-0 truncate font-medium text-foreground">{fileName}</span>
-                    {!disabled ? (
+                    {!disabled && onFile ? (
                         <Button
                             type="button"
                             variant="ghost"

@@ -180,6 +180,12 @@ export function isDraft(status: ContractStatus): boolean {
     return status === 'draft';
 }
 
+export const BOCODE_SIGNER_EMAIL = 'hola@bocode.es';
+
+export function isBocodeSigner(signer: { email: string }): boolean {
+    return signer.email.trim().toLowerCase() === BOCODE_SIGNER_EMAIL;
+}
+
 export function sendBlockers(contract: Contract, fields?: ContractFieldInput[]): string[] {
     const docs = contract.documents ?? [];
     const signers = contract.signers ?? [];

@@ -110,7 +110,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 - **Timer**: BOtimer-like live UX; Analytics = client-side month aggregation (lazy-loaded chunk).
 - **Maintenance**: `monthly|annual`; contact = client fields, not free-text.
 - **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled. Plantilla de factura también editable desde Billing (billing role) sin abrir `/emails`.
-- **Contracts (SES)**: admin only. Lista + detalle wizard (datos → PDFs → firmantes → editor pdfjs drag % top-left → enviar). Plantilla email `/dashboard/contracts/settings`. Público `/sign/:token` (ruta fuera de `ProtectedRoute`; fetch sin cookie). Employee/billing no ven nav.
+- **Contracts (SES)**: admin only. Lista + detalle wizard (datos → PDFs → firmantes → editor pdfjs drag % top-left → enviar). Al crear, firmante BOcode (`BOCODE DEVELOPERS SL` / `hola@bocode.es`) va siempre. Plantilla email `/dashboard/contracts/settings`. Público `/sign/:token` (ruta fuera de `ProtectedRoute`; fetch sin cookie). Employee/billing no ven nav.
 
 ## Conventions for agents
 
