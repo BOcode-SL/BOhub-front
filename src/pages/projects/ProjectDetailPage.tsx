@@ -137,7 +137,7 @@ type ConfigForm = {
 
 function StatCard({ label, value }: { label: string; value: ReactNode }) {
     return (
-        <Card className="gap-2 py-4">
+        <Card className="min-w-0 gap-2 py-4">
             <CardHeader className="px-4">
                 <CardDescription>{label}</CardDescription>
                 <CardTitle className="text-xl">{value}</CardTitle>
@@ -653,7 +653,7 @@ export function ProjectDetailPage() {
     if (!project || !configForm) return null;
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
             <div className="min-w-0">
                 <Button
                     variant="ghost"
@@ -826,8 +826,8 @@ export function ProjectDetailPage() {
             )}
 
             {tab === 'hours' && (
-                <div className="grid gap-6">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid min-w-0 gap-6">
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                         <StatCard
                             label="Horas totales"
                             value={formatHoursFromSeconds(hoursSummary?.totalSeconds ?? 0)}
@@ -841,11 +841,11 @@ export function ProjectDetailPage() {
                             }
                         />
                     </div>
-                    <Card className="gap-3 py-4">
+                    <Card className="min-w-0 gap-3 py-4">
                         <CardHeader className="px-4">
                             <CardTitle>Registro</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-4 px-4">
+                        <CardContent className="flex min-w-0 flex-col gap-4 px-4">
                             <HoursTable
                                 hours={hours}
                                 meta={hoursMeta}
@@ -862,15 +862,15 @@ export function ProjectDetailPage() {
             )}
 
             {tab === 'billing' && isAdmin && (
-                <div className="grid gap-6">
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid min-w-0 gap-6">
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <StatCard label="Facturado" value={formatMoney(billingSummary?.paymentsTotal ?? 0)} />
                         <StatCard label="Cobro neto" value={formatMoney(billingSummary?.paymentsNet ?? 0)} />
                         <StatCard label="Gastos" value={formatMoney(billingSummary?.expensesTotal ?? 0)} />
                         <StatCard label="Beneficio neto" value={formatMoney(billingSummary?.netBenefit ?? 0)} />
                     </div>
 
-                    <Card className="gap-3 py-4">
+                    <Card className="min-w-0 gap-3 py-4">
                         <CardHeader className="px-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <CardTitle>Ingresos</CardTitle>
@@ -886,8 +886,8 @@ export function ProjectDetailPage() {
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="px-4">
-                            <div className="overflow-x-auto rounded-md border">
+                        <CardContent className="min-w-0 px-4">
+                            <div className="min-w-0 overflow-x-auto rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -897,8 +897,6 @@ export function ProjectDetailPage() {
                                             <TableHead>Estado</TableHead>
                                             <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
-                                            <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
-                                            <TableHead className="hidden md:table-cell">Método</TableHead>
                                             <TableHead className="w-10">
                                                 <span className="sr-only">Acciones</span>
                                             </TableHead>
@@ -907,14 +905,14 @@ export function ProjectDetailPage() {
                                     <TableBody>
                                         {billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={9}>
+                                                <TableCell colSpan={7}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && payments.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={9} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">
                                                     Sin ingresos.
                                                 </TableCell>
                                             </TableRow>
@@ -965,12 +963,6 @@ export function ProjectDetailPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                                                         {formatMoney(payment.totalAmount)}
-                                                    </TableCell>
-                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
-                                                        {payment.lastPaymentDate || payment.paymentDate || '—'}
-                                                    </TableCell>
-                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
-                                                        {payment.paymentMethod || '—'}
                                                     </TableCell>
                                                     <TableCell>
                                                         <DropdownMenu>
@@ -1065,7 +1057,7 @@ export function ProjectDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="gap-3 py-4">
+                    <Card className="min-w-0 gap-3 py-4">
                         <CardHeader className="px-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <CardTitle>Gastos</CardTitle>
@@ -1081,8 +1073,8 @@ export function ProjectDetailPage() {
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="px-4">
-                            <div className="overflow-x-auto rounded-md border">
+                        <CardContent className="min-w-0 px-4">
+                            <div className="min-w-0 overflow-x-auto rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -1091,9 +1083,6 @@ export function ProjectDetailPage() {
                                             <TableHead>Estado</TableHead>
                                             <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
-                                            <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
-                                            <TableHead className="hidden md:table-cell">Método</TableHead>
-                                            <TableHead className="hidden lg:table-cell">Referencia</TableHead>
                                             <TableHead className="w-10">
                                                 <span className="sr-only">Acciones</span>
                                             </TableHead>
@@ -1102,14 +1091,14 @@ export function ProjectDetailPage() {
                                     <TableBody>
                                         {billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={9}>
+                                                <TableCell colSpan={6}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
                                         )}
                                         {!billingLoading && expenses.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={9} className="h-20 text-center text-muted-foreground">
+                                                <TableCell colSpan={6} className="h-20 text-center text-muted-foreground">
                                                     Sin gastos.
                                                 </TableCell>
                                             </TableRow>
@@ -1145,18 +1134,6 @@ export function ProjectDetailPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                                                         {formatMoney(expense.totalAmount)}
-                                                    </TableCell>
-                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
-                                                        {expense.lastPaymentDate || expense.paymentDate || '—'}
-                                                    </TableCell>
-                                                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
-                                                        {expense.paymentMethod || '—'}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        className="hidden max-w-[10rem] truncate text-muted-foreground lg:table-cell"
-                                                        title={expense.recipient || undefined}
-                                                    >
-                                                        {expense.recipient || '—'}
                                                     </TableCell>
                                                     <TableCell>
                                                         <DropdownMenu>
