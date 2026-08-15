@@ -27,7 +27,10 @@ const INVITE_SAMPLE: Record<string, string> = {
     CONTRACT_TITLE: 'Contrato de servicios',
     CLIENT_NAME: 'Del Mar Para Ti',
     SIGN_URL: 'https://hub.bocode.es/sign/demo',
+    PROJECT_NAME: 'Proyecto Demo',
     EXPIRES_AT: '31/08/2026',
+    PROJECT_LINE: ' del proyecto <strong>Proyecto Demo</strong>',
+    EXPIRES_LINE: ' Caducidad: <strong>31/08/2026</strong>.',
     DOCUMENT_COUNT: '2',
     SIGNER_COUNT: '2',
 };
@@ -37,6 +40,8 @@ const PACK_SAMPLE: Record<string, string> = {
     CONTRACT_TITLE: 'Contrato de servicios',
     CLIENT_NAME: 'Del Mar Para Ti',
     SIGNED_AT: '13/08/2026 13:40',
+    PROJECT_NAME: 'Proyecto Demo',
+    PROJECT_LINE: ' del proyecto <strong>Proyecto Demo</strong>',
     DOCUMENT_COUNT: '2',
     SIGNER_COUNT: '2',
 };
@@ -46,7 +51,10 @@ const INVITE_VARS = [
     'CONTRACT_TITLE',
     'CLIENT_NAME',
     'SIGN_URL',
+    'PROJECT_NAME',
     'EXPIRES_AT',
+    'PROJECT_LINE',
+    'EXPIRES_LINE',
     'DOCUMENT_COUNT',
     'SIGNER_COUNT',
 ] as const;
@@ -56,6 +64,8 @@ const PACK_VARS = [
     'CONTRACT_TITLE',
     'CLIENT_NAME',
     'SIGNED_AT',
+    'PROJECT_NAME',
+    'PROJECT_LINE',
     'DOCUMENT_COUNT',
     'SIGNER_COUNT',
 ] as const;
