@@ -209,7 +209,7 @@ export function BillingExportDialog({ open, onOpenChange, defaultYear }: Props) 
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Exportar para gestoría</DialogTitle>
                     <DialogDescription>
