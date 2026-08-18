@@ -116,13 +116,14 @@ type PaginatedLeads = {
 };
 
 export async function listLeads(
-    params: { search?: string; status?: LeadStatus; assignedUserId?: number; page?: number; perPage?: number } = {},
+    params: { search?: string; status?: LeadStatus; assignedUserId?: number | 'none'; page?: number; perPage?: number } = {},
     signal?: AbortSignal,
 ): Promise<PaginatedLeads> {
     const q = new URLSearchParams();
     if (params.search) q.set('search', params.search);
     if (params.status) q.set('status', params.status);
-    if (params.assignedUserId) q.set('assigned_user_id', String(params.assignedUserId));
+    if (params.assignedUserId === 'none') q.set('assigned_user_id', 'none');
+    else if (params.assignedUserId) q.set('assigned_user_id', String(params.assignedUserId));
     if (params.page) q.set('page', String(params.page));
     if (params.perPage) q.set('per_page', String(params.perPage));
     const qs = q.toString();

@@ -32,7 +32,7 @@ function emptyCols(): Record<LeadStatus, Col> {
 
 type Props = {
     search: string;
-    assignedUserId?: number;
+    assignedUserId?: number | 'none';
     reloadKey: number;
     onOpen: (lead: Lead) => void;
 };

@@ -46,6 +46,13 @@ function parsePerPage(value: string | null): number {
     return 15;
 }
 
+function assignedFilter(raw: string): number | 'none' | undefined {
+    if (raw === 'all' || raw === '') return undefined;
+    if (raw === 'none') return 'none';
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+}
+
 export function LeadsPage() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
@@ -112,7 +119,7 @@ export function LeadsPage() {
             {
                 search: urlSearch || undefined,
                 status: urlStatus !== 'all' ? (urlStatus as LeadStatus) : undefined,
-                assignedUserId: urlAssigned !== 'all' ? Number(urlAssigned) : undefined,
+                assignedUserId: assignedFilter(urlAssigned),
                 page,
                 perPage,
             },
@@ -213,7 +220,7 @@ export function LeadsPage() {
                         <ToolbarSelect
                             id="leads-assigned"
                             label="Asignado"
-                            items={[{ label: 'Todos', value: 'all' }, ...assignees.map((u) => ({ label: u.name, value: String(u.id) }))]}
+                            items={[{ label: 'Todos', value: 'all' }, { label: 'Sin asignar', value: 'none' }, ...assignees.map((u) => ({ label: u.name, value: String(u.id) }))]}
                             value={urlAssigned}
                             onValueChange={(value) => patchParams({ assigned_user_id: !value || value === 'all' ? null : value, page: '1' })}
                         />
@@ -234,7 +241,7 @@ export function LeadsPage() {
                 {view === 'board' ? (
                     <LeadsBoard
                         search={urlSearch}
-                        assignedUserId={urlAssigned !== 'all' ? Number(urlAssigned) : undefined}
+                        assignedUserId={assignedFilter(urlAssigned)}
                         reloadKey={boardTick}
                         onOpen={openEdit}
                     />
