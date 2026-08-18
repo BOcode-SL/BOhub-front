@@ -1,44 +1,73 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Inbox, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LeadSheet } from '@/pages/leads/LeadSheet';
-import { createLead, deleteLead, listLeadAssignees, listLeads, updateLead, type Lead, type LeadStatus } from '@/lib/leads';
+import { LeadsBoard } from '@/pages/leads/LeadsBoard';
+import {
+    createLead,
+    deleteLead,
+    getLead,
+    LEAD_SOURCE_BADGE_CLASS,
+    LEAD_SOURCE_LABELS,
+    LEAD_STATUS_BADGE_CLASS,
+    LEAD_STATUS_LABELS,
+    LEAD_STATUSES,
+    listLeadAssignees,
+    listLeads,
+    updateLead,
+    type Lead,
+    type LeadSource,
+    type LeadStatus,
+} from '@/lib/leads';
 import { toastError, toastSuccess } from '@/lib/toast';
 import { useAuth } from '@/auth/AuthContext';
+import { cn } from '@/lib/utils';
 
-const STATUS_ITEMS: { label: string; value: string }[] = [
-    { label: 'Todas', value: 'all' },
-    { label: 'Nueva', value: 'new' },
-    { label: 'Contactada', value: 'contacted' },
-    { label: 'Cualificada', value: 'qualified' },
-    { label: 'Reunión', value: 'meeting' },
-    { label: 'Ganada', value: 'won' },
-    { label: 'Perdida', value: 'lost' },
-];
+const PER_PAGE_OPTIONS = [10, 15, 25] as const;
+const chip =
+    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none';
+
+function parsePage(value: string | null): number {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+}
+
+function parsePerPage(value: string | null): number {
+    const n = Number(value);
+    if (PER_PAGE_OPTIONS.includes(n as (typeof PER_PAGE_OPTIONS)[number])) return n;
+    return 15;
+}
 
 export function LeadsPage() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
     const [searchParams, setSearchParams] = useSearchParams();
+    const view = searchParams.get('view') === 'board' ? 'board' : 'list';
+    const page = parsePage(searchParams.get('page'));
+    const perPage = parsePerPage(searchParams.get('per_page'));
+    const urlSearch = searchParams.get('search') ?? '';
+    const urlStatus = searchParams.get('status') ?? 'all';
+    const urlAssigned = searchParams.get('assigned_user_id') ?? 'all';
+    const urlId = searchParams.get('id');
+
+    const [searchInput, setSearchInput] = useState(urlSearch);
     const [rows, setRows] = useState<Lead[]>([]);
+    const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number; from?: number | null; to?: number | null } | null>(null);
     const [loading, setLoading] = useState(true);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
     const [editing, setEditing] = useState<Lead | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
     const [assignees, setAssignees] = useState<{ id: number; name: string }[]>([]);
-    const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
-
-    const urlSearch = searchParams.get('search') ?? '';
-    const urlStatus = searchParams.get('status') ?? 'all';
-    const urlAssigned = searchParams.get('assigned_user_id') ?? 'all';
+    const [boardTick, setBoardTick] = useState(0);
 
     useEffect(() => setSearchInput(urlSearch), [urlSearch]);
 
@@ -50,36 +79,91 @@ export function LeadsPage() {
                 const p = new URLSearchParams(prev);
                 if (next) p.set('search', next);
                 else p.delete('search');
+                p.set('page', '1');
                 return p;
             }, { replace: true });
         }, 300);
         return () => clearTimeout(t);
     }, [searchInput, urlSearch, setSearchParams]);
 
-    async function reload() {
-        setLoading(true);
-        try {
-            const [list, users] = await Promise.all([
-                listLeads({
-                    search: urlSearch || undefined,
-                    status: urlStatus !== 'all' ? (urlStatus as LeadStatus) : undefined,
-                    assignedUserId: urlAssigned !== 'all' ? Number(urlAssigned) : undefined,
-                }),
-                listLeadAssignees(),
-            ]);
-            setRows(list.data);
-            setAssignees(users.data.map((u) => ({ id: u.id, name: u.name })));
-        } catch (err) {
-            toastError(err);
-            setRows([]);
-        } finally {
-            setLoading(false);
-        }
-    }
+    useEffect(() => {
+        void listLeadAssignees().then((res) => setAssignees(res.data.map((u) => ({ id: u.id, name: u.name })))).catch(toastError);
+    }, []);
 
     useEffect(() => {
-        void reload();
-    }, [urlSearch, urlStatus, urlAssigned]);
+        if (!urlId) return;
+        const n = Number(urlId);
+        if (!Number.isFinite(n) || n < 1) return;
+        void getLead(n)
+            .then((lead) => {
+                setSheetMode('edit');
+                setEditing(lead);
+                setSheetOpen(true);
+            })
+            .catch(toastError);
+    }, [urlId]);
+
+    useEffect(() => {
+        if (view !== 'list') return;
+        const ac = new AbortController();
+        let cancelled = false;
+        setLoading(true);
+        void listLeads(
+            {
+                search: urlSearch || undefined,
+                status: urlStatus !== 'all' ? (urlStatus as LeadStatus) : undefined,
+                assignedUserId: urlAssigned !== 'all' ? Number(urlAssigned) : undefined,
+                page,
+                perPage,
+            },
+            ac.signal,
+        )
+            .then((list) => {
+                if (cancelled) return;
+                setRows(list.data);
+                setMeta(list.meta);
+            })
+            .catch((err) => {
+                if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return;
+                toastError(err);
+                setRows([]);
+                setMeta(null);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+            ac.abort();
+        };
+    }, [view, urlSearch, urlStatus, urlAssigned, page, perPage, boardTick]);
+
+    function patchParams(patch: Record<string, string | null>) {
+        setSearchParams((prev) => {
+            const p = new URLSearchParams(prev);
+            for (const [k, v] of Object.entries(patch)) {
+                if (v == null || v === '') p.delete(k);
+                else p.set(k, v);
+            }
+            return p;
+        });
+    }
+
+    function reload() {
+        setBoardTick((n) => n + 1);
+    }
+
+    function openEdit(lead: Lead) {
+        setSheetMode('edit');
+        setEditing(lead);
+        setSheetOpen(true);
+    }
+
+    const total = meta?.total ?? 0;
+    const lastPage = meta?.last_page ?? 1;
+    const currentPage = meta?.current_page ?? page;
+    const from = meta?.from ?? (total === 0 ? 0 : (currentPage - 1) * perPage + 1);
+    const to = meta?.to ?? Math.min(currentPage * perPage, total);
 
     return (
         <>
@@ -87,58 +171,152 @@ export function LeadsPage() {
                 title="Leads"
                 description="Bandeja de oportunidades"
                 icon={Inbox}
-                actions={<Button onClick={() => { setSheetMode('add'); setEditing(null); setSheetOpen(true); }}><Plus />Añadir lead</Button>}
+                above={
+                    <nav aria-label="Vista de leads" className="flex flex-wrap gap-2 border-b border-border pb-3">
+                        <button
+                            type="button"
+                            className={cn(chip, 'inline-flex items-center gap-1.5', view === 'list' ? 'bg-sidebar-accent font-medium text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+                            onClick={() => patchParams({ view: null, page: '1' })}
+                        >
+                            <List className="size-4" /> Lista
+                        </button>
+                        <button
+                            type="button"
+                            className={cn(chip, 'inline-flex items-center gap-1.5', view === 'board' ? 'bg-sidebar-accent font-medium text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+                            onClick={() => patchParams({ view: 'board' })}
+                        >
+                            <LayoutGrid className="size-4" /> Tablero
+                        </button>
+                    </nav>
+                }
+                actions={
+                    <Button onClick={() => { setSheetMode('add'); setEditing(null); setSheetOpen(true); }}>
+                        <Plus />
+                        Añadir lead
+                    </Button>
+                }
                 toolbar={
                     <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
                         <div className="relative min-w-0 flex-1">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input className="pl-9" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Buscar por nombre, email o teléfono…" />
                         </div>
-                        <ToolbarSelect id="leads-status" label="Etapa" items={STATUS_ITEMS} value={urlStatus} onValueChange={(value) => setSearchParams((prev) => { const p = new URLSearchParams(prev); if (!value || value === 'all') p.delete('status'); else p.set('status', value); return p; })} />
-                        <ToolbarSelect id="leads-assigned" label="Asignado" items={[{ label: 'Todos', value: 'all' }, ...assignees.map((u) => ({ label: u.name, value: String(u.id) }))]} value={urlAssigned} onValueChange={(value) => setSearchParams((prev) => { const p = new URLSearchParams(prev); if (!value || value === 'all') p.delete('assigned_user_id'); else p.set('assigned_user_id', value); return p; })} />
+                        {view === 'list' && (
+                            <ToolbarSelect
+                                id="leads-status"
+                                label="Etapa"
+                                items={[{ label: 'Todas', value: 'all' }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], value: s }))]}
+                                value={urlStatus}
+                                onValueChange={(value) => patchParams({ status: !value || value === 'all' ? null : value, page: '1' })}
+                            />
+                        )}
+                        <ToolbarSelect
+                            id="leads-assigned"
+                            label="Asignado"
+                            items={[{ label: 'Todos', value: 'all' }, ...assignees.map((u) => ({ label: u.name, value: String(u.id) }))]}
+                            value={urlAssigned}
+                            onValueChange={(value) => patchParams({ assigned_user_id: !value || value === 'all' ? null : value, page: '1' })}
+                        />
+                        {view === 'list' && (
+                            <ToolbarSelect
+                                id="leads-per-page"
+                                label="Por página"
+                                items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+                                value={String(perPage)}
+                                onValueChange={(value) => {
+                                    if (value) patchParams({ per_page: value, page: '1' });
+                                }}
+                            />
+                        )}
                     </div>
                 }
             >
-                <div className="overflow-x-auto rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Teléfono</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Etapa</TableHead>
-                                <TableHead>Asignado</TableHead>
-                                <TableHead>Fuente</TableHead>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead className="w-12" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {!loading && rows.length === 0 ? (
-                                <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">Sin leads todavía.</TableCell></TableRow>
-                            ) : rows.map((lead) => (
-                                <TableRow key={lead.id} className={loading ? 'opacity-60' : undefined}>
-                                    <TableCell className="font-medium">{lead.name || '—'}</TableCell>
-                                    <TableCell>{lead.phone || '—'}</TableCell>
-                                    <TableCell>{lead.email || '—'}</TableCell>
-                                    <TableCell>{lead.status}</TableCell>
-                                    <TableCell>{lead.assignedUser?.name || '—'}</TableCell>
-                                    <TableCell>{lead.source}</TableCell>
-                                    <TableCell>{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('es-ES') : '—'}</TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}><MoreHorizontal /></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => { setSheetMode('edit'); setEditing(lead); setSheetOpen(true); }}><Pencil />Editar</DropdownMenuItem>
-                                                {isAdmin && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(lead)}><Trash2 />Eliminar</DropdownMenuItem>}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
+                {view === 'board' ? (
+                    <LeadsBoard
+                        search={urlSearch}
+                        assignedUserId={urlAssigned !== 'all' ? Number(urlAssigned) : undefined}
+                        reloadKey={boardTick}
+                        onOpen={openEdit}
+                    />
+                ) : (
+                    <>
+                        <div className="overflow-x-auto rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>Teléfono</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Etapa</TableHead>
+                                        <TableHead>Asignado</TableHead>
+                                        <TableHead>Fuente</TableHead>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead className="w-12" />
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {!loading && rows.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">Sin leads todavía.</TableCell>
+                                        </TableRow>
+                                    ) : rows.map((lead) => (
+                                        <TableRow
+                                            key={lead.id}
+                                            className={cn('cursor-pointer', loading && 'opacity-60')}
+                                            onClick={() => openEdit(lead)}
+                                        >
+                                            <TableCell className="font-medium">{lead.name || '—'}</TableCell>
+                                            <TableCell>{lead.phone || '—'}</TableCell>
+                                            <TableCell>{lead.email || '—'}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={LEAD_STATUS_BADGE_CLASS[lead.status]}>
+                                                    {LEAD_STATUS_LABELS[lead.status]}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{lead.assignedUser?.name || '—'}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[lead.source as LeadSource] ?? 'border-border'}>
+                                                    {LEAD_SOURCE_LABELS[lead.source as LeadSource] ?? lead.source}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('es-ES') : '—'}</TableCell>
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                                                        <MoreHorizontal />
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => openEdit(lead)}><Pencil />Editar</DropdownMenuItem>
+                                                        {isAdmin && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(lead)}><Trash2 />Eliminar</DropdownMenuItem>}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        {total > 0 && (
+                            <nav aria-label="Paginación de leads" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-muted-foreground" aria-live="polite">
+                                    Mostrando {from}–{to} de {total}
+                                    <span className="mx-2 text-border">·</span>
+                                    Página {currentPage} de {lastPage}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button type="button" variant="outline" size="sm" className="min-w-24" disabled={currentPage <= 1 || loading} onClick={() => patchParams({ page: String(currentPage - 1), per_page: String(perPage) })}>
+                                        <ChevronLeft />
+                                        Anterior
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" className="min-w-24" disabled={currentPage >= lastPage || loading} onClick={() => patchParams({ page: String(currentPage + 1), per_page: String(perPage) })}>
+                                        Siguiente
+                                        <ChevronRight />
+                                    </Button>
+                                </div>
+                            </nav>
+                        )}
+                    </>
+                )}
             </ListPageShell>
 
             <LeadSheet
@@ -147,6 +325,7 @@ export function LeadsPage() {
                 lead={editing}
                 assignees={assignees}
                 onOpenChange={setSheetOpen}
+                onChanged={reload}
                 onSubmit={async (data) => {
                     if (sheetMode === 'edit' && editing) {
                         await updateLead(editing.id, data);
@@ -155,7 +334,7 @@ export function LeadsPage() {
                         await createLead(data);
                         toastSuccess('Lead creado');
                     }
-                    await reload();
+                    reload();
                 }}
             />
 
@@ -171,7 +350,7 @@ export function LeadsPage() {
                                 await deleteLead(deleteTarget.id);
                                 setDeleteTarget(null);
                                 toastSuccess('Lead eliminado');
-                                await reload();
+                                reload();
                             } catch (err) {
                                 toastError(err);
                             }
