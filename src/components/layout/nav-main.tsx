@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Clock, FilePen, Folder, Home, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { Clock, FilePen, Folder, Home, Inbox, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth/AuthContext';
@@ -25,6 +25,12 @@ const featureItems: NavItem[] = [
         title: 'Proyectos',
         url: '/dashboard/projects',
         icon: Folder,
+        roles: ['admin', 'employee'],
+    },
+    {
+        title: 'Leads',
+        url: '/dashboard/leads',
+        icon: Inbox,
         roles: ['admin', 'employee'],
     },
     {

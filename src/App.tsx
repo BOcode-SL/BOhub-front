@@ -23,6 +23,7 @@ import { ContractsPage } from '@/pages/contracts/ContractsPage';
 import { ContractDetailPage } from '@/pages/contracts/ContractDetailPage';
 import { ContractEmailSettingsPage } from '@/pages/contracts/ContractEmailSettingsPage';
 import { SignContractPage } from '@/pages/sign/SignContractPage';
+import { LeadsPage } from '@/pages/leads/LeadsPage';
 
 /** Bookmarks: /app and /app/* → /dashboard/* */
 function LegacyAppRedirect() {
@@ -49,6 +50,7 @@ export default function App() {
                                 <Route element={<OpsRoute />}>
                                     <Route index element={<HomePage />} />
                                     <Route path="clients" element={<ClientsPage />} />
+                                    <Route path="leads" element={<LeadsPage />} />
                                     <Route path="projects" element={<ProjectsPage />} />
                                     <Route path="projects/:id" element={<ProjectDetailPage />} />
                                     <Route path="timer" element={<TimerPage />} />
