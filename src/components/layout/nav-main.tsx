@@ -119,14 +119,14 @@ export function NavMain() {
 
     return (
         <>
-            <SidebarGroup className="px-2 py-0">
+            <SidebarGroup className="px-1 py-0">
                 <NavItemList items={featureItems} />
             </SidebarGroup>
 
             {showAccount && (
                 <>
-                    <SidebarSeparator className="mx-2 my-2" />
-                    <SidebarGroup className="px-2 py-0">
+                    <SidebarSeparator className="mx-1 my-2" />
+                    <SidebarGroup className="px-1 py-0">
                         <NavItemList items={accountItems} />
                     </SidebarGroup>
                 </>
