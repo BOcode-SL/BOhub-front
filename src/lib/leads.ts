@@ -42,6 +42,16 @@ const HIDDEN_FORM_KEYS = new Set([
     'full_name',
     'first_name',
     'last_name',
+    'instagram',
+    'insta',
+    'ig',
+    'handle',
+    'web',
+    'website',
+    'company',
+    'empresa',
+    'nombre empresa',
+    'nombre_empresa',
     'nombre',
     'nombre_completo',
     'name',
@@ -82,6 +92,9 @@ export type Lead = {
     name: string | null;
     email: string | null;
     phone: string | null;
+    instagram: string | null;
+    website: string | null;
+    company: string | null;
     metaLeadId: string | null;
     campaignName: string | null;
     formName: string | null;
@@ -98,6 +111,9 @@ export type LeadInput = {
     name?: string | null;
     email?: string | null;
     phone?: string | null;
+    instagram?: string | null;
+    website?: string | null;
+    company?: string | null;
     source?: LeadSource;
     assignedUserId?: number | null;
     lostReason?: string | null;

@@ -64,7 +64,17 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
         setLostDraft('');
         if (mode === 'add') {
             setCurrent(null);
-            setForm({ name: '', email: '', phone: '', source: 'manual', assignedUserId: null, lostReason: '' });
+            setForm({
+                name: '',
+                email: '',
+                phone: '',
+                instagram: '',
+                website: '',
+                company: '',
+                source: 'manual',
+                assignedUserId: null,
+                lostReason: '',
+            });
             return;
         }
         if (!lead) return;
@@ -75,6 +85,9 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                     name: full.name ?? '',
                     email: full.email ?? '',
                     phone: full.phone ?? '',
+                    instagram: full.instagram ?? '',
+                    website: full.website ?? '',
+                    company: full.company ?? '',
                     assignedUserId: full.assignedUserId ?? null,
                     lostReason: full.lostReason ?? '',
                 });
@@ -166,6 +179,15 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
             </FormField>
             <FormField id="lead-phone" label="Teléfono" error={fieldErrors.phone}>
                 <Input id="lead-phone" value={form.phone ?? ''} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+            </FormField>
+            <FormField id="lead-instagram" label="Instagram" error={fieldErrors.instagram}>
+                <Input id="lead-instagram" value={form.instagram ?? ''} onChange={(e) => setForm((p) => ({ ...p, instagram: e.target.value }))} />
+            </FormField>
+            <FormField id="lead-website" label="Web" error={fieldErrors.website}>
+                <Input id="lead-website" value={form.website ?? ''} onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))} />
+            </FormField>
+            <FormField id="lead-company" label="Empresa" error={fieldErrors.company}>
+                <Input id="lead-company" value={form.company ?? ''} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
             </FormField>
             <FormField id="lead-email" label="Email" error={fieldErrors.email}>
                 <Input id="lead-email" value={form.email ?? ''} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
