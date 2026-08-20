@@ -16,6 +16,17 @@ export interface WebsiteAnalysisGrouped {
   lastAnalyzed: string | null
 }
 
+export interface AuditFinding {
+  id: string
+  title: string
+  category: 'Security' | 'SEO' | 'AI Discoverability' | 'Infrastructure' | 'Performance' | string
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'PASSED'
+  status: 'Open' | 'Passed'
+  evidence: string
+  whyItMatters: string
+  recommendedFix: string
+}
+
 export interface WebsiteAnalysis {
   id: string
   domain: string
@@ -30,6 +41,7 @@ export interface WebsiteAnalysis {
     }
     security: {
       hsts: boolean
+      hsts_value?: string | null
       csp: boolean
       x_frame_options: string | null
       x_content_type_options: string | null
@@ -38,7 +50,9 @@ export interface WebsiteAnalysis {
       a_records: string[]
       mx_records: string[]
       has_spf: boolean
+      spf_record?: string | null
       has_dmarc: boolean
+      dmarc_record?: string | null
     }
     ssl: {
       valid: boolean
@@ -49,6 +63,7 @@ export interface WebsiteAnalysis {
     score: number | null
     error?: string | null
   } | null
+  auditFindings?: AuditFinding[] | null
   createdAt: string
   updatedAt: string
 }

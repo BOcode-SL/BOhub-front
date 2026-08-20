@@ -1,6 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, RefreshCw, Trash2, ExternalLink } from 'lucide-react'
+import {
+  ArrowLeft,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  ExternalLink,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  CheckCircle2,
+  ShieldCheck,
+  Search,
+  Server,
+  Bot,
+  Zap,
+} from 'lucide-react'
 import { usePageCrumb } from '@/components/layout/page-crumb'
 import { AppSelect } from '@/components/app-select'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +27,7 @@ import {
   createWebsiteAnalysis,
   deleteWebsiteAnalysis,
   type WebsiteAnalysis,
+  type AuditFinding,
 } from '@/lib/website-analysis'
 import { toastError, toastSuccess } from '@/lib/toast'
 
@@ -26,6 +42,122 @@ function StatCard({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+function getCategoryIcon(cat: string) {
+  switch (cat) {
+    case 'Security':
+      return <ShieldCheck className="size-3.5" />
+    case 'SEO':
+      return <Search className="size-3.5" />
+    case 'AI Discoverability':
+      return <Bot className="size-3.5" />
+    case 'Infrastructure':
+      return <Server className="size-3.5" />
+    case 'Performance':
+      return <Zap className="size-3.5" />
+    default:
+      return null
+  }
+}
+
+function PriorityBadge({ priority, status }: { priority: string; status: string }) {
+  if (status === 'Passed') {
+    return (
+      <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary font-medium">
+        PASSED
+      </Badge>
+    )
+  }
+  switch (priority) {
+    case 'HIGH':
+      return (
+        <Badge variant="destructive" className="font-semibold gap-1">
+          <AlertCircle className="size-3" /> CRÍTICO
+        </Badge>
+      )
+    case 'MEDIUM':
+      return (
+        <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-semibold gap-1">
+          <AlertTriangle className="size-3" /> MEDIO
+        </Badge>
+      )
+    case 'LOW':
+      return (
+        <Badge className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-1">
+          <Info className="size-3" /> LEVE
+        </Badge>
+      )
+    default:
+      return <Badge variant="outline">{priority}</Badge>
+  }
+}
+
+function FindingCard({ finding }: { finding: AuditFinding }) {
+  const isPassed = finding.status === 'Passed'
+
+  const borderClass = isPassed
+    ? 'border-border'
+    : finding.priority === 'HIGH'
+    ? 'border-destructive/50 bg-destructive/5'
+    : finding.priority === 'MEDIUM'
+    ? 'border-amber-500/50 bg-amber-500/5'
+    : 'border-blue-500/50 bg-blue-500/5'
+
+  return (
+    <Card className={`gap-3 py-4 transition-all ${borderClass}`}>
+      <CardHeader className="px-4 pb-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            {isPassed ? (
+              <CheckCircle2 className="size-4 text-primary shrink-0" />
+            ) : finding.priority === 'HIGH' ? (
+              <AlertCircle className="size-4 text-destructive shrink-0" />
+            ) : finding.priority === 'MEDIUM' ? (
+              <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+            ) : (
+              <Info className="size-4 text-blue-500 shrink-0" />
+            )}
+            <CardTitle className="text-base font-semibold text-foreground">
+              {finding.title}
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Badge variant="outline" className="gap-1 text-xs">
+              {getCategoryIcon(finding.category)}
+              {finding.category}
+            </Badge>
+            <PriorityBadge priority={finding.priority} status={finding.status} />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="px-4 pt-1 flex flex-col gap-3">
+        {/* Evidence */}
+        <div className="rounded-md bg-muted/70 px-3 py-2 font-mono text-xs text-foreground/90 break-words border border-border/50">
+          <span className="text-muted-foreground font-sans font-medium select-none block mb-0.5">
+            Evidencia detectada:
+          </span>
+          {finding.evidence}
+        </div>
+
+        {/* Why it matters */}
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          <span className="font-medium text-foreground">Por qué importa: </span>
+          {finding.whyItMatters}
+        </p>
+
+        {/* Recommended Fix */}
+        <div className="rounded-md border border-border bg-background/80 px-3 py-2.5 text-sm flex items-start gap-2.5">
+          <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+          <div className="leading-snug">
+            <span className="font-semibold text-foreground">Solución recomendada: </span>
+            <span className="text-muted-foreground">{finding.recommendedFix}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function WebsiteAnalysisReportPage() {
   const { domain } = useParams<{ domain: string }>()
   const navigate = useNavigate()
@@ -35,6 +167,7 @@ export function WebsiteAnalysisReportPage() {
   const [loading, setLoading] = useState(true)
   const [reanalyzing, setReanalyzing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [activeTab, setActiveTab] = useState<'all' | 'open' | 'passed'>('all')
 
   usePageCrumb(domain)
 
@@ -67,7 +200,7 @@ export function WebsiteAnalysisReportPage() {
     try {
       setReanalyzing(true)
       const newReport = await createWebsiteAnalysis({ domain })
-      toastSuccess('Nuevo análisis completado')
+      toastSuccess('Nuevo análisis completado con motor de reglas')
       setReports((prev) => [newReport, ...prev.filter((r) => r.id !== newReport.id)])
       setSelectedId(newReport.id)
     } catch (err) {
@@ -133,6 +266,14 @@ export function WebsiteAnalysisReportPage() {
   const sec = currentReport.seoData?.security
   const dns = currentReport.seoData?.dns
   const ssl = currentReport.seoData?.ssl
+  const findings: AuditFinding[] = currentReport.auditFindings || []
+
+  const openFindings = findings.filter((f) => f.status === 'Open')
+  const passedFindings = findings.filter((f) => f.status === 'Passed')
+
+  const highIssues = openFindings.filter((f) => f.priority === 'HIGH')
+  const mediumIssues = openFindings.filter((f) => f.priority === 'MEDIUM')
+  const lowIssues = openFindings.filter((f) => f.priority === 'LOW')
 
   const historyItems = reports.map((r, idx) => ({
     value: r.id,
@@ -150,7 +291,7 @@ export function WebsiteAnalysisReportPage() {
     : `https://${currentReport.domain}`
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6 pb-12">
       {/* Back button */}
       <div className="min-w-0">
         <Button
@@ -218,8 +359,43 @@ export function WebsiteAnalysisReportPage() {
         </div>
       </div>
 
-      {/* Grid de Resumen (Executive Summary) */}
+      {/* Grid de Resumen Ejecutivo (Executive Summary) */}
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Problemas Críticos (High)"
+          value={
+            highIssues.length > 0 ? (
+              <span className="text-destructive font-bold flex items-center gap-2">
+                <AlertCircle className="size-5" /> {highIssues.length} {highIssues.length === 1 ? 'crítico' : 'críticos'}
+              </span>
+            ) : (
+              <span className="text-primary font-medium flex items-center gap-2">
+                <CheckCircle2 className="size-5" /> 0 Críticos
+              </span>
+            )
+          }
+        />
+
+        <StatCard
+          label="Problemas Medios & Leves"
+          value={
+            <div className="flex items-center gap-3">
+              <span className="text-amber-500 font-semibold">{mediumIssues.length} Medios</span>
+              <span className="text-muted-foreground text-sm">/</span>
+              <span className="text-blue-500 font-semibold">{lowIssues.length} Leves</span>
+            </div>
+          }
+        />
+
+        <StatCard
+          label="Pruebas Superadas"
+          value={
+            <span className="text-primary font-bold flex items-center gap-2">
+              <CheckCircle2 className="size-5" /> {passedFindings.length} Pasadas
+            </span>
+          }
+        />
+
         <StatCard
           label="Rendimiento PageSpeed"
           value={
@@ -233,62 +409,97 @@ export function WebsiteAnalysisReportPage() {
               </span>
             ) : performanceError ? (
               <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs font-mono">
-                Error API (429/Timeout)
+                Error API (429/Quota)
               </Badge>
             ) : (
               'N/D'
             )
           }
         />
-
-        <StatCard
-          label="Estado SSL"
-          value={
-            ssl?.valid ? (
-              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                Válido
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">
-                Inválido / Falta
-              </Badge>
-            )
-          }
-        />
-
-        <StatCard
-          label="Estructura SEO"
-          value={
-            seo?.title && seo?.h1 ? (
-              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-                Optimizado
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">
-                Incompleto
-              </Badge>
-            )
-          }
-        />
-
-        <StatCard
-          label="Fecha del Escaneo"
-          value={
-            <span className="text-base font-medium">
-              {new Date(currentReport.createdAt).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          }
-        />
       </div>
 
-      {/* Tarjetas de Detalles con <dl> */}
-      <div className="grid gap-6">
+      {/* Section: Findings (Auditoría Profunda) */}
+      {findings.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Hallazgos y Reglas de Auditoría ({findings.length})
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Evaluación exhaustiva de seguridad, infraestructura, indexación y visibilidad IA.
+              </p>
+            </div>
+
+            {/* Filter buttons */}
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <Button
+                variant={activeTab === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('all')}
+              >
+                Todos ({findings.length})
+              </Button>
+              <Button
+                variant={activeTab === 'open' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('open')}
+              >
+                Problemas ({openFindings.length})
+              </Button>
+              <Button
+                variant={activeTab === 'passed' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('passed')}
+              >
+                Aprobados ({passedFindings.length})
+              </Button>
+            </div>
+          </div>
+
+          {/* Open Findings (Issues) */}
+          {(activeTab === 'all' || activeTab === 'open') && openFindings.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="size-4 text-amber-500" />
+                Problemas Detectados que Requieren Atención ({openFindings.length})
+              </h3>
+              <div className="grid gap-4">
+                {openFindings
+                  .sort((a, b) => {
+                    const weight: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+                    return (weight[b.priority] || 0) - (weight[a.priority] || 0)
+                  })
+                  .map((finding) => (
+                    <FindingCard key={finding.id} finding={finding} />
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Passed Findings */}
+          {(activeTab === 'all' || activeTab === 'passed') && passedFindings.length > 0 && (
+            <div className="flex flex-col gap-4 mt-2">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-primary" />
+                Señales Positivas y Pruebas Superadas ({passedFindings.length})
+              </h3>
+              <div className="grid gap-4">
+                {passedFindings.map((finding) => (
+                  <FindingCard key={finding.id} finding={finding} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tarjetas de Detalles Técnicos con <dl> */}
+      <div className="grid gap-6 mt-4">
+        <h2 className="text-xl font-bold tracking-tight text-foreground border-b border-border pb-3">
+          Especificaciones Técnicas On-Page
+        </h2>
+
         {/* SEO & Descubrimiento AI */}
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
