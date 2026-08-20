@@ -63,6 +63,8 @@ src/
 | `/dashboard/contracts/:id`    | Wizard / detalle sobre (PDFs, firmantes, campos) | admin      |
 | `/dashboard/users`            | Users CRUD                                  | admin           |
 | `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
+| `/dashboard/website-analysis` | Histórico y listado de análisis web         | admin, employee |
+| `/dashboard/website-analysis/:domain` | Detalle (auditoría completa y selector de histórico) | admin, employee |
 
 Legacy: `/app` → `/dashboard`. Post-login: `billing` → `/dashboard/billing`; resto → `/dashboard`.
 
