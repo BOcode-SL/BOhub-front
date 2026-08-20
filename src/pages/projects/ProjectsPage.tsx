@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { listClientOptions } from '@/lib/clients';
 import {
     PROJECT_PRIORITY_BADGE_CLASS,
     PROJECT_PRIORITY_LABELS,
@@ -28,8 +27,7 @@ import {
     type ProjectsMeta,
 } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
-import { EntitySelect } from '@/components/entity-select';
-import { ToolbarField, ToolbarSelect } from '@/components/toolbar-field';
+import { ToolbarSelect } from '@/components/toolbar-field';
 import { ProjectSheet } from '@/pages/projects/ProjectSheet';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
@@ -59,11 +57,10 @@ export function ProjectsPage() {
     const perPage = parsePerPage(searchParams.get('per_page'));
     const urlSearch = searchParams.get('search') ?? '';
     const urlStatus = searchParams.get('status') ?? '';
-    const urlClientId = searchParams.get('client_id') ?? '';
+    const urlHasEndDate = searchParams.get('has_end_date') ?? '';
 
     const [searchInput, setSearchInput] = useState(urlSearch);
     const [projects, setProjects] = useState<Project[]>([]);
-    const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
     const [meta, setMeta] = useState<ProjectsMeta | null>(null);
     const [loading, setLoading] = useState(true);
     const [reloadTick, setReloadTick] = useState(0);
@@ -76,16 +73,6 @@ export function ProjectsPage() {
     useEffect(() => {
         setSearchInput(urlSearch);
     }, [urlSearch]);
-
-    useEffect(() => {
-        let cancelled = false;
-        void listClientOptions().then((rows) => {
-            if (!cancelled) setClients(rows);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     // ponytail: background Jira sync — refetch list only when rows changed
     useEffect(() => {
@@ -133,7 +120,7 @@ export function ProjectsPage() {
                         page,
                         perPage,
                         status: urlStatus || undefined,
-                        clientId: urlClientId ? Number(urlClientId) : undefined,
+                        hasEndDate: urlHasEndDate || undefined,
                         sort: 'status',
                     },
                     ac.signal,
@@ -156,7 +143,7 @@ export function ProjectsPage() {
             cancelled = true;
             ac.abort();
         };
-    }, [urlSearch, page, perPage, urlStatus, urlClientId, reloadTick]);
+    }, [urlSearch, page, perPage, urlStatus, urlHasEndDate, reloadTick]);
 
     function reload() {
         setReloadTick((n) => n + 1);
@@ -179,7 +166,7 @@ export function ProjectsPage() {
             per_page: String(perPage),
             search: urlSearch || null,
             status: urlStatus || null,
-            client_id: urlClientId || null,
+            has_end_date: urlHasEndDate || null,
         });
     }
 
@@ -269,30 +256,31 @@ export function ProjectsPage() {
                                         page: '1',
                                         per_page: String(perPage),
                                         search: urlSearch || null,
-                                        client_id: urlClientId || null,
+                                        has_end_date: urlHasEndDate || null,
                                     })
                                 }
                                 className="min-w-40"
                             />
-                            <ToolbarField id="projects-client" label="Cliente">
-                                <EntitySelect
-                                    id="projects-client"
-                                    items={clients}
-                                    value={urlClientId ? Number(urlClientId) : null}
-                                    onValueChange={(value) =>
-                                        patchParams({
-                                            client_id: value == null ? null : String(value),
-                                            page: '1',
-                                            per_page: String(perPage),
-                                            search: urlSearch || null,
-                                            status: urlStatus || null,
-                                        })
-                                    }
-                                    allowClear
-                                    placeholder="Todos"
-                                    className="min-w-40"
-                                />
-                            </ToolbarField>
+                            <ToolbarSelect
+                                id="projects-has-end-date"
+                                label="Fecha de fin"
+                                items={[
+                                    { label: 'Cualquier fecha', value: null },
+                                    { label: 'Con fecha de fin', value: '1' },
+                                ]}
+                                value={urlHasEndDate || null}
+                                onValueChange={(value) =>
+                                    patchParams({
+                                        has_end_date: value,
+                                        page: '1',
+                                        per_page: String(perPage),
+                                        search: urlSearch || null,
+                                        status: urlStatus || null,
+                                    })
+                                }
+                                placeholder="Fecha de fin"
+                                className="min-w-40"
+                            />
                             <ToolbarSelect
                                 id="projects-per-page"
                                 label="Por página"
@@ -305,7 +293,7 @@ export function ProjectsPage() {
                                         page: '1',
                                         search: urlSearch || null,
                                         status: urlStatus || null,
-                                        client_id: urlClientId || null,
+                                        has_end_date: urlHasEndDate || null,
                                     });
                                 }}
                             />
@@ -332,7 +320,7 @@ export function ProjectsPage() {
                                 Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
                                     <TableRow key={i}>
                                         <TableCell>
-                                            <Skeleton className="h-4 w-full" />
+                                             <Skeleton className="h-4 w-full" />
                                         </TableCell>
                                         <TableCell>
                                             <Skeleton className="h-4 w-full" />
@@ -493,8 +481,6 @@ export function ProjectsPage() {
                 project={editing}
                 onOpenChange={setSheetOpen}
                 onSubmit={handleSave}
-                defaultClientId={urlClientId ? Number(urlClientId) : undefined}
-                clientOptions={clients}
             />
 
             <Dialog

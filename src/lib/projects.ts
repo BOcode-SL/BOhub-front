@@ -167,6 +167,7 @@ export async function listProjects(
         perPage?: number;
         status?: string;
         clientId?: number;
+        hasEndDate?: string;
         sort?: string;
     } = {},
     signal?: AbortSignal,
@@ -177,6 +178,7 @@ export async function listProjects(
     if (params.perPage) q.set('per_page', String(params.perPage));
     if (params.status) q.set('status', params.status);
     if (params.clientId) q.set('client_id', String(params.clientId));
+    if (params.hasEndDate) q.set('has_end_date', params.hasEndDate);
     if (params.sort) q.set('sort', params.sort);
     const qs = q.toString();
     return request<PaginatedProjects>(`/api/projects${qs ? `?${qs}` : ''}`, {
