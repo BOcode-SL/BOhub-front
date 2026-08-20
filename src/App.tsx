@@ -24,6 +24,8 @@ import { ContractDetailPage } from '@/pages/contracts/ContractDetailPage';
 import { ContractEmailSettingsPage } from '@/pages/contracts/ContractEmailSettingsPage';
 import { SignContractPage } from '@/pages/sign/SignContractPage';
 import { LeadsPage } from '@/pages/leads/LeadsPage';
+import { WebsiteAnalysisListPage } from '@/pages/website-analysis/WebsiteAnalysisListPage';
+import { WebsiteAnalysisReportPage } from '@/pages/website-analysis/WebsiteAnalysisReportPage';
 
 /** Bookmarks: /app and /app/* → /dashboard/* */
 function LegacyAppRedirect() {
@@ -55,6 +57,8 @@ export default function App() {
                                     <Route path="projects/:id" element={<ProjectDetailPage />} />
                                     <Route path="timer" element={<TimerPage />} />
                                     <Route path="maintenance" element={<MaintenancePage />} />
+                                    <Route path="website-analysis" element={<WebsiteAnalysisListPage />} />
+                                    <Route path="website-analysis/:domain" element={<WebsiteAnalysisReportPage />} />
                                 </Route>
 
                                 <Route element={<BillingRoute />}>

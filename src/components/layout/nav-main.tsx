@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Clock, FilePen, Folder, Home, Inbox, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { Activity, Clock, FilePen, Folder, Home, Inbox, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth/AuthContext';
@@ -61,6 +61,12 @@ const featureItems: NavItem[] = [
         title: 'Mantenimientos',
         url: '/dashboard/maintenance',
         icon: Wrench,
+        roles: ['admin', 'employee'],
+    },
+    {
+        title: 'Análisis Web',
+        url: '/dashboard/website-analysis',
+        icon: Activity,
         roles: ['admin', 'employee'],
     },
 ];
