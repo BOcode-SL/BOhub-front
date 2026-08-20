@@ -178,6 +178,23 @@ export function WebsiteAnalysisReportPage() {
     return () => abort.abort()
   }, [domain])
 
+  // Polling si hay algún análisis en 'pending'
+  useEffect(() => {
+    if (!domain) return
+    const hasPending = reports.some((r) => r.status === 'pending')
+    if (!hasPending) return
+
+    const interval = setInterval(() => {
+      fetchWebsiteAnalysisHistory(domain)
+        .then((list) => {
+          setReports(list)
+        })
+        .catch(() => {})
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [domain, reports])
+
   async function load(domainName: string, signal?: AbortSignal) {
     try {
       setLoading(true)
@@ -200,7 +217,7 @@ export function WebsiteAnalysisReportPage() {
     try {
       setReanalyzing(true)
       const newReport = await createWebsiteAnalysis({ domain })
-      toastSuccess('Nuevo análisis completado con motor de reglas')
+      toastSuccess('Análisis iniciado en segundo plano')
       setReports((prev) => [newReport, ...prev.filter((r) => r.id !== newReport.id)])
       setSelectedId(newReport.id)
     } catch (err) {
@@ -260,6 +277,9 @@ export function WebsiteAnalysisReportPage() {
     )
   }
 
+  const isPending = currentReport.status === 'pending'
+  const isFailed = currentReport.status === 'failed'
+
   const score = currentReport.performanceData?.score
   const performanceError = currentReport.performanceData?.error
   const seo = currentReport.seoData?.seo
@@ -283,7 +303,7 @@ export function WebsiteAnalysisReportPage() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    })}`,
+    })}${r.status === 'pending' ? ' (En progreso...)' : ''}`,
   }))
 
   const targetUrl = currentReport.domain.startsWith('http')
@@ -337,13 +357,13 @@ export function WebsiteAnalysisReportPage() {
               </div>
             )}
 
-            <Button onClick={handleReanalyze} disabled={reanalyzing || deleting}>
-              {reanalyzing ? (
+            <Button onClick={handleReanalyze} disabled={reanalyzing || deleting || isPending}>
+              {reanalyzing || isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Volver a Analizar
+              {isPending ? 'Analizando...' : 'Volver a Analizar'}
             </Button>
 
             <Button
@@ -359,12 +379,40 @@ export function WebsiteAnalysisReportPage() {
         </div>
       </div>
 
+      {/* Banner si el análisis actual está en progreso */}
+      {isPending && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-amber-600 dark:text-amber-400 flex items-center gap-3">
+          <Loader2 className="size-5 animate-spin shrink-0" />
+          <div>
+            <p className="font-semibold text-foreground">Auditoría en curso en segundo plano</p>
+            <p className="text-sm text-muted-foreground">
+              Estamos recopilando métricas de Lighthouse, cabeceras de seguridad, certificados SSL y DNS. Esta vista se actualizará automáticamente en unos segundos.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner si el análisis falló */}
+      {isFailed && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive flex items-center gap-3">
+          <AlertCircle className="size-5 shrink-0" />
+          <div>
+            <p className="font-semibold">El análisis ha fallado</p>
+            <p className="text-sm text-muted-foreground">
+              No fue posible conectar con el servidor o resolver el dominio. Puedes reintentarlo con el botón superior.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Grid de Resumen Ejecutivo (Executive Summary) */}
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Problemas Críticos (High)"
           value={
-            highIssues.length > 0 ? (
+            isPending ? (
+              <span className="text-muted-foreground text-base">Analizando...</span>
+            ) : highIssues.length > 0 ? (
               <span className="text-destructive font-bold flex items-center gap-2">
                 <AlertCircle className="size-5" /> {highIssues.length} {highIssues.length === 1 ? 'crítico' : 'críticos'}
               </span>
@@ -379,27 +427,37 @@ export function WebsiteAnalysisReportPage() {
         <StatCard
           label="Problemas Medios & Leves"
           value={
-            <div className="flex items-center gap-3">
-              <span className="text-amber-500 font-semibold">{mediumIssues.length} Medios</span>
-              <span className="text-muted-foreground text-sm">/</span>
-              <span className="text-blue-500 font-semibold">{lowIssues.length} Leves</span>
-            </div>
+            isPending ? (
+              <span className="text-muted-foreground text-base">Analizando...</span>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-amber-500 font-semibold">{mediumIssues.length} Medios</span>
+                <span className="text-muted-foreground text-sm">/</span>
+                <span className="text-blue-500 font-semibold">{lowIssues.length} Leves</span>
+              </div>
+            )
           }
         />
 
         <StatCard
           label="Pruebas Superadas"
           value={
-            <span className="text-primary font-bold flex items-center gap-2">
-              <CheckCircle2 className="size-5" /> {passedFindings.length} Pasadas
-            </span>
+            isPending ? (
+              <span className="text-muted-foreground text-base">Analizando...</span>
+            ) : (
+              <span className="text-primary font-bold flex items-center gap-2">
+                <CheckCircle2 className="size-5" /> {passedFindings.length} Pasadas
+              </span>
+            )
           }
         />
 
         <StatCard
           label="Rendimiento PageSpeed"
           value={
-            score !== null && score !== undefined ? (
+            isPending ? (
+              <span className="text-muted-foreground text-base">Analizando...</span>
+            ) : score !== null && score !== undefined ? (
               <span
                 className={
                   score >= 90 ? 'text-primary' : score >= 50 ? 'text-yellow-500' : 'text-destructive'
@@ -418,84 +476,8 @@ export function WebsiteAnalysisReportPage() {
         />
       </div>
 
-      {/* Section: Findings (Auditoría Profunda) */}
-      {findings.length > 0 && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
-                Hallazgos y Reglas de Auditoría ({findings.length})
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Evaluación exhaustiva de seguridad, infraestructura, indexación y visibilidad IA.
-              </p>
-            </div>
-
-            {/* Filter buttons */}
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
-              <Button
-                variant={activeTab === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveTab('all')}
-              >
-                Todos ({findings.length})
-              </Button>
-              <Button
-                variant={activeTab === 'open' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveTab('open')}
-              >
-                Problemas ({openFindings.length})
-              </Button>
-              <Button
-                variant={activeTab === 'passed' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveTab('passed')}
-              >
-                Aprobados ({passedFindings.length})
-              </Button>
-            </div>
-          </div>
-
-          {/* Open Findings (Issues) */}
-          {(activeTab === 'all' || activeTab === 'open') && openFindings.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                <AlertTriangle className="size-4 text-amber-500" />
-                Problemas Detectados que Requieren Atención ({openFindings.length})
-              </h3>
-              <div className="grid gap-4">
-                {openFindings
-                  .sort((a, b) => {
-                    const weight: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
-                    return (weight[b.priority] || 0) - (weight[a.priority] || 0)
-                  })
-                  .map((finding) => (
-                    <FindingCard key={finding.id} finding={finding} />
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Passed Findings */}
-          {(activeTab === 'all' || activeTab === 'passed') && passedFindings.length > 0 && (
-            <div className="flex flex-col gap-4 mt-2">
-              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                <CheckCircle2 className="size-4 text-primary" />
-                Señales Positivas y Pruebas Superadas ({passedFindings.length})
-              </h3>
-              <div className="grid gap-4">
-                {passedFindings.map((finding) => (
-                  <FindingCard key={finding.id} finding={finding} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Tarjetas de Detalles Técnicos con <dl> */}
-      <div className="grid gap-6 mt-4">
+      <div className="grid gap-6">
         <h2 className="text-xl font-bold tracking-tight text-foreground border-b border-border pb-3">
           Especificaciones Técnicas On-Page
         </h2>
@@ -732,6 +714,82 @@ export function WebsiteAnalysisReportPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Section: Findings (Auditoría Profunda) */}
+      {!isPending && findings.length > 0 && (
+        <div className="flex flex-col gap-4 mt-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Hallazgos y Reglas de Auditoría ({findings.length})
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Evaluación exhaustiva de seguridad, infraestructura, indexación y visibilidad IA.
+              </p>
+            </div>
+
+            {/* Filter buttons */}
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <Button
+                variant={activeTab === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('all')}
+              >
+                Todos ({findings.length})
+              </Button>
+              <Button
+                variant={activeTab === 'open' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('open')}
+              >
+                Problemas ({openFindings.length})
+              </Button>
+              <Button
+                variant={activeTab === 'passed' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('passed')}
+              >
+                Aprobados ({passedFindings.length})
+              </Button>
+            </div>
+          </div>
+
+          {/* Open Findings (Issues) */}
+          {(activeTab === 'all' || activeTab === 'open') && openFindings.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="size-4 text-amber-500" />
+                Problemas Detectados que Requieren Atención ({openFindings.length})
+              </h3>
+              <div className="grid gap-4">
+                {openFindings
+                  .sort((a, b) => {
+                    const weight: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+                    return (weight[b.priority] || 0) - (weight[a.priority] || 0)
+                  })
+                  .map((finding) => (
+                    <FindingCard key={finding.id} finding={finding} />
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Passed Findings */}
+          {(activeTab === 'all' || activeTab === 'passed') && passedFindings.length > 0 && (
+            <div className="flex flex-col gap-4 mt-2">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-primary" />
+                Señales Positivas y Pruebas Superadas ({passedFindings.length})
+              </h3>
+              <div className="grid gap-4">
+                {passedFindings.map((finding) => (
+                  <FindingCard key={finding.id} finding={finding} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

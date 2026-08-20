@@ -114,6 +114,7 @@ Prefer extending these over new ad-hoc `fetch` calls.
 - **Leads**: Lista paginada + tablero (DnD etapa). Sheet ancho con payload Meta. Admin+employee.
 - **Emails**: `[VAR]` templates; messages single page with sent/scheduled tabs; attachments meta on sent, disk only while scheduled. Plantilla de factura también editable desde Billing (billing role) sin abrir `/emails`.
 - **Contracts (SES)**: admin only. Lista + detalle wizard (datos → PDFs → firmantes → editor pdfjs preview apilada 1..N PDFs, **1 parse/PDF**, clic sobre el hueco → enviar). Timeline eventos: `ev.label` (quién). Al crear, firmante BOcode (`BOCODE DEVELOPERS SL` / `hola@bocode.es`) va siempre. Plantilla email `/dashboard/contracts/settings` (solicitud + pack firmado). Al cerrar: email pack adjunto a cada firmante. **Eliminar** cualquier status solo desde la lista (confirmación dura si signed/partial). Público `/sign/:token` (ruta fuera de `ProtectedRoute`; fetch sin cookie; misma preview apilada; **1 trazo** en Sheet bottom replica a todas las cajas signature; **Firmar** + consent solo tras llegar al final del sobre). Employee/billing no ven nav.
+- **Website Analysis**: Módulo de auditoría SEO/Performance y Security. Ejecución asíncrona. La lista hace *polling ligero* si hay dominios en `pending`. Detalle rico con componentes `shadcn` (Cards, Badges, Accordions). Historial por dominio (select en el header).
 
 ## Conventions for agents
 

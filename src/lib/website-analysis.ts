@@ -10,8 +10,11 @@ export interface Paginated<T> {
   }
 }
 
+export type AnalysisStatus = 'pending' | 'completed' | 'failed'
+
 export interface WebsiteAnalysisGrouped {
   domain: string
+  status: AnalysisStatus
   totalRuns: number
   lastAnalyzed: string | null
 }
@@ -30,6 +33,7 @@ export interface AuditFinding {
 export interface WebsiteAnalysis {
   id: string
   domain: string
+  status: AnalysisStatus
   clientId: string | null
   seoData: {
     seo: {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Activity, Plus, Loader2 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Activity, Plus, Loader2, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { ListPageShell } from '@/components/list-page-shell'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { fetchWebsiteAnalyses, createWebsiteAnalysis, type WebsiteAnalysisGrouped } from '@/lib/website-analysis'
@@ -18,20 +19,55 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'pending':
+      return (
+        <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-medium gap-1">
+          <Loader2 className="size-3 animate-spin" /> En progreso
+        </Badge>
+      )
+    case 'failed':
+      return (
+        <Badge variant="destructive" className="font-medium gap-1">
+          <XCircle className="size-3" /> Fallido
+        </Badge>
+      )
+    default:
+      return (
+        <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary font-medium gap-1">
+          <CheckCircle2 className="size-3" /> Completado
+        </Badge>
+      )
+  }
+}
+
 export function WebsiteAnalysisListPage() {
   const [data, setData] = useState<WebsiteAnalysisGrouped[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [domain, setDomain] = useState('')
   const [creating, setCreating] = useState(false)
-  
-  const navigate = useNavigate()
 
   useEffect(() => {
     const abort = new AbortController()
     load(abort.signal)
     return () => abort.abort()
   }, [])
+
+  // Ponytail simple polling: cada 5s si hay algún análisis en 'pending'
+  useEffect(() => {
+    const hasPending = data.some((item) => item.status === 'pending')
+    if (!hasPending) return
+
+    const interval = setInterval(() => {
+      fetchWebsiteAnalyses(1)
+        .then((res) => setData(res.data))
+        .catch(() => {})
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [data])
 
   async function load(signal?: AbortSignal) {
     try {
@@ -47,17 +83,41 @@ export function WebsiteAnalysisListPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!domain.trim()) return
+    const targetDomain = domain.trim()
+    if (!targetDomain) return
+
+    setCreateOpen(false)
+    setDomain('')
+    toastSuccess('Análisis iniciado en segundo plano')
+
+    // Optimistic UI update
+    setData((prev) => {
+      const exists = prev.find((item) => item.domain.toLowerCase() === targetDomain.toLowerCase())
+      if (exists) {
+        return prev.map((item) =>
+          item.domain.toLowerCase() === targetDomain.toLowerCase()
+            ? { ...item, status: 'pending', totalRuns: item.totalRuns + 1, lastAnalyzed: new Date().toISOString() }
+            : item
+        )
+      }
+      return [
+        {
+          domain: targetDomain,
+          status: 'pending',
+          totalRuns: 1,
+          lastAnalyzed: new Date().toISOString(),
+        },
+        ...prev,
+      ]
+    })
 
     try {
       setCreating(true)
-      const res = await createWebsiteAnalysis({ domain: domain.trim() })
-      toastSuccess('Análisis completado')
-      setCreateOpen(false)
-      setDomain('')
-      navigate(`/dashboard/website-analysis/${encodeURIComponent(res.domain)}`)
+      await createWebsiteAnalysis({ domain: targetDomain })
     } catch (err) {
       toastError(err)
+      // Refetch on error
+      void load()
     } finally {
       setCreating(false)
     }
@@ -79,7 +139,7 @@ export function WebsiteAnalysisListPage() {
               <DialogHeader>
                 <DialogTitle>Nuevo Análisis Web</DialogTitle>
                 <DialogDescription>
-                  Introduce el dominio de la web a analizar (ej. bocode.es). Esto tomará unos segundos.
+                  Introduce el dominio de la web a analizar (ej. bocode.es). El proceso se ejecutará en segundo plano.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -114,6 +174,7 @@ export function WebsiteAnalysisListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Dominio</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Último Escaneo</TableHead>
               <TableHead>Total Escaneos</TableHead>
               <TableHead className="w-[100px]"></TableHead>
@@ -122,13 +183,13 @@ export function WebsiteAnalysisListPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   No hay análisis todavía.
                 </TableCell>
               </TableRow>
@@ -137,7 +198,23 @@ export function WebsiteAnalysisListPage() {
                 <TableRow key={item.domain}>
                   <TableCell className="font-medium">{item.domain}</TableCell>
                   <TableCell>
-                    {item.lastAnalyzed ? new Date(item.lastAnalyzed).toLocaleString() : '-'}
+                    <StatusBadge status={item.status} />
+                  </TableCell>
+                  <TableCell>
+                    {item.lastAnalyzed ? (
+                      <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                        <Clock className="size-3.5" />
+                        {new Date(item.lastAnalyzed).toLocaleString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
