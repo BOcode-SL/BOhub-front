@@ -325,27 +325,41 @@ export function WebsiteAnalysisReportPage() {
         </Button>
 
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-              {currentReport.domain}
-            </h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 text-muted-foreground hover:text-foreground"
-              nativeButton={false}
-              render={<a href={targetUrl} target="_blank" rel="noreferrer" />}
-              title="Abrir web externa"
-            >
-              <ExternalLink className="size-3.5" />
-            </Button>
-            <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
-              {reports.length} {reports.length === 1 ? 'versión' : 'versiones'}
-            </span>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                {currentReport.domain}
+              </h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                nativeButton={false}
+                render={<a href={targetUrl} target="_blank" rel="noreferrer" />}
+                title="Abrir web externa"
+              >
+                <ExternalLink className="size-3.5" />
+              </Button>
+              <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
+                {reports.length} {reports.length === 1 ? 'versión' : 'versiones'}
+              </span>
+            </div>
+
+            {/* Badges de Stack Tecnológico */}
+            {currentReport.techStack && currentReport.techStack.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-xs text-muted-foreground font-medium mr-0.5">Stack detectado:</span>
+                {currentReport.techStack.map((tech) => (
+                  <Badge key={tech} variant="secondary" className="font-normal text-xs px-2 py-0.5">
+                    {tech}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {reports.length > 1 && (
               <div className="min-w-[200px]">
                 <AppSelect
@@ -486,7 +500,7 @@ export function WebsiteAnalysisReportPage() {
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
             <CardTitle>SEO & Descubrimiento AI</CardTitle>
-            <CardDescription>Etiquetas meta, jerarquía y accesibilidad semántica.</CardDescription>
+            <CardDescription>Etiquetas meta, Open Graph, jerarquía y accesibilidad semántica.</CardDescription>
           </CardHeader>
           <CardContent className="px-4 pt-2">
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -524,6 +538,32 @@ export function WebsiteAnalysisReportPage() {
               </div>
 
               <div className="grid gap-1">
+                <dt className="text-sm text-muted-foreground">Open Graph (og:title / og:image)</dt>
+                <dd className="text-sm font-medium text-foreground">
+                  {seo?.og_title || seo?.og_image ? (
+                    <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
+                      Configurado
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive">
+                      Falta
+                    </Badge>
+                  )}
+                </dd>
+              </div>
+
+              <div className="grid gap-1">
+                <dt className="text-sm text-muted-foreground">Texto Visible (Palabras)</dt>
+                <dd className="text-sm font-medium text-foreground">
+                  {seo?.word_count !== undefined ? (
+                    <span>{seo.word_count} palabras</span>
+                  ) : (
+                    '—'
+                  )}
+                </dd>
+              </div>
+
+              <div className="grid gap-1">
                 <dt className="text-sm text-muted-foreground">Atributo Lang</dt>
                 <dd className="text-sm font-medium text-foreground">
                   {seo?.lang ? (
@@ -536,7 +576,7 @@ export function WebsiteAnalysisReportPage() {
                 </dd>
               </div>
 
-              <div className="grid gap-1 lg:col-span-2">
+              <div className="grid gap-1 lg:col-span-3">
                 <dt className="text-sm text-muted-foreground">URL Canonical</dt>
                 <dd className="text-sm font-medium text-foreground break-all">
                   {seo?.canonical || (

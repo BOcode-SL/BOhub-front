@@ -13,10 +13,13 @@ export interface Paginated<T> {
 export type AnalysisStatus = 'pending' | 'completed' | 'failed'
 
 export interface WebsiteAnalysisGrouped {
+  id?: string
   domain: string
   status: AnalysisStatus
-  totalRuns: number
-  lastAnalyzed: string | null
+  performanceScore?: number | null
+  totalErrors?: number
+  lastAnalyzed?: string | null
+  lastAnalyzedAt?: string | null
 }
 
 export interface AuditFinding {
@@ -35,6 +38,7 @@ export interface WebsiteAnalysis {
   domain: string
   status: AnalysisStatus
   clientId: string | null
+  techStack?: string[] | null
   seoData: {
     seo: {
       title: string | null
@@ -42,6 +46,9 @@ export interface WebsiteAnalysis {
       h1: string | null
       lang: string | null
       canonical: string | null
+      og_title?: string | null
+      og_image?: string | null
+      word_count?: number
     }
     security: {
       hsts: boolean
@@ -62,6 +69,7 @@ export interface WebsiteAnalysis {
       valid: boolean
       valid_to_unix: number | null
     }
+    tech_stack?: string[]
   } | null
   performanceData: {
     score: number | null

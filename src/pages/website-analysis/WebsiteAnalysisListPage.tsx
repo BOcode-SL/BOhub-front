@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Plus, Loader2, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { Activity, Plus, Loader2, Clock, CheckCircle2, XCircle, AlertTriangle, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ListPageShell } from '@/components/list-page-shell'
 import { Badge } from '@/components/ui/badge'
@@ -55,7 +55,7 @@ export function WebsiteAnalysisListPage() {
     return () => abort.abort()
   }, [])
 
-  // Ponytail simple polling: cada 5s si hay algún análisis en 'pending'
+  // Polling cada 5s si hay algún análisis en 'pending'
   useEffect(() => {
     const hasPending = data.some((item) => item.status === 'pending')
     if (!hasPending) return
@@ -96,7 +96,13 @@ export function WebsiteAnalysisListPage() {
       if (exists) {
         return prev.map((item) =>
           item.domain.toLowerCase() === targetDomain.toLowerCase()
-            ? { ...item, status: 'pending', totalRuns: item.totalRuns + 1, lastAnalyzed: new Date().toISOString() }
+            ? {
+                ...item,
+                status: 'pending',
+                performanceScore: null,
+                totalErrors: 0,
+                lastAnalyzed: new Date().toISOString(),
+              }
             : item
         )
       }
@@ -104,7 +110,8 @@ export function WebsiteAnalysisListPage() {
         {
           domain: targetDomain,
           status: 'pending',
-          totalRuns: 1,
+          performanceScore: null,
+          totalErrors: 0,
           lastAnalyzed: new Date().toISOString(),
         },
         ...prev,
@@ -116,7 +123,6 @@ export function WebsiteAnalysisListPage() {
       await createWebsiteAnalysis({ domain: targetDomain })
     } catch (err) {
       toastError(err)
-      // Refetch on error
       void load()
     } finally {
       setCreating(false)
@@ -175,64 +181,104 @@ export function WebsiteAnalysisListPage() {
             <TableRow>
               <TableHead>Dominio</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>PageSpeed</TableHead>
+              <TableHead>Problemas</TableHead>
               <TableHead>Último Escaneo</TableHead>
-              <TableHead>Total Escaneos</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No hay análisis todavía.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((item) => (
-                <TableRow key={item.domain}>
-                  <TableCell className="font-medium">{item.domain}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={item.status} />
-                  </TableCell>
-                  <TableCell>
-                    {item.lastAnalyzed ? (
-                      <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                        <Clock className="size-3.5" />
-                        {new Date(item.lastAnalyzed).toLocaleString('es-ES', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
-                      {item.totalRuns} {item.totalRuns === 1 ? 'versión' : 'versiones'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      render={<Link to={`/dashboard/website-analysis/${encodeURIComponent(item.domain)}`} />}
-                      nativeButton={false}
-                    >
-                      Ver detalles
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              data.map((item) => {
+                const score = item.performanceScore
+                const isPending = item.status === 'pending'
+                const errorsCount = item.totalErrors ?? 0
+
+                return (
+                  <TableRow key={item.domain}>
+                    <TableCell className="font-medium">{item.domain}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={item.status} />
+                    </TableCell>
+                    <TableCell>
+                      {isPending ? (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      ) : score !== null && score !== undefined ? (
+                        <span
+                          className={`font-semibold inline-flex items-center gap-1 text-sm ${
+                            score >= 80
+                              ? 'text-primary'
+                              : score >= 50
+                              ? 'text-amber-500'
+                              : 'text-destructive'
+                          }`}
+                        >
+                          <Zap className="size-3.5" />
+                          {score}/100
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isPending ? (
+                        <span className="text-muted-foreground text-xs">Calculando...</span>
+                      ) : errorsCount > 0 ? (
+                        <Badge variant="destructive" className="font-semibold gap-1">
+                          <AlertTriangle className="size-3" />
+                          {errorsCount} {errorsCount === 1 ? 'problema' : 'problemas'}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 bg-primary/10 text-primary font-medium gap-1"
+                        >
+                          <CheckCircle2 className="size-3" />
+                          0 problemas
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {item.lastAnalyzed ? (
+                        <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                          <Clock className="size-3.5" />
+                          {new Date(item.lastAnalyzed).toLocaleString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        render={<Link to={`/dashboard/website-analysis/${encodeURIComponent(item.domain)}`} />}
+                        nativeButton={false}
+                      >
+                        Ver detalles
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
