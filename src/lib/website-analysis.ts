@@ -7,6 +7,8 @@ export interface Paginated<T> {
     last_page: number
     per_page: number
     total: number
+    from?: number | null
+    to?: number | null
   }
 }
 
@@ -81,10 +83,15 @@ export interface WebsiteAnalysis {
 }
 
 export async function fetchWebsiteAnalyses(
-  page = 1,
+  params?: { page?: number; per_page?: number; search?: string },
   signal?: AbortSignal
 ): Promise<Paginated<WebsiteAnalysisGrouped>> {
-  return request<Paginated<WebsiteAnalysisGrouped>>(`/api/website-analyses?page=${page}`, { signal })
+  const q = new URLSearchParams()
+  if (params?.page) q.set('page', String(params.page))
+  if (params?.per_page) q.set('per_page', String(params.per_page))
+  if (params?.search) q.set('search', params.search)
+  const qs = q.toString()
+  return request<Paginated<WebsiteAnalysisGrouped>>(`/api/website-analyses${qs ? `?${qs}` : ''}`, { signal })
 }
 
 export async function fetchWebsiteAnalysis(id: string, signal?: AbortSignal): Promise<WebsiteAnalysis> {
