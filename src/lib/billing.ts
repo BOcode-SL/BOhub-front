@@ -66,6 +66,8 @@ export type Payment = {
     paymentDate?: string | null;
     lastPaymentDate?: string | null;
     reference: string | null;
+    /** First payment line (+N). List column Concepto. */
+    concept?: string | null;
     invoiceNumber: string | null;
     /** legal = factura; none = cobro sin factura */
     invoiceMode?: InvoiceMode;

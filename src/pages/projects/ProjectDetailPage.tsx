@@ -918,14 +918,7 @@ export function ProjectDetailPage() {
                                             </TableRow>
                                         )}
                                         {payments.map((payment) => {
-                                            const lines =
-                                                payment.lines?.filter((l) => l.description?.toString().trim()) ?? [];
-                                            const description =
-                                                lines.length === 0
-                                                    ? '—'
-                                                    : lines.length === 1
-                                                      ? lines[0].description
-                                                      : `${lines.length} conceptos`;
+                                            const description = payment.concept?.trim() || '—';
                                             return (
                                                 <TableRow key={payment.id}>
                                                     <TableCell className="font-mono text-foreground whitespace-nowrap">
@@ -936,11 +929,7 @@ export function ProjectDetailPage() {
                                                     </TableCell>
                                                     <TableCell
                                                         className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[20rem]"
-                                                        title={
-                                                            lines.length > 1
-                                                                ? lines.map((l) => l.description).join(' · ')
-                                                                : description
-                                                        }
+                                                        title={description !== '—' ? description : undefined}
                                                     >
                                                         {description}
                                                     </TableCell>

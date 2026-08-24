@@ -75,6 +75,7 @@ export type LedgerRowBase = {
     storageKey?: string | null;
     fileName?: string | null;
     description?: string | null;
+    concept?: string | null;
     recipient?: string | null;
     project?: {
         id: number;
@@ -428,7 +429,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     <>
                                         <TableHead>Nº Factura</TableHead>
                                         <TableHead>F. Factura</TableHead>
-                                        <TableHead>Proyecto</TableHead>
+                                        <TableHead>Concepto</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
                                         <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
@@ -582,9 +583,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             </TableCell>
                                             <TableCell
                                                 className="max-w-[10rem] truncate text-muted-foreground sm:max-w-[14rem]"
-                                                title={row.project?.name || undefined}
+                                                title={row.concept?.trim() || row.project?.name || undefined}
                                             >
-                                                {row.project?.name || '—'}
+                                                {row.concept?.trim() || '—'}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap items-center gap-1.5">
