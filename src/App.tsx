@@ -58,7 +58,9 @@ export default function App() {
                                     <Route path="timer" element={<TimerPage />} />
                                     <Route path="maintenance" element={<MaintenancePage />} />
                                     <Route path="website-analysis" element={<WebsiteAnalysisListPage />} />
+                                    <Route path="website-analysis/:domain/*" element={<WebsiteAnalysisReportPage />} />
                                     <Route path="website-analysis/:domain" element={<WebsiteAnalysisReportPage />} />
+                                    <Route path="website-analysis/*" element={<WebsiteAnalysisReportPage />} />
                                 </Route>
 
                                 <Route element={<BillingRoute />}>

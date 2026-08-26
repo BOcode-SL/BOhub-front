@@ -105,11 +105,14 @@ export async function fetchWebsiteAnalysis(id: string, signal?: AbortSignal): Pr
 }
 
 export async function fetchWebsiteAnalysisHistory(domain: string, signal?: AbortSignal): Promise<WebsiteAnalysis[]> {
+  const clean = domain.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
   const res = await request<{ data: WebsiteAnalysis[] } | WebsiteAnalysis[]>(
-    `/api/website-analyses/domain/${encodeURIComponent(domain)}`,
+    `/api/website-analyses/domain/${encodeURIComponent(clean || domain)}`,
     { signal }
   )
-  return Array.isArray(res) ? res : res.data
+  if (Array.isArray(res)) return res
+  if (res && Array.isArray(res.data)) return res.data
+  return []
 }
 
 export async function createWebsiteAnalysis(data: { domain: string }): Promise<WebsiteAnalysis> {

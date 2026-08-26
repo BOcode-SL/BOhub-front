@@ -15,6 +15,8 @@ import {
   Server,
   Bot,
   Zap,
+  Play,
+  Activity,
 } from 'lucide-react'
 import { usePageCrumb } from '@/components/layout/page-crumb'
 import { AppSelect } from '@/components/app-select'
@@ -158,8 +160,137 @@ function FindingCard({ finding }: { finding: AuditFinding }) {
   )
 }
 
+function WebsiteAnalysisReportSkeleton({ domain }: { domain?: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-6 pb-12">
+      {/* Back button */}
+      <div className="min-w-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-2 -ml-2 cursor-pointer"
+          nativeButton={false}
+          render={<Link to="/dashboard/website-analysis" />}
+        >
+          <ArrowLeft /> Análisis Web
+        </Button>
+
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                {domain || 'Cargando análisis...'}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                <Loader2 className="size-3 animate-spin" /> Cargando análisis...
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Obteniendo métricas de rendimiento, seguridad e infraestructura...
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Skeleton className="h-9 w-36 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      {/* Loading banner */}
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-foreground flex items-center gap-3">
+        <Loader2 className="size-5 animate-spin text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm">Cargando reporte de auditoría...</p>
+          <p className="text-xs text-muted-foreground">
+            Recuperando el análisis completo y las métricas de rendimiento para <strong className="text-foreground">{domain || 'este dominio'}</strong>.
+          </p>
+        </div>
+      </div>
+
+      {/* Grid de Resumen Ejecutivo (StatCards) */}
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="gap-2 py-4">
+            <CardHeader className="px-4 pb-0">
+              <Skeleton className="h-4 w-28" />
+            </CardHeader>
+            <CardContent className="px-4 pt-2">
+              <Skeleton className="h-7 w-20" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Especificaciones Técnicas Skeletons */}
+      <div className="grid gap-6">
+        <Skeleton className="h-6 w-56" />
+
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <Card key={idx} className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <Skeleton className="h-5 w-48 mb-1" />
+              <Skeleton className="h-4 w-72" />
+            </CardHeader>
+            <CardContent className="px-4 pt-2">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, cellIdx) => (
+                  <div key={cellIdx} className="grid gap-1">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-5 w-36" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Findings Section Skeleton */}
+      <div className="flex flex-col gap-4 mt-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
+          <div className="flex flex-col gap-1">
+            <Skeleton className="h-6 w-60" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <div className="flex gap-1.5">
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-8 w-24 rounded-md" />
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="gap-3 py-4">
+              <CardHeader className="px-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-52" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pt-1 flex flex-col gap-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function WebsiteAnalysisReportPage() {
-  const { domain } = useParams<{ domain: string }>()
+  const params = useParams()
+  const rawDomain = params.domain || params['*'] || ''
+  const domain = rawDomain
+    ? decodeURIComponent(rawDomain)
+        .trim()
+        .replace(/^https?:\/\//i, '')
+        .replace(/\/+$/, '')
+    : ''
   const navigate = useNavigate()
 
   const [reports, setReports] = useState<WebsiteAnalysis[]>([])
@@ -250,29 +381,46 @@ export function WebsiteAnalysisReportPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    )
+    return <WebsiteAnalysisReportSkeleton domain={domain} />
   }
 
   const currentReport = reports.find((r) => r.id === selectedId) ?? reports[0] ?? null
 
   if (!currentReport) {
     return (
-      <div className="flex min-w-0 flex-col gap-4">
-        <p className="text-sm text-muted-foreground">No se encontraron análisis para este dominio.</p>
-        <Button
-          variant="outline"
-          className="w-fit cursor-pointer"
-          nativeButton={false}
-          render={<Link to="/dashboard/website-analysis" />}
-        >
-          <ArrowLeft />
-          Volver a análisis
-        </Button>
+      <div className="flex min-w-0 flex-col gap-6 pb-12">
+        <div className="min-w-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-2 -ml-2 cursor-pointer"
+            nativeButton={false}
+            render={<Link to="/dashboard/website-analysis" />}
+          >
+            <ArrowLeft /> Análisis Web
+          </Button>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+              {domain}
+            </h1>
+          </div>
+        </div>
+
+        <Card className="p-8 text-center flex flex-col items-center justify-center gap-4 border-dashed">
+          <div className="rounded-full bg-primary/10 p-3 text-primary">
+            <Activity className="size-8" />
+          </div>
+          <div className="max-w-md">
+            <h3 className="text-lg font-semibold text-foreground">Dominio no analizado todavía</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              No se han encontrado auditorías previas para <strong className="text-foreground">{domain}</strong>. Puedes iniciar el primer análisis ahora mismo.
+            </p>
+          </div>
+          <Button onClick={handleReanalyze} disabled={reanalyzing} className="mt-2">
+            {reanalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            {reanalyzing ? 'Iniciando análisis...' : 'Auditar este sitio ahora'}
+          </Button>
+        </Card>
       </div>
     )
   }

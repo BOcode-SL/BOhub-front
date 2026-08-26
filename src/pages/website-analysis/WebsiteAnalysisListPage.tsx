@@ -452,7 +452,13 @@ export function WebsiteAnalysisListPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        render={<Link to={`/dashboard/website-analysis/${encodeURIComponent(item.domain)}`} />}
+                        render={
+                          <Link
+                            to={`/dashboard/website-analysis/${encodeURIComponent(
+                              item.domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+                            )}`}
+                          />
+                        }
                         nativeButton={false}
                       >
                         Ver detalles
