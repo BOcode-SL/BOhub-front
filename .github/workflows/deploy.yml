@@ -3,6 +3,10 @@ on:
     push:
         branches: [master]
 
+concurrency:
+    group: deploy-master
+    cancel-in-progress: true
+
 jobs:
     deploy:
         name: 📂 Deploy
