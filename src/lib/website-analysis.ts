@@ -120,3 +120,9 @@ export async function deleteWebsiteAnalysis(id: string): Promise<{ ok: boolean }
     method: 'DELETE',
   })
 }
+
+export async function reanalyzeAllWebsites(): Promise<{ ok: boolean; dispatched: number }> {
+  return request<{ ok: boolean; dispatched: number }>('/api/website-analyses/reanalyze-all', {
+    method: 'POST',
+  })
+}

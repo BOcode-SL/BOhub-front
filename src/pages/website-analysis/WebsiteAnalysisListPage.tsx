@@ -11,6 +11,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ListPageShell } from '@/components/list-page-shell'
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   fetchWebsiteAnalyses,
   createWebsiteAnalysis,
+  reanalyzeAllWebsites,
   type WebsiteAnalysisGrouped,
   type Paginated,
 } from '@/lib/website-analysis'
@@ -36,6 +38,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const
 function parsePage(value: string | null): number {
@@ -87,6 +90,7 @@ export function WebsiteAnalysisListPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [domain, setDomain] = useState('')
   const [creating, setCreating] = useState(false)
+  const [reanalyzingAll, setReanalyzingAll] = useState(false)
 
   useEffect(() => {
     setSearchInput(urlSearch)
@@ -217,6 +221,30 @@ export function WebsiteAnalysisListPage() {
     }
   }
 
+  async function handleReanalyzeAll() {
+    if (data.length === 0) return
+    setReanalyzingAll(true)
+    toastSuccess('Lanzando análisis masivo en todas las webs...')
+
+    // Optimistic UI update
+    setData((prev) =>
+      prev.map((item) => ({
+        ...item,
+        status: 'pending',
+      }))
+    )
+
+    try {
+      const res = await reanalyzeAllWebsites()
+      toastSuccess(`Se han encolado ${res.dispatched} análisis web`)
+    } catch (err) {
+      toastError(err)
+      void load()
+    } finally {
+      setReanalyzingAll(false)
+    }
+  }
+
   const total = meta?.total ?? 0
   const lastPage = meta?.last_page ?? 1
   const currentPage = meta?.current_page ?? page
@@ -229,48 +257,60 @@ export function WebsiteAnalysisListPage() {
       description="Rendimiento SEO, seguridad y métricas de Core Web Vitals"
       icon={Activity}
       actions={
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger
-            render={
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Análisis
-              </Button>
-            }
-          />
-          <DialogContent>
-            <form onSubmit={handleCreate}>
-              <DialogHeader>
-                <DialogTitle>Nuevo Análisis Web</DialogTitle>
-                <DialogDescription>
-                  Introduce el dominio de la web a analizar (ej. bocode.es). El proceso se ejecutará en segundo plano.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="domain">Dominio</Label>
-                  <Input
-                    id="domain"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    placeholder="ej. bocode.es"
-                    autoFocus
-                    disabled={creating}
-                  />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleReanalyzeAll()}
+            disabled={reanalyzingAll || loading || data.length === 0}
+            className="cursor-pointer"
+          >
+            <RefreshCw className={cn('mr-2 h-4 w-4', reanalyzingAll && 'animate-spin')} />
+            Analizar todas
+          </Button>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger
+              render={
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nuevo Análisis
+                </Button>
+              }
+            />
+            <DialogContent>
+              <form onSubmit={handleCreate}>
+                <DialogHeader>
+                  <DialogTitle>Nuevo Análisis Web</DialogTitle>
+                  <DialogDescription>
+                    Introduce el dominio de la web a analizar (ej. bocode.es). El proceso se ejecutará en segundo plano.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="domain">Dominio</Label>
+                    <Input
+                      id="domain"
+                      value={domain}
+                      onChange={(e) => setDomain(e.target.value)}
+                      placeholder="ej. bocode.es"
+                      autoFocus
+                      disabled={creating}
+                    />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={creating || !domain.trim()}>
-                  {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Analizar
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={creating || !domain.trim()}>
+                    {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Analizar
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       }
       toolbar={
         <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
