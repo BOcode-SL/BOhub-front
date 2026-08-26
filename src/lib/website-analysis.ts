@@ -48,6 +48,8 @@ export interface WebsiteAnalysis {
       h1: string | null
       lang: string | null
       canonical: string | null
+      effective_url?: string | null
+      favicon?: string | null
       og_title?: string | null
       og_image?: string | null
       word_count?: number
@@ -75,6 +77,9 @@ export interface WebsiteAnalysis {
   } | null
   performanceData: {
     score: number | null
+    accessibility?: number | null
+    best_practices?: number | null
+    seo?: number | null
     error?: string | null
   } | null
   auditFindings?: AuditFinding[] | null

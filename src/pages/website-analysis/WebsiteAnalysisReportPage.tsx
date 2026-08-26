@@ -472,13 +472,24 @@ export function WebsiteAnalysisReportPage() {
             isPending ? (
               <span className="text-muted-foreground text-base">Analizando...</span>
             ) : score !== null && score !== undefined ? (
-              <span
-                className={
-                  score >= 90 ? 'text-primary' : score >= 50 ? 'text-yellow-500' : 'text-destructive'
-                }
-              >
-                {score}/100
-              </span>
+              <div className="flex flex-col gap-1">
+                <span
+                  className={
+                    score >= 90 ? 'text-primary font-bold' : score >= 50 ? 'text-yellow-500 font-bold' : 'text-destructive font-bold'
+                  }
+                >
+                  {score}/100
+                </span>
+                {(currentReport.performanceData?.accessibility != null ||
+                  currentReport.performanceData?.best_practices != null ||
+                  currentReport.performanceData?.seo != null) && (
+                  <span className="text-[11px] text-muted-foreground font-normal">
+                    Acc: {currentReport.performanceData?.accessibility ?? '—'} · BP:{' '}
+                    {currentReport.performanceData?.best_practices ?? '—'} · SEO:{' '}
+                    {currentReport.performanceData?.seo ?? '—'}
+                  </span>
+                )}
+              </div>
             ) : performanceError ? (
               <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs font-mono">
                 Error API (429/Quota)
