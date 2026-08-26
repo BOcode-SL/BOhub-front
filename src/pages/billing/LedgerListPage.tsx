@@ -429,6 +429,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     <>
                                         <TableHead>Nº Factura</TableHead>
                                         <TableHead>F. Factura</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
                                         <TableHead>Concepto</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
@@ -480,6 +481,9 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                     <Skeleton className="h-4 w-16" />
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -537,7 +541,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             {!loading && total === 0 && (
                                 <TableRow className="hover:bg-transparent">
                                     <TableCell
-                                        colSpan={isPayrollLayout ? 5 : invoiceActions ? 8 : 9}
+                                        colSpan={isPayrollLayout ? 5 : invoiceActions ? 9 : 9}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         {emptyLabel}
@@ -580,6 +584,12 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             </TableCell>
                                             <TableCell className="text-muted-foreground whitespace-nowrap">
                                                 {rowDate(row) || '—'}
+                                            </TableCell>
+                                            <TableCell
+                                                className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[12rem]"
+                                                title={row.project?.name || undefined}
+                                            >
+                                                {row.project?.name || '—'}
                                             </TableCell>
                                             <TableCell
                                                 className="max-w-[10rem] truncate text-muted-foreground sm:max-w-[14rem]"
