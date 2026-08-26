@@ -60,6 +60,10 @@ export interface WebsiteAnalysis {
       csp: boolean
       x_frame_options: string | null
       x_content_type_options: string | null
+      cookies_total?: number
+      cookies_insecure?: number
+      permissions_policy?: string | null
+      referrer_policy?: string | null
     }
     dns: {
       a_records: string[]
