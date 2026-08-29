@@ -39,6 +39,7 @@ async function listPayrollRows(
             totalAmount: p.totalCost ?? p.baseSalary,
             storageKey: p.storageKey ?? null,
             fileName: p.fileName ?? null,
+            invoiceUrl: p.invoiceUrl ?? null,
         })),
         meta: res.meta,
     };
