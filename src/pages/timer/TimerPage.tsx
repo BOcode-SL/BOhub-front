@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, Pause, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { EntitySelect } from '@/components/entity-select';
@@ -138,13 +138,6 @@ export function TimerPage() {
     const [saveDate, setSaveDate] = useState(today());
 
     const [manualOpen, setManualOpen] = useState(false);
-    const [manualProjectId, setManualProjectId] = useState<number | ''>('');
-    const [manualHours, setManualHours] = useState('0');
-    const [manualMinutes, setManualMinutes] = useState('30');
-    const [manualSeconds, setManualSeconds] = useState('0');
-    const [manualDate, setManualDate] = useState(today());
-    const [manualDesc, setManualDesc] = useState('');
-    const [manualSaving, setManualSaving] = useState(false);
 
     const [editHour, setEditHour] = useState<Hour | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Hour | null>(null);
@@ -516,40 +509,11 @@ export function TimerPage() {
         });
     }
 
-    async function handleManual(e: FormEvent) {
-        e.preventDefault();
-        const nextErrors: Record<string, string> = {};
-        if (!manualProjectId) nextErrors.projectId = 'Selecciona un proyecto.';
-        const duration =
-            (Number(manualHours) || 0) * 3600 + (Number(manualMinutes) || 0) * 60 + (Number(manualSeconds) || 0);
-        if (duration < 1) nextErrors.duration = 'La duración debe ser mayor que 0.';
-        if (Object.keys(nextErrors).length) {
-            setFieldErrors(nextErrors);
-            return;
-        }
-        setManualSaving(true);
-        try {
-            await createHour({
-                projectId: Number(manualProjectId),
-                hours: Number(manualHours) || 0,
-                minutes: Number(manualMinutes) || 0,
-                seconds: Number(manualSeconds) || 0,
-                workedOn: manualDate,
-                description: manualDesc.trim() || null,
-            });
-            setManualDesc('');
-            setManualOpen(false);
-            setFieldErrors({});
-            reloadList();
-            toastSuccess('Horas guardadas');
-        } catch (err) {
-            if (err instanceof ApiError && err.fieldErrors) {
-                setFieldErrors(flattenFieldErrors(err.fieldErrors));
-            }
-            toastError(err);
-        } finally {
-            setManualSaving(false);
-        }
+    async function handleCreateSubmit(data: Partial<HourInput>) {
+        await createHour(data as HourInput);
+        setManualOpen(false);
+        reloadList();
+        toastSuccess('Horas guardadas');
     }
 
     async function handleEditSubmit(data: Partial<HourInput>) {
@@ -695,16 +659,8 @@ export function TimerPage() {
                         tab === 'mine' ? (
                             <Button
                                 type="button"
-                                onClick={() => {
-                                    setFieldErrors({});
-                                    setManualProjectId('');
-                                    setManualHours('0');
-                                    setManualMinutes('30');
-                                    setManualSeconds('0');
-                                    setManualDate(today());
-                                    setManualDesc('');
-                                    setManualOpen(true);
-                                }}
+                                className="w-full sm:w-auto"
+                                onClick={() => setManualOpen(true)}
                             >
                                 <Plus />
                                 Añadir
@@ -712,8 +668,8 @@ export function TimerPage() {
                         ) : null
                     }
                     toolbar={
-                        <div className="flex flex-wrap items-end gap-2 py-1">
-                            <ToolbarField id="timer-project" label="Proyecto">
+                        <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                            <ToolbarField id="timer-project" label="Proyecto" className="w-full sm:w-auto">
                                 <EntitySelect
                                     id="timer-project"
                                     items={projects}
@@ -721,11 +677,11 @@ export function TimerPage() {
                                     onValueChange={(value) => patchFilters({ projectId: value ?? '' })}
                                     allowClear
                                     placeholder="Todos"
-                                    className="min-w-40"
+                                    className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                                 />
                             </ToolbarField>
                             {tab === 'team' && (
-                                <ToolbarField id="timer-user" label="Usuario">
+                                <ToolbarField id="timer-user" label="Usuario" className="w-full sm:w-auto">
                                     <EntitySelect
                                         id="timer-user"
                                         items={teamUsers}
@@ -733,26 +689,26 @@ export function TimerPage() {
                                         onValueChange={(value) => patchFilters({ userId: value ?? '' })}
                                         allowClear
                                         placeholder="Todos"
-                                        className="min-w-40"
+                                        className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                                     />
                                 </ToolbarField>
                             )}
-                            <ToolbarField id="timer-from" label="Desde">
+                            <ToolbarField id="timer-from" label="Desde" className="w-full sm:w-auto">
                                 <Input
                                     id="timer-from"
                                     type="date"
                                     value={filters.from}
                                     onChange={(e) => patchFilters({ from: e.target.value })}
-                                    className={cn(toolbarControlClass, 'w-auto')}
+                                    className={cn(toolbarControlClass, 'w-full sm:w-auto')}
                                 />
                             </ToolbarField>
-                            <ToolbarField id="timer-to" label="Hasta">
+                            <ToolbarField id="timer-to" label="Hasta" className="w-full sm:w-auto">
                                 <Input
                                     id="timer-to"
                                     type="date"
                                     value={filters.to}
                                     onChange={(e) => patchFilters({ to: e.target.value })}
-                                    className={cn(toolbarControlClass, 'w-auto')}
+                                    className={cn(toolbarControlClass, 'w-full sm:w-auto')}
                                 />
                             </ToolbarField>
                         </div>
@@ -867,115 +823,12 @@ export function TimerPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog
+            <HourSheet
                 open={manualOpen}
-                onOpenChange={(o) => {
-                    if (!o) setFieldErrors({});
-                    setManualOpen(o);
-                }}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Añadir horas</DialogTitle>
-                        <DialogDescription>Alta manual de tiempo.</DialogDescription>
-                    </DialogHeader>
-                    <form id="manual-hour-form" noValidate className="grid gap-3" onSubmit={(e) => void handleManual(e)}>
-                        <FormField id="manual-project" label="Proyecto" error={fieldErrors.projectId}>
-                            <EntitySelect
-                                id="manual-project"
-                                items={projects}
-                                value={manualProjectId || null}
-                                onValueChange={(value) => {
-                                    setManualProjectId(value ?? '');
-                                    clearFieldError('projectId');
-                                }}
-                                placeholder="Seleccionar…"
-                                aria-invalid={!!fieldErrors.projectId}
-                            />
-                        </FormField>
-                        <FormField id="manual-duration" label="Duración" error={fieldErrors.duration}>
-                            <div className="grid grid-cols-3 gap-2">
-                                <Input
-                                    id="manual-hours"
-                                    type="number"
-                                    min={0}
-                                    max={24}
-                                    value={manualHours}
-                                    onChange={(e) => {
-                                        setManualHours(e.target.value);
-                                        clearFieldError('duration');
-                                    }}
-                                    className="bg-card"
-                                    aria-label="Horas"
-                                    aria-invalid={!!fieldErrors.duration}
-                                />
-                                <Input
-                                    id="manual-minutes"
-                                    type="number"
-                                    min={0}
-                                    max={59}
-                                    value={manualMinutes}
-                                    onChange={(e) => {
-                                        setManualMinutes(e.target.value);
-                                        clearFieldError('duration');
-                                    }}
-                                    className="bg-card"
-                                    aria-label="Minutos"
-                                    aria-invalid={!!fieldErrors.duration}
-                                />
-                                <Input
-                                    id="manual-seconds"
-                                    type="number"
-                                    min={0}
-                                    max={59}
-                                    value={manualSeconds}
-                                    onChange={(e) => {
-                                        setManualSeconds(e.target.value);
-                                        clearFieldError('duration');
-                                    }}
-                                    className="bg-card"
-                                    aria-label="Segundos"
-                                    aria-invalid={!!fieldErrors.duration}
-                                />
-                            </div>
-                        </FormField>
-                        <FormField id="manual-date" label="Fecha" error={fieldErrors.workedOn}>
-                            <Input
-                                id="manual-date"
-                                type="date"
-                                required
-                                value={manualDate}
-                                onChange={(e) => {
-                                    setManualDate(e.target.value);
-                                    clearFieldError('workedOn');
-                                }}
-                                className="bg-card"
-                                aria-invalid={!!fieldErrors.workedOn}
-                            />
-                        </FormField>
-                        <FormField id="manual-desc" label="Descripción" error={fieldErrors.description}>
-                            <Input
-                                id="manual-desc"
-                                value={manualDesc}
-                                onChange={(e) => {
-                                    setManualDesc(e.target.value);
-                                    clearFieldError('description');
-                                }}
-                                className="bg-card"
-                                aria-invalid={!!fieldErrors.description}
-                            />
-                        </FormField>
-                    </form>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setManualOpen(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" form="manual-hour-form" disabled={manualSaving}>
-                            {manualSaving ? 'Guardando…' : 'Guardar'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                hour={null}
+                onOpenChange={setManualOpen}
+                onSubmit={handleCreateSubmit}
+            />
 
             <HourSheet
                 open={Boolean(editHour)}

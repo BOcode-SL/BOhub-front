@@ -221,14 +221,14 @@ export function ProjectsPage() {
                 description="Proyectos ligados a clientes."
                 icon={Folder}
                 actions={
-                    <Button type="button" onClick={openAdd}>
+                    <Button type="button" className="w-full sm:w-auto" onClick={openAdd}>
                         <Plus />
                         Añadir proyecto
                     </Button>
                 }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="relative min-w-0 w-full flex-1 sm:w-auto">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={searchInput}
@@ -238,10 +238,11 @@ export function ProjectsPage() {
                                 aria-label="Buscar proyectos"
                             />
                         </div>
-                        <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
                             <ToolbarSelect
                                 id="projects-status"
                                 label="Estado"
+                                fieldClassName="w-full sm:w-auto"
                                 items={[
                                     { label: 'Todos', value: null },
                                     ...PROJECT_STATUSES.map((status) => ({
@@ -261,42 +262,46 @@ export function ProjectsPage() {
                                 }
                                 className="min-w-40"
                             />
-                            <ToolbarSelect
-                                id="projects-has-end-date"
-                                label="Fecha de fin"
-                                items={[
-                                    { label: 'Cualquier fecha', value: null },
-                                    { label: 'Con fecha de fin', value: '1' },
-                                ]}
-                                value={urlHasEndDate || null}
-                                onValueChange={(value) =>
-                                    patchParams({
-                                        has_end_date: value,
-                                        page: '1',
-                                        per_page: String(perPage),
-                                        search: urlSearch || null,
-                                        status: urlStatus || null,
-                                    })
-                                }
-                                placeholder="Fecha de fin"
-                                className="min-w-40"
-                            />
-                            <ToolbarSelect
-                                id="projects-per-page"
-                                label="Por página"
-                                items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
-                                value={String(perPage)}
-                                onValueChange={(value) => {
-                                    if (!value) return;
-                                    patchParams({
-                                        per_page: value,
-                                        page: '1',
-                                        search: urlSearch || null,
-                                        status: urlStatus || null,
-                                        has_end_date: urlHasEndDate || null,
-                                    });
-                                }}
-                            />
+                            <div className="grid w-full grid-cols-2 gap-2 sm:contents">
+                                <ToolbarSelect
+                                    id="projects-has-end-date"
+                                    label="Fecha de fin"
+                                    fieldClassName="w-full sm:w-auto"
+                                    items={[
+                                        { label: 'Cualquier fecha', value: null },
+                                        { label: 'Con fecha de fin', value: '1' },
+                                    ]}
+                                    value={urlHasEndDate || null}
+                                    onValueChange={(value) =>
+                                        patchParams({
+                                            has_end_date: value,
+                                            page: '1',
+                                            per_page: String(perPage),
+                                            search: urlSearch || null,
+                                            status: urlStatus || null,
+                                        })
+                                    }
+                                    placeholder="Fecha de fin"
+                                    className="min-w-40"
+                                />
+                                <ToolbarSelect
+                                    id="projects-per-page"
+                                    label="Por página"
+                                    fieldClassName="w-full sm:w-auto"
+                                    items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+                                    value={String(perPage)}
+                                    onValueChange={(value) => {
+                                        if (!value) return;
+                                        patchParams({
+                                            per_page: value,
+                                            page: '1',
+                                            search: urlSearch || null,
+                                            status: urlStatus || null,
+                                            has_end_date: urlHasEndDate || null,
+                                        });
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
                 }
@@ -306,7 +311,7 @@ export function ProjectsPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Nombre</TableHead>
-                                <TableHead>Cliente</TableHead>
+                                <TableHead className="hidden sm:table-cell">Cliente</TableHead>
                                 <TableHead className="hidden sm:table-cell">Tipo</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="hidden md:table-cell">Prioridad</TableHead>
@@ -322,7 +327,7 @@ export function ProjectsPage() {
                                         <TableCell>
                                              <Skeleton className="h-4 w-full" />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="hidden sm:table-cell">
                                             <Skeleton className="h-4 w-full" />
                                         </TableCell>
                                         <TableCell className="hidden sm:table-cell">
@@ -354,25 +359,30 @@ export function ProjectsPage() {
                             {projects.map((project) => (
                                 <TableRow key={project.id} className={loading ? 'opacity-60' : undefined}>
                                     <TableCell className="max-w-[10rem] font-medium text-foreground sm:max-w-[14rem]">
-                                        <span className="inline-flex max-w-full items-center gap-2">
-                                            <span
-                                                className="inline-block size-2.5 shrink-0 rounded-full border border-border"
-                                                style={{
-                                                    backgroundColor: project.color || 'var(--primary)',
-                                                }}
-                                                aria-hidden
-                                            />
-                                            <Link
-                                                to={`/dashboard/projects/${project.id}`}
-                                                className="truncate cursor-pointer transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
-                                                title={project.name}
-                                            >
-                                                {project.name}
-                                            </Link>
-                                        </span>
+                                        <div className="min-w-0">
+                                            <span className="inline-flex max-w-full items-center gap-2">
+                                                <span
+                                                    className="inline-block size-2.5 shrink-0 rounded-full border border-border"
+                                                    style={{
+                                                        backgroundColor: project.color || 'var(--primary)',
+                                                    }}
+                                                    aria-hidden
+                                                />
+                                                <Link
+                                                    to={`/dashboard/projects/${project.id}`}
+                                                    className="truncate cursor-pointer transition-colors duration-200 hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                                                    title={project.name}
+                                                >
+                                                    {project.name}
+                                                </Link>
+                                            </span>
+                                            <p className="truncate text-xs text-muted-foreground sm:hidden" title={project.client?.name ?? undefined}>
+                                                {project.client?.name ?? '—'}
+                                            </p>
+                                        </div>
                                     </TableCell>
                                     <TableCell
-                                        className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[12rem]"
+                                        className="hidden max-w-[8rem] truncate text-muted-foreground sm:table-cell sm:max-w-[12rem]"
                                         title={project.client?.name ?? undefined}
                                     >
                                         {project.client?.name ?? '—'}

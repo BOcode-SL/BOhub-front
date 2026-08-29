@@ -178,6 +178,17 @@ export function deleteLead(id: number): Promise<{ ok: boolean }> {
     return request(`/api/leads/${id}`, { method: 'DELETE' });
 }
 
+export type SyncMetaLeadsResult = {
+    configured: boolean;
+    ingested: number;
+    message?: string;
+};
+
+export function syncMetaLeads(all = false): Promise<SyncMetaLeadsResult> {
+    const q = all ? '?all=1' : '';
+    return request(`/api/leads/sync-meta${q}`, { method: 'POST' });
+}
+
 export function whatsAppUrl(phone: string): string {
     const digits = phone.replace(/\D+/g, '');
     return `https://wa.me/${digits}`;

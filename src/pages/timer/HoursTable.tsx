@@ -99,10 +99,22 @@ export function HoursTable({
                                 )}
                                 {!hideProject && (
                                     <TableCell
-                                        className="max-w-[8rem] truncate font-medium text-foreground sm:max-w-[14rem]"
+                                        className="max-w-[8rem] font-medium text-foreground sm:max-w-[14rem]"
                                         title={h.project?.name ?? undefined}
                                     >
-                                        {h.project?.name ?? `#${h.projectId}`}
+                                        <div className="min-w-0">
+                                            <span className="block truncate">
+                                                {h.project?.name ?? `#${h.projectId}`}
+                                            </span>
+                                            {h.description ? (
+                                                <span
+                                                    className="block truncate text-xs text-muted-foreground md:hidden"
+                                                    title={h.description}
+                                                >
+                                                    {h.description}
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </TableCell>
                                 )}
                                 <TableCell className="whitespace-nowrap font-mono font-medium text-primary">
@@ -154,13 +166,18 @@ export function HoursTable({
                     aria-label="Paginación horas"
                     className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                 >
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground" aria-live="polite">
+                        {meta?.from != null && meta?.to != null
+                            ? `${meta.from}–${meta.to} de ${meta.total}`
+                            : `${meta?.total ?? 0} en total`}
+                        <span className="mx-2 text-border">·</span>
                         Página {currentPage} de {lastPage}
                     </p>
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
                             size="sm"
+                            className="min-w-24"
                             disabled={currentPage <= 1 || loading}
                             onClick={() => onPageChange(currentPage - 1)}
                         >
@@ -170,6 +187,7 @@ export function HoursTable({
                         <Button
                             variant="outline"
                             size="sm"
+                            className="min-w-24"
                             disabled={currentPage >= lastPage || loading}
                             onClick={() => onPageChange(currentPage + 1)}
                         >

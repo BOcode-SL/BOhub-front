@@ -4,7 +4,13 @@ import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import {
     PAYROLL_STATUSES,
     PAYROLL_STATUS_LABELS,
@@ -20,7 +26,6 @@ import { listUsers, type HubUser } from '@/lib/users';
 import { toastError } from '@/lib/toast';
 import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
 import { BillingFilePane } from '@/pages/billing/BillingFilePane';
-import { cn } from '@/lib/utils';
 
 const MONTH_ITEMS = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1),
@@ -238,15 +243,13 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]',
-                )}
-            >
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName="flex w-full flex-col gap-0 p-0 transition-[max-width] sm:max-w-lg md:max-w-[1200px]"
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-                    <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                    <div className="hidden min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-border p-6 md:flex md:flex-1 md:border-r">
                         <BillingFilePane
                             blobUrl={previewUrl}
                             fileName={previewName}
@@ -255,19 +258,19 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                             className="h-full min-h-0 shadow-lg"
                         />
                     </div>
-                    <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2 md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
-                        <SheetHeader>
-                            <SheetTitle>
+                    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
+                        <FormPanelHeader>
+                            <FormPanelTitle>
                                 {mode === 'add' ? 'Nueva nómina' : mode === 'view' ? 'Ver nómina' : 'Editar nómina'}
-                            </SheetTitle>
-                            <SheetDescription>
+                            </FormPanelTitle>
+                            <FormPanelDescription>
                                 {readOnly
                                     ? 'Detalle de nómina (solo lectura).'
                                     : mode === 'edit'
                                       ? 'Actualiza los detalles económicos y el documento.'
                                       : 'Introduce los detalles económicos y adjunta la nómina.'}
-                            </SheetDescription>
-                        </SheetHeader>
+                            </FormPanelDescription>
+                        </FormPanelHeader>
 
                         <form
                             id="payroll-form"
@@ -510,7 +513,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                             </fieldset>
                         </form>
 
-                        <SheetFooter>
+                        <FormPanelFooter>
                             {readOnly ? (
                                 <Button
                                     type="button"
@@ -536,10 +539,9 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                     </Button>
                                 </>
                             )}
-                        </SheetFooter>
+                        </FormPanelFooter>
                     </div>
                 </div>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

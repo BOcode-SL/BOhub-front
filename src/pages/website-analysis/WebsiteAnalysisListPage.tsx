@@ -13,8 +13,9 @@ import {
   ChevronRight,
   RefreshCw,
 } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ListPageShell } from '@/components/list-page-shell'
+import { ToolbarSelect } from '@/components/toolbar-field'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -78,6 +79,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function WebsiteAnalysisListPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const perPage = parsePerPage(searchParams.get('per_page'))
@@ -251,19 +253,23 @@ export function WebsiteAnalysisListPage() {
   const canPrev = currentPage > 1
   const canNext = currentPage < lastPage
 
+  function domainPath(domain: string) {
+    return `/dashboard/website-analysis/${encodeURIComponent(domain.replace(/^https?:\/\//i, '').replace(/\/+$/, ''))}`
+  }
+
   return (
     <ListPageShell
       title="Análisis Web"
       description="Rendimiento SEO, seguridad y métricas de Core Web Vitals"
       icon={Activity}
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Button
             type="button"
             variant="outline"
             onClick={() => void handleReanalyzeAll()}
             disabled={reanalyzingAll || loading || data.length === 0}
-            className="cursor-pointer"
+            className="w-full cursor-pointer sm:w-auto"
           >
             <RefreshCw className={cn('mr-2 h-4 w-4', reanalyzingAll && 'animate-spin')} />
             Analizar todas
@@ -271,7 +277,7 @@ export function WebsiteAnalysisListPage() {
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger
               render={
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Nuevo Análisis
                 </Button>
@@ -313,8 +319,8 @@ export function WebsiteAnalysisListPage() {
         </div>
       }
       toolbar={
-        <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-          <div className="relative min-w-0 flex-1">
+        <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="relative min-w-0 w-full flex-1 sm:w-auto">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
@@ -337,6 +343,16 @@ export function WebsiteAnalysisListPage() {
               }}
             />
           </div>
+          <ToolbarSelect
+            id="analysis-per-page"
+            label="Por página"
+            fieldClassName="w-full sm:w-auto"
+            items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+            value={String(perPage)}
+            onValueChange={(value) => {
+              if (value) patchParams({ per_page: value, page: '1' })
+            }}
+          />
         </div>
       }
     >
@@ -346,10 +362,9 @@ export function WebsiteAnalysisListPage() {
             <TableRow className="hover:bg-transparent">
               <TableHead>Dominio</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>PageSpeed</TableHead>
-              <TableHead>Problemas</TableHead>
-              <TableHead>Último Escaneo</TableHead>
-              <TableHead className="w-[100px]"></TableHead>
+              <TableHead className="hidden sm:table-cell">PageSpeed</TableHead>
+              <TableHead className="hidden md:table-cell">Problemas</TableHead>
+              <TableHead className="hidden md:table-cell">Último Escaneo</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -362,23 +377,20 @@ export function WebsiteAnalysisListPage() {
                   <TableCell>
                     <Skeleton className="h-5 w-24" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Skeleton className="h-4 w-16" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Skeleton className="h-5 w-20" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Skeleton className="h-4 w-28" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-20" />
                   </TableCell>
                 </TableRow>
               ))
             ) : data.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   {urlSearch ? 'No se encontraron análisis que coincidan con la búsqueda.' : 'No hay análisis todavía.'}
                 </TableCell>
               </TableRow>
@@ -387,14 +399,37 @@ export function WebsiteAnalysisListPage() {
                 const score = item.performanceScore
                 const isPending = item.status === 'pending'
                 const errorsCount = item.totalErrors ?? 0
+                const detailPath = domainPath(item.domain)
 
                 return (
-                  <TableRow key={item.domain} className={loading ? 'opacity-60' : undefined}>
-                    <TableCell className="font-medium">{item.domain}</TableCell>
+                  <TableRow
+                    key={item.domain}
+                    className={cn('cursor-pointer', loading && 'opacity-60')}
+                    onClick={() => navigate(detailPath)}
+                  >
+                    <TableCell className="max-w-[10rem] font-medium sm:max-w-[14rem]">
+                      <div className="min-w-0">
+                        <Link
+                          to={detailPath}
+                          className="truncate text-foreground transition-colors hover:text-primary focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+                          title={item.domain}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {item.domain}
+                        </Link>
+                        <p className="truncate text-xs text-muted-foreground md:hidden">
+                          {isPending
+                            ? 'Calculando…'
+                            : score != null
+                              ? `PageSpeed ${score}/100 · ${errorsCount} ${errorsCount === 1 ? 'problema' : 'problemas'}`
+                              : `${errorsCount} ${errorsCount === 1 ? 'problema' : 'problemas'}`}
+                        </p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={item.status} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       {isPending ? (
                         <span className="text-muted-foreground text-sm">—</span>
                       ) : score !== null && score !== undefined ? (
@@ -414,7 +449,7 @@ export function WebsiteAnalysisListPage() {
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {isPending ? (
                         <span className="text-muted-foreground text-xs">Calculando...</span>
                       ) : errorsCount > 0 ? (
@@ -432,7 +467,7 @@ export function WebsiteAnalysisListPage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {item.lastAnalyzed ? (
                         <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
                           <Clock className="size-3.5" />
@@ -447,22 +482,6 @@ export function WebsiteAnalysisListPage() {
                       ) : (
                         '-'
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        render={
-                          <Link
-                            to={`/dashboard/website-analysis/${encodeURIComponent(
-                              item.domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
-                            )}`}
-                          />
-                        }
-                        nativeButton={false}
-                      >
-                        Ver detalles
-                      </Button>
                     </TableCell>
                   </TableRow>
                 )

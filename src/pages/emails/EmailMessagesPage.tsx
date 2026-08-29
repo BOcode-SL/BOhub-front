@@ -7,7 +7,13 @@ import { ListPageShell } from '@/components/list-page-shell';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -246,7 +252,16 @@ export function EmailMessagesPage() {
                                               className="max-w-[160px] truncate"
                                               title={row.to}
                                           >
-                                              {row.to}
+                                              <div className="min-w-0">
+                                                  <span className="block truncate">{row.to}</span>
+                                                  <span className="block truncate text-xs text-muted-foreground sm:hidden">
+                                                      {row.subject}
+                                                      {' · '}
+                                                      {row.status === 'scheduled'
+                                                          ? formatDt(row.scheduledAt)
+                                                          : formatDt(row.sentAt ?? row.createdAt)}
+                                                  </span>
+                                              </div>
                                           </TableCell>
                                           <TableCell
                                               className="hidden max-w-[220px] truncate text-muted-foreground sm:table-cell"
@@ -317,48 +332,50 @@ export function EmailMessagesPage() {
                 </div>
 
                 {meta && meta.last_page > 1 && (
-                    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                        <span>
+                    <nav
+                        aria-label="Paginación de mensajes"
+                        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <p className="text-sm text-muted-foreground" aria-live="polite">
                             {meta.from ?? 0}–{meta.to ?? 0} de {meta.total}
-                        </span>
-                        <div className="flex gap-1">
+                            <span className="mx-2 text-border">·</span>
+                            Página {page} de {meta.last_page}
+                        </p>
+                        <div className="flex gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="icon-sm"
-                                className="cursor-pointer"
+                                size="sm"
+                                className="min-w-24 cursor-pointer"
                                 disabled={page <= 1}
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                             >
-                                <ChevronLeft className="size-4" />
+                                <ChevronLeft />
+                                Anterior
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="icon-sm"
-                                className="cursor-pointer"
+                                size="sm"
+                                className="min-w-24 cursor-pointer"
                                 disabled={page >= meta.last_page}
                                 onClick={() => setPage((p) => p + 1)}
                             >
-                                <ChevronRight className="size-4" />
+                                Siguiente
+                                <ChevronRight />
                             </Button>
                         </div>
-                    </div>
+                    </nav>
                 )}
             </ListPageShell>
 
-            <Sheet
+            <FormPanel
                 open={!!preview}
                 onOpenChange={(o) => {
                     if (!o) setPreview(null);
                 }}
+                contentClassName="flex w-full flex-col gap-0 p-0 sm:max-w-[1200px]"
             >
-                <SheetContent
-                    className={cn(
-                        'flex w-full flex-col gap-0 p-0',
-                        'data-[side=right]:w-[95vw] data-[side=right]:sm:max-w-[1200px]',
-                    )}
-                >
                     <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                         <div className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden border-b border-border p-4 md:min-h-0 md:border-r md:border-b-0 md:p-6">
                             <EmailHtmlPane
@@ -369,14 +386,14 @@ export function EmailMessagesPage() {
                             />
                         </div>
                         <div className="flex w-full min-h-0 min-w-0 flex-col overflow-hidden md:w-[380px] md:shrink-0 lg:w-[420px]">
-                            <SheetHeader>
-                                <SheetTitle>{preview?.subject ?? 'Mensaje'}</SheetTitle>
-                                <SheetDescription>
+                            <FormPanelHeader>
+                                <FormPanelTitle>{preview?.subject ?? 'Mensaje'}</FormPanelTitle>
+                                <FormPanelDescription>
                                     {preview
                                         ? `Para: ${preview.to}${preview.cc ? ` · CC: ${preview.cc}` : ''} · ${STATUS_LABELS[preview.status]}`
                                         : ''}
-                                </SheetDescription>
-                            </SheetHeader>
+                                </FormPanelDescription>
+                            </FormPanelHeader>
                             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
                                 {preview?.attachments?.length ? (
                                     <p className="text-xs text-muted-foreground">
@@ -401,20 +418,19 @@ export function EmailMessagesPage() {
                             </div>
                         </div>
                     </div>
-                </SheetContent>
-            </Sheet>
+            </FormPanel>
 
-            <Sheet
+            <FormPanel
                 open={!!editMsg}
                 onOpenChange={(o) => {
                     if (!o) setEditMsg(null);
                 }}
+                contentClassName="flex w-full flex-col sm:max-w-md"
             >
-                <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
-                    <SheetHeader>
-                        <SheetTitle>Editar programado</SheetTitle>
-                        <SheetDescription>Solo destinatario, asunto y fecha (sin body/adjuntos).</SheetDescription>
-                    </SheetHeader>
+                    <FormPanelHeader>
+                        <FormPanelTitle>Editar programado</FormPanelTitle>
+                        <FormPanelDescription>Solo destinatario, asunto y fecha (sin body/adjuntos).</FormPanelDescription>
+                    </FormPanelHeader>
                     <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="edit-to">Para *</Label>
@@ -470,16 +486,15 @@ export function EmailMessagesPage() {
                             </div>
                         </div>
                     </div>
-                    <SheetFooter>
+                    <FormPanelFooter>
                         <Button type="button" variant="outline" className="cursor-pointer" onClick={() => setEditMsg(null)}>
                             Cerrar
                         </Button>
                         <Button type="button" className="cursor-pointer" disabled={saving} onClick={() => void saveEdit()}>
                             Guardar
                         </Button>
-                    </SheetFooter>
-                </SheetContent>
-            </Sheet>
+                    </FormPanelFooter>
+            </FormPanel>
 
             <Dialog
                 open={!!cancelTarget}

@@ -170,14 +170,14 @@ export function ContractsPage() {
                 icon={FilePen}
                 above={<ContractTabs />}
                 actions={
-                    <Button type="button" onClick={() => setSheetOpen(true)}>
+                    <Button type="button" className="w-full sm:w-auto" onClick={() => setSheetOpen(true)}>
                         <Plus />
                         Nuevo contrato
                     </Button>
                 }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="relative min-w-0 w-full flex-1 sm:w-auto">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={searchInput}
@@ -190,6 +190,7 @@ export function ContractsPage() {
                         <ToolbarSelect
                             id="contracts-status"
                             label="Estado"
+                            fieldClassName="w-full sm:w-auto"
                             items={[
                                 { label: 'Todos', value: null },
                                 ...CONTRACT_STATUSES.map((s) => ({ label: CONTRACT_STATUS_LABELS[s], value: s })),
@@ -203,6 +204,7 @@ export function ContractsPage() {
                         <ToolbarSelect
                             id="contracts-per-page"
                             label="Por página"
+                            fieldClassName="w-full sm:w-auto"
                             items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
                             value={String(perPage)}
                             onValueChange={(value) => {
@@ -217,7 +219,7 @@ export function ContractsPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Título</TableHead>
-                                <TableHead>Cliente</TableHead>
+                                <TableHead className="hidden sm:table-cell">Cliente</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="hidden sm:table-cell">Docs</TableHead>
                                 <TableHead className="hidden sm:table-cell">Firmantes</TableHead>
@@ -251,8 +253,22 @@ export function ContractsPage() {
                                     className={loading ? 'opacity-60' : 'cursor-pointer'}
                                     onClick={() => navigate(`/dashboard/contracts/${row.id}`)}
                                 >
-                                    <TableCell className="font-medium">{row.title}</TableCell>
-                                    <TableCell>{row.client?.name ?? '—'}</TableCell>
+                                    <TableCell className="max-w-[10rem] font-medium sm:max-w-[14rem]">
+                                        <div className="min-w-0">
+                                            <span className="block truncate" title={row.title}>
+                                                {row.title}
+                                            </span>
+                                            <p className="truncate text-xs text-muted-foreground sm:hidden" title={row.client?.name ?? undefined}>
+                                                {row.client?.name ?? '—'}
+                                            </p>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell
+                                        className="hidden max-w-[8rem] truncate sm:table-cell sm:max-w-[12rem]"
+                                        title={row.client?.name ?? undefined}
+                                    >
+                                        {row.client?.name ?? '—'}
+                                    </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={CONTRACT_STATUS_BADGE_CLASS[row.status]}>
                                             {CONTRACT_STATUS_LABELS[row.status]}
@@ -264,7 +280,7 @@ export function ContractsPage() {
                                     <TableCell className="hidden md:table-cell">{formatDay(row.sentAt)}</TableCell>
                                     <TableCell onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-xs" />}>
+                                            <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" />}>
                                                 <MoreHorizontal />
                                                 <span className="sr-only">Acciones</span>
                                             </DropdownMenuTrigger>

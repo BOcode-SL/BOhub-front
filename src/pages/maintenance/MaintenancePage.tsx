@@ -224,6 +224,7 @@ export function MaintenancePage() {
                 actions={
                     <Button
                         type="button"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                             setSheetMode('add');
                             setEditing(null);
@@ -235,10 +236,11 @@ export function MaintenancePage() {
                     </Button>
                 }
                 toolbar={
-                    <div className="flex flex-wrap items-end gap-2 py-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
                         <ToolbarSelect
                             id="maint-period"
                             label="Periodo"
+                            fieldClassName="w-full sm:w-auto"
                             items={[
                                 { label: 'Todos', value: null },
                                 ...MAINTENANCE_PERIODS.map((period) => ({
@@ -251,7 +253,7 @@ export function MaintenancePage() {
                             className="min-w-40"
                         />
 
-                        <ToolbarField id="maint-client" label="Cliente">
+                        <ToolbarField id="maint-client" label="Cliente" className="w-full sm:w-auto">
                             <EntitySelect
                                 id="maint-client"
                                 items={clients}
@@ -259,11 +261,11 @@ export function MaintenancePage() {
                                 onValueChange={(value) => patch({ client_id: value == null ? null : String(value) })}
                                 allowClear
                                 placeholder="Todos"
-                                className="min-w-40"
+                                className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                             />
                         </ToolbarField>
 
-                        <ToolbarField id="maint-project" label="Proyecto">
+                        <ToolbarField id="maint-project" label="Proyecto" className="w-full sm:w-auto">
                             <EntitySelect
                                 id="maint-project"
                                 items={projects}
@@ -271,7 +273,7 @@ export function MaintenancePage() {
                                 onValueChange={(value) => patch({ project_id: value == null ? null : String(value) })}
                                 allowClear
                                 placeholder="Todos"
-                                className="min-w-40"
+                                className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                             />
                         </ToolbarField>
                     </div>
@@ -337,7 +339,14 @@ export function MaintenancePage() {
                                             className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[14rem]"
                                             title={projectLabel}
                                         >
-                                            {projectLabel}
+                                            <div className="min-w-0">
+                                                <span className="block truncate">{projectLabel}</span>
+                                                <p className="truncate text-xs text-muted-foreground sm:hidden">
+                                                    {row.client?.name ?? '—'}
+                                                    {' · '}
+                                                    {MAINTENANCE_PERIOD_LABELS[row.period] ?? row.period}
+                                                </p>
+                                            </div>
                                         </TableCell>
                                         <TableCell
                                             className="hidden max-w-[12rem] text-muted-foreground sm:table-cell"
@@ -422,14 +431,18 @@ export function MaintenancePage() {
                         aria-label="Paginación mantenimientos"
                         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground" aria-live="polite">
+                            {meta?.from != null && meta?.to != null
+                                ? `${meta.from}–${meta.to} de ${meta.total ?? 0}`
+                                : `${meta?.total ?? 0} en total`}
+                            <span className="mx-2 text-border">·</span>
                             Página {currentPage} de {lastPage}
                         </p>
                         <div className="flex gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="cursor-pointer"
+                                className="min-w-24 cursor-pointer"
                                 disabled={currentPage <= 1 || loading}
                                 onClick={() => patch({ page: String(currentPage - 1) })}
                             >
@@ -439,7 +452,7 @@ export function MaintenancePage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="cursor-pointer"
+                                className="min-w-24 cursor-pointer"
                                 disabled={currentPage >= lastPage || loading}
                                 onClick={() => patch({ page: String(currentPage + 1) })}
                             >

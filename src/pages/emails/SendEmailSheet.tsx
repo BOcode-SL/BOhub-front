@@ -4,7 +4,13 @@ import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     MAX_ATTACHMENT_SIZE,
@@ -156,13 +162,14 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    showPreview ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
-                )}
-            >
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName={cn(
+                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                showPreview ? 'sm:max-w-[1200px]' : 'sm:max-w-lg',
+            )}
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreview ? (
                         <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
@@ -180,10 +187,10 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                             showPreview ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
-                        <SheetHeader>
-                            <SheetTitle>Enviar: {template?.name}</SheetTitle>
-                            <SheetDescription>Completa variables y destinatario. Opcional: programar y adjuntos.</SheetDescription>
-                        </SheetHeader>
+                        <FormPanelHeader>
+                            <FormPanelTitle>Enviar: {template?.name}</FormPanelTitle>
+                            <FormPanelDescription>Completa variables y destinatario. Opcional: programar y adjuntos.</FormPanelDescription>
+                        </FormPanelHeader>
 
                         <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
                             <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
@@ -351,7 +358,7 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                                 </div>
                             </div>
 
-                            <SheetFooter>
+                            <FormPanelFooter>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -363,11 +370,10 @@ export function SendEmailSheet({ open, template, onOpenChange, onSent }: Props) 
                                 <Button type="submit" className="cursor-pointer" disabled={sending}>
                                     {sending ? 'Enviando…' : schedule ? 'Programar' : 'Enviar ahora'}
                                 </Button>
-                            </SheetFooter>
+                            </FormPanelFooter>
                         </form>
                     </div>
                 </div>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

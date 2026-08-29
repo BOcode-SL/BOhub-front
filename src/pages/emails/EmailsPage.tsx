@@ -111,6 +111,7 @@ export function EmailsPage() {
                 actions={
                     <Button
                         type="button"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                             setEditing(null);
                             setFormMode('add');
@@ -170,9 +171,17 @@ export function EmailsPage() {
                                 : rows.map((row) => (
                                       <TableRow key={row.id}>
                                           <TableCell className="font-medium">
-                                              <span className="block max-w-[12rem] truncate sm:max-w-[16rem]" title={row.name}>
-                                                  {row.name}
-                                              </span>
+                                              <div className="min-w-0">
+                                                  <span className="block max-w-[12rem] truncate sm:max-w-[16rem]" title={row.name}>
+                                                      {row.name}
+                                                  </span>
+                                                  <span
+                                                      className="block max-w-[12rem] truncate text-xs text-muted-foreground sm:hidden"
+                                                      title={row.subject}
+                                                  >
+                                                      {row.subject}
+                                                  </span>
+                                              </div>
                                           </TableCell>
                                           <TableCell
                                               className="hidden max-w-[240px] truncate text-muted-foreground sm:table-cell"
@@ -237,35 +246,40 @@ export function EmailsPage() {
                 </div>
 
                 {meta && meta.last_page > 1 && (
-                    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                        <span>
+                    <nav
+                        aria-label="Paginación de plantillas"
+                        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <p className="text-sm text-muted-foreground" aria-live="polite">
                             {meta.from ?? 0}–{meta.to ?? 0} de {meta.total}
-                        </span>
-                        <div className="flex gap-1">
+                            <span className="mx-2 text-border">·</span>
+                            Página {page} de {meta.last_page}
+                        </p>
+                        <div className="flex gap-2">
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="icon-sm"
-                                className="cursor-pointer"
+                                size="sm"
+                                className="min-w-24 cursor-pointer"
                                 disabled={page <= 1}
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                aria-label="Página anterior"
                             >
-                                <ChevronLeft className="size-4" />
+                                <ChevronLeft />
+                                Anterior
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
-                                size="icon-sm"
-                                className="cursor-pointer"
+                                size="sm"
+                                className="min-w-24 cursor-pointer"
                                 disabled={page >= meta.last_page}
                                 onClick={() => setPage((p) => p + 1)}
-                                aria-label="Página siguiente"
                             >
-                                <ChevronRight className="size-4" />
+                                Siguiente
+                                <ChevronRight />
                             </Button>
                         </div>
-                    </div>
+                    </nav>
                 )}
             </ListPageShell>
 

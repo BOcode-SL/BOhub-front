@@ -6,7 +6,13 @@ import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import { listJiraProjects, searchJiraIssues, type JiraIssue, type JiraProject } from '@/lib/jira';
@@ -232,14 +238,13 @@ export function ProjectSheet({
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex w-full flex-col gap-0 overflow-hidden data-[side=right]:w-full sm:max-w-md data-[side=right]:sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir proyecto' : 'Editar proyecto'}</SheetTitle>
-                    <SheetDescription>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex w-full flex-col gap-0 overflow-hidden sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>{mode === 'add' ? 'Añadir proyecto' : 'Editar proyecto'}</FormPanelTitle>
+                    <FormPanelDescription>
                         {mode === 'add' ? 'Crea un proyecto ligado a un cliente.' : 'Actualiza los datos del proyecto.'}
-                    </SheetDescription>
-                </SheetHeader>
+                    </FormPanelDescription>
+                </FormPanelHeader>
 
                 {hydrating ? (
                     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
@@ -405,7 +410,7 @@ export function ProjectSheet({
                 </form>
                 )}
 
-                <SheetFooter>
+                <FormPanelFooter>
                     <Button
                         type="button"
                         variant="outline"
@@ -423,8 +428,7 @@ export function ProjectSheet({
                     >
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
     );
 }

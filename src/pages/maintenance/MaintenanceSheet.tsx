@@ -5,7 +5,13 @@ import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     MAINTENANCE_PERIODS,
@@ -169,16 +175,15 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir mantenimiento' : 'Editar mantenimiento'}</SheetTitle>
-                    <SheetDescription>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>{mode === 'add' ? 'Añadir mantenimiento' : 'Editar mantenimiento'}</FormPanelTitle>
+                    <FormPanelDescription>
                         {mode === 'add'
                             ? 'Mensual o anual. Al vencer sin cancelar se autorenueva y avisa a soporte.'
                             : 'Cambiar fechas o notas. Cancelar el periodo desde la lista (no se renovará).'}
-                    </SheetDescription>
-                </SheetHeader>
+                    </FormPanelDescription>
+                </FormPanelHeader>
 
                 <form
                     id="maintenance-form"
@@ -262,15 +267,14 @@ export function MaintenanceSheet({ open, mode, period, onOpenChange, onSubmit }:
                     </FormField>
                 </form>
 
-                <SheetFooter className="border-t border-border px-4 py-3">
+                <FormPanelFooter className="border-t border-border px-4 py-3">
                     <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
                         Cancelar
                     </Button>
                     <Button type="submit" form="maintenance-form" className="cursor-pointer" disabled={saving}>
                         {saving ? 'Guardando…' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
     );
 }

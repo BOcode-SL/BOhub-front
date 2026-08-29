@@ -3,7 +3,13 @@ import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listClientOptions } from '@/lib/clients';
 import { type ContractInput } from '@/lib/contracts';
@@ -92,12 +98,11 @@ export function ContractNewSheet({ open, onOpenChange, onSubmit }: Props) {
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex flex-col sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>Nuevo contrato</SheetTitle>
-                    <SheetDescription>Crea un borrador y coloca PDFs y firmas en el detalle.</SheetDescription>
-                </SheetHeader>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex flex-col sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>Nuevo contrato</FormPanelTitle>
+                    <FormPanelDescription>Crea un borrador y coloca PDFs y firmas en el detalle.</FormPanelDescription>
+                </FormPanelHeader>
                 <form noValidate className="flex min-h-0 flex-1 flex-col gap-4 px-4" onSubmit={(e) => void handleSubmit(e)}>
                     <FormField id="c-title" label="Título" error={fieldErrors.title}>
                         <Input
@@ -145,16 +150,15 @@ export function ContractNewSheet({ open, onOpenChange, onSubmit }: Props) {
                             aria-invalid={Boolean(fieldErrors.expiresAt)}
                         />
                     </FormField>
-                    <SheetFooter className="mt-auto px-0">
+                    <FormPanelFooter className="mt-auto px-0">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={saving}>
                             {saving ? 'Creando…' : 'Crear borrador'}
                         </Button>
-                    </SheetFooter>
+                    </FormPanelFooter>
                 </form>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

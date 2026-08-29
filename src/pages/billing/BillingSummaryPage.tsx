@@ -90,10 +90,11 @@ export function BillingSummaryPage() {
             icon={ReceiptEuro}
             above={<BillingTabs />}
             toolbar={
-                <div className="flex flex-wrap items-end gap-2 py-1">
+                <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
                     <ToolbarSelect
                         id="billing-year"
                         label="Año"
+                        fieldClassName="w-full sm:w-auto"
                         items={years.map((y) => ({ label: String(y), value: String(y) }))}
                         value={String(year)}
                         onValueChange={(value) => {
@@ -103,6 +104,7 @@ export function BillingSummaryPage() {
                     <ToolbarSelect
                         id="billing-quarter"
                         label="Trimestre"
+                        fieldClassName="w-full sm:w-auto"
                         items={[
                             { label: 'T1', value: '1' },
                             { label: 'T2', value: '2' },
@@ -118,7 +120,7 @@ export function BillingSummaryPage() {
                     <Button
                         type="button"
                         variant="outline"
-                        className="cursor-pointer"
+                        className="w-full cursor-pointer sm:w-auto"
                         onClick={() => setExportOpen(true)}
                     >
                         Exportar para gestoría

@@ -356,6 +356,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     canMutate ? (
                         <Button
                             type="button"
+                            className="w-full sm:w-auto"
                             onClick={() => {
                                 setSheetMode('add');
                                 setEditing(null);
@@ -368,8 +369,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                     ) : null
                 }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="relative min-w-0 w-full flex-1 sm:w-auto">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={searchInput}
@@ -379,11 +380,12 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 aria-label={searchAriaLabel}
                             />
                         </div>
-                        <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex w-full flex-wrap items-end gap-2">
                             {invoiceActions ? (
                                 <ToolbarSelect
                                     id="invoice-filter"
                                     label="Factura"
+                                    fieldClassName="w-full sm:w-auto"
                                     items={[
                                         { label: 'Todos', value: null },
                                         ...INVOICE_FILTERS.map((f) => ({
@@ -402,6 +404,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 <ToolbarSelect
                                     id="ledger-status"
                                     label="Estado"
+                                    fieldClassName="w-full sm:w-auto"
                                     items={[
                                         { label: 'Todos', value: null },
                                         ...LEDGER_STATUSES.map((status) => ({
@@ -416,6 +419,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             <ToolbarSelect
                                 id="ledger-per-page"
                                 label="Por página"
+                                fieldClassName="w-full sm:w-auto"
                                 items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
                                 value={String(perPage)}
                                 onValueChange={(value) => {
@@ -432,33 +436,33 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             <TableRow className="hover:bg-transparent">
                                 {isPayrollLayout ? (
                                     <>
-                                        <TableHead>Periodo</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Periodo</TableHead>
                                         <TableHead>{titleColumnHeader ?? 'Empleado'}</TableHead>
-                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Estado</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="w-12" />
                                     </>
                                 ) : invoiceActions ? (
                                     <>
-                                        <TableHead>Nº Factura</TableHead>
-                                        <TableHead>F. Factura</TableHead>
-                                        <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Nº Factura</TableHead>
+                                        <TableHead className="hidden sm:table-cell">F. Factura</TableHead>
+                                        <TableHead className="hidden md:table-cell">Proyecto</TableHead>
                                         <TableHead>Concepto</TableHead>
-                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Estado</TableHead>
                                         <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
+                                        <TableHead className="hidden md:table-cell text-right">Base</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="w-12" />
                                     </>
                                 ) : (
                                     <>
-                                        <TableHead>F. Factura</TableHead>
+                                        <TableHead className="hidden sm:table-cell">F. Factura</TableHead>
                                         <TableHead>Descripción</TableHead>
-                                        <TableHead>Proveedor</TableHead>
-                                        <TableHead className="hidden sm:table-cell">Proyecto</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Proveedor</TableHead>
+                                        <TableHead className="hidden md:table-cell">Proyecto</TableHead>
                                         <TableHead className="hidden md:table-cell">F. Último Pago</TableHead>
-                                        <TableHead>Estado</TableHead>
-                                        <TableHead className="hidden sm:table-cell text-right">Base</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Estado</TableHead>
+                                        <TableHead className="hidden md:table-cell text-right">Base</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         <TableHead className="w-12" />
                                     </>
@@ -472,13 +476,13 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     <TableRow key={i}>
                                         {isPayrollLayout ? (
                                             <>
-                                                <TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -490,25 +494,25 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             </>
                                         ) : invoiceActions ? (
                                             <>
-                                                <TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-16" />
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Skeleton className="h-4 w-full" />
-                                                </TableCell>
                                                 <TableCell className="hidden sm:table-cell">
-                                                    <Skeleton className="h-4 w-full" />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Skeleton className="h-4 w-full" />
-                                                </TableCell>
-                                                <TableCell>
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
                                                 <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -520,10 +524,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             </>
                                         ) : (
                                             <>
-                                                <TableCell>
-                                                    <Skeleton className="h-4 w-full" />
-                                                </TableCell>
-                                                <TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -535,10 +536,13 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                 <TableCell className="hidden md:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     <Skeleton className="h-4 w-full" />
                                                 </TableCell>
                                                 <TableCell>
@@ -565,11 +569,41 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                 <TableRow key={row.id} className={loading ? 'opacity-60' : undefined}>
                                     {isPayrollLayout ? (
                                         <>
-                                            <TableCell className="text-muted-foreground">{rowDate(row) || '—'}</TableCell>
-                                            <TableCell className="max-w-[12rem] min-w-0 font-medium text-foreground sm:max-w-[18rem]">
-                                                <div className="min-w-0 truncate">{rowTitle?.(row)}</div>
+                                            <TableCell className="hidden text-muted-foreground sm:table-cell">
+                                                {rowDate(row) || '—'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="max-w-[12rem] min-w-0 font-medium text-foreground sm:max-w-[18rem]">
+                                                <div className="min-w-0">
+                                                    <div className="truncate">{rowTitle?.(row)}</div>
+                                                    <p className="truncate text-xs text-muted-foreground sm:hidden">
+                                                        {rowDate(row) || '—'}
+                                                    </p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-1 sm:hidden">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn(
+                                                                'w-fit font-normal',
+                                                                row.status === 'paid'
+                                                                    ? 'border-transparent bg-emerald-500/20 text-emerald-300'
+                                                                    : row.status === 'pending'
+                                                                      ? 'border-transparent bg-amber-500/20 text-amber-300'
+                                                                      : 'border-transparent bg-muted text-muted-foreground',
+                                                            )}
+                                                        >
+                                                            {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? '—'}
+                                                        </Badge>
+                                                        {!row.storageKey?.trim() ? (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                            >
+                                                                Sin archivo
+                                                            </Badge>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <Badge
                                                         variant="outline"
@@ -600,27 +634,48 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                         </>
                                     ) : invoiceActions ? (
                                         <>
-                                            <TableCell className="font-mono text-foreground whitespace-nowrap">
+                                            <TableCell className="hidden font-mono text-foreground whitespace-nowrap sm:table-cell">
                                                 {isPaymentWithoutInvoice(row)
                                                     ? '—'
                                                     : row.invoiceNumber?.trim() || '—'}
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                                            <TableCell className="hidden text-muted-foreground whitespace-nowrap sm:table-cell">
                                                 {rowDate(row) || '—'}
                                             </TableCell>
                                             <TableCell
-                                                className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[12rem]"
+                                                className="hidden max-w-[10rem] truncate text-muted-foreground md:table-cell md:max-w-[12rem]"
                                                 title={row.project?.name || undefined}
                                             >
                                                 {row.project?.name || '—'}
                                             </TableCell>
                                             <TableCell
-                                                className="max-w-[10rem] truncate text-muted-foreground sm:max-w-[14rem]"
+                                                className="max-w-[10rem] text-muted-foreground sm:max-w-[14rem]"
                                                 title={row.concept?.trim() || row.project?.name || undefined}
                                             >
-                                                {row.concept?.trim() || '—'}
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium text-foreground">
+                                                        {row.concept?.trim() || '—'}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground sm:hidden">
+                                                        {isPaymentWithoutInvoice(row)
+                                                            ? 'Sin factura'
+                                                            : row.invoiceNumber?.trim() || rowDate(row) || '—'}
+                                                        {row.project?.name ? ` · ${row.project.name}` : ''}
+                                                    </p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-1 sm:hidden">
+                                                        <LedgerStatusBadge status={row.status} />
+                                                        {isPaymentWithoutInvoice(row) ? (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-transparent bg-muted font-normal text-muted-foreground"
+                                                            >
+                                                                Sin factura
+                                                            </Badge>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="hidden sm:table-cell">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <LedgerStatusBadge status={row.status} />
                                                     {isPaymentWithoutInvoice(row) ? (
@@ -646,7 +701,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             <TableCell className="hidden text-muted-foreground md:table-cell whitespace-nowrap">
                                                 {row.lastPaymentDate || row.paymentDate || '—'}
                                             </TableCell>
-                                            <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
+                                            <TableCell className="hidden text-right text-muted-foreground md:table-cell">
                                                 {formatMoney(row.baseAmount ?? 0)}
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">
@@ -655,23 +710,42 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                         </>
                                     ) : (
                                         <>
-                                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                                            <TableCell className="hidden text-muted-foreground whitespace-nowrap sm:table-cell">
                                                 {rowDate(row) || '—'}
                                             </TableCell>
                                             <TableCell
-                                                className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[16rem]"
+                                                className="max-w-[10rem] font-medium text-foreground sm:max-w-[16rem]"
                                                 title={row.description?.trim() || undefined}
                                             >
-                                                {row.description?.trim() || '—'}
+                                                <div className="min-w-0">
+                                                    <p className="truncate">{row.description?.trim() || '—'}</p>
+                                                    <p
+                                                        className="truncate text-xs text-muted-foreground sm:hidden"
+                                                        title={row.recipient?.trim() || undefined}
+                                                    >
+                                                        {row.recipient?.trim() || '—'}
+                                                    </p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-1 sm:hidden">
+                                                        <LedgerStatusBadge status={row.status} />
+                                                        {!row.storageKey?.trim() ? (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                            >
+                                                                Sin archivo
+                                                            </Badge>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
                                             </TableCell>
                                             <TableCell
-                                                className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[12rem]"
+                                                className="hidden max-w-[8rem] truncate text-muted-foreground sm:table-cell sm:max-w-[12rem]"
                                                 title={row.recipient?.trim() || undefined}
                                             >
                                                 {row.recipient?.trim() || '—'}
                                             </TableCell>
                                             <TableCell
-                                                className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[14rem]"
+                                                className="hidden max-w-[10rem] truncate text-muted-foreground md:table-cell md:max-w-[14rem]"
                                                 title={row.project?.name || undefined}
                                             >
                                                 {row.project?.name || '—'}
@@ -679,7 +753,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                             <TableCell className="hidden text-muted-foreground md:table-cell whitespace-nowrap">
                                                 {row.lastPaymentDate || row.paymentDate || '—'}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="hidden sm:table-cell">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <LedgerStatusBadge status={row.status} />
                                                     {!row.storageKey?.trim() ? (
@@ -692,7 +766,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                     ) : null}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="hidden text-right text-muted-foreground sm:table-cell">
+                                            <TableCell className="hidden text-right text-muted-foreground md:table-cell">
                                                 {formatMoney(row.baseAmount ?? 0)}
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">
@@ -848,7 +922,11 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                         aria-label={paginationAriaLabel}
                         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground" aria-live="polite">
+                            {meta?.from != null && meta?.to != null
+                                ? `${meta.from}–${meta.to} de ${total}`
+                                : `${total} en total`}
+                            <span className="mx-2 text-border">·</span>
                             Página {currentPage} de {lastPage}
                         </p>
                         <div className="flex gap-2">

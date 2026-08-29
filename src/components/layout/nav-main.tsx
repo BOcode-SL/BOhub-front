@@ -1,84 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, Clock, FilePen, Folder, Home, Inbox, Mail, ReceiptEuro, UserCog, Users, Wrench, type LucideIcon } from 'lucide-react';
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/auth/AuthContext';
+import { accountItems, featureItems, type NavItem } from '@/lib/nav-config';
 import type { UserRole } from '@/lib/users';
-
-type NavItem = {
-    title: string;
-    url: string;
-    icon: LucideIcon;
-    end?: boolean;
-    roles?: UserRole[];
-};
-
-const featureItems: NavItem[] = [
-    { title: 'Inicio', url: '/dashboard', icon: Home, end: true },
-    {
-        title: 'Clientes',
-        url: '/dashboard/clients',
-        icon: Users,
-        roles: ['admin', 'employee'],
-    },
-    {
-        title: 'Proyectos',
-        url: '/dashboard/projects',
-        icon: Folder,
-        roles: ['admin', 'employee'],
-    },
-    {
-        title: 'Leads',
-        url: '/dashboard/leads',
-        icon: Inbox,
-        roles: ['admin', 'employee'],
-    },
-    {
-        title: 'Facturación',
-        url: '/dashboard/billing',
-        icon: ReceiptEuro,
-        roles: ['admin', 'billing'],
-    },
-    {
-        title: 'Timer',
-        url: '/dashboard/timer',
-        icon: Clock,
-        roles: ['admin', 'employee'],
-    },
-    {
-        title: 'Emails',
-        url: '/dashboard/emails',
-        icon: Mail,
-        roles: ['admin'],
-    },
-    {
-        title: 'Contratos',
-        url: '/dashboard/contracts',
-        icon: FilePen,
-        roles: ['admin'],
-    },
-    {
-        title: 'Mantenimientos',
-        url: '/dashboard/maintenance',
-        icon: Wrench,
-        roles: ['admin', 'employee'],
-    },
-    {
-        title: 'Análisis Web',
-        url: '/dashboard/website-analysis',
-        icon: Activity,
-        roles: ['admin', 'employee'],
-    },
-];
-
-const accountItems: NavItem[] = [
-    {
-        title: 'Usuarios',
-        url: '/dashboard/users',
-        icon: UserCog,
-        roles: ['admin'],
-    },
-];
 
 function NavItemList({ items }: { items: NavItem[] }) {
     const location = useLocation();

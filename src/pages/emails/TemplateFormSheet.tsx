@@ -4,7 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { createTemplate, detectVariables, updateTemplate, type EmailTemplate } from '@/lib/emails';
 import { toastError, toastSuccess } from '@/lib/toast';
@@ -124,13 +130,14 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    showPreview ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
-                )}
-            >
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName={cn(
+                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                showPreview ? 'sm:max-w-[1200px]' : 'sm:max-w-lg',
+            )}
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreview ? (
                         <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
@@ -143,10 +150,10 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
                             showPreview ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
-                        <SheetHeader>
-                            <SheetTitle>{mode === 'edit' ? 'Editar plantilla' : 'Nueva plantilla'}</SheetTitle>
-                            <SheetDescription>HTML con variables.</SheetDescription>
-                        </SheetHeader>
+                        <FormPanelHeader>
+                            <FormPanelTitle>{mode === 'edit' ? 'Editar plantilla' : 'Nueva plantilla'}</FormPanelTitle>
+                            <FormPanelDescription>HTML con variables.</FormPanelDescription>
+                        </FormPanelHeader>
 
                         <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex min-h-0 flex-1 flex-col">
                             <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
@@ -228,7 +235,7 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
                                 </div>
                             </div>
 
-                            <SheetFooter>
+                            <FormPanelFooter>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -240,11 +247,10 @@ export function TemplateFormSheet({ open, mode, template, onOpenChange, onSaved 
                                 <Button type="submit" className="cursor-pointer" disabled={saving}>
                                     {saving ? 'Guardando…' : 'Guardar'}
                                 </Button>
-                            </SheetFooter>
+                            </FormPanelFooter>
                         </form>
                     </div>
                 </div>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

@@ -3,7 +3,13 @@ import { AppSelect } from '@/components/app-select';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { USER_ROLES, USER_ROLE_LABELS, type HubUser, type UserInput, type UserRole } from '@/lib/users';
 import { toastError } from '@/lib/toast';
@@ -108,12 +114,11 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir usuario' : 'Editar usuario'}</SheetTitle>
-                    <SheetDescription>Cuenta interna de BOhub (rol y acceso).</SheetDescription>
-                </SheetHeader>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="w-full overflow-y-auto sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>{mode === 'add' ? 'Añadir usuario' : 'Editar usuario'}</FormPanelTitle>
+                    <FormPanelDescription>Cuenta interna de BOhub (rol y acceso).</FormPanelDescription>
+                </FormPanelHeader>
 
                 <form id="user-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4 px-4">
                     <FormField id="user-name" label="Nombre *" error={fieldErrors.name}>
@@ -234,7 +239,7 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                     </FormField>
                 </form>
 
-                <SheetFooter>
+                <FormPanelFooter>
                     <Button
                         type="button"
                         variant="outline"
@@ -247,8 +252,7 @@ export function UserSheet({ open, mode, user, onOpenChange, onSubmit }: UserShee
                     <Button type="submit" form="user-form" className="cursor-pointer" disabled={saving}>
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
     );
 }

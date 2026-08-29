@@ -37,8 +37,8 @@ function StatCard({ label, value }: { label: string; value: ReactNode }) {
   return (
     <Card className="min-w-0 gap-2 py-4">
       <CardHeader className="px-4">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-xl">{value}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{label}</CardDescription>
+        <CardTitle className="text-lg sm:text-xl">{value}</CardTitle>
       </CardHeader>
     </Card>
   )
@@ -108,21 +108,19 @@ function FindingCard({ finding }: { finding: AuditFinding }) {
     <Card className={`gap-3 py-4 transition-all ${borderClass}`}>
       <CardHeader className="px-4 pb-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-start gap-2 sm:flex-1">
             {isPassed ? (
-              <CheckCircle2 className="size-4 text-primary shrink-0" />
+              <CheckCircle2 className="size-4 shrink-0 text-primary" />
             ) : finding.priority === 'HIGH' ? (
-              <AlertCircle className="size-4 text-destructive shrink-0" />
+              <AlertCircle className="size-4 shrink-0 text-destructive" />
             ) : finding.priority === 'MEDIUM' ? (
-              <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
             ) : (
-              <Info className="size-4 text-blue-500 shrink-0" />
+              <Info className="size-4 shrink-0 text-blue-500" />
             )}
-            <CardTitle className="text-base font-semibold text-foreground">
-              {finding.title}
-            </CardTitle>
+            <CardTitle className="min-w-0 text-base font-semibold text-foreground">{finding.title}</CardTitle>
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
             <Badge variant="outline" className="gap-1 text-xs">
               {getCategoryIcon(finding.category)}
               {finding.category}
@@ -179,7 +177,7 @@ function WebsiteAnalysisReportSkeleton({ domain }: { domain?: string }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                 {domain || 'Cargando análisis...'}
               </h1>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
@@ -191,9 +189,9 @@ function WebsiteAnalysisReportSkeleton({ domain }: { domain?: string }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Skeleton className="h-9 w-36 rounded-md" />
-            <Skeleton className="h-9 w-9 rounded-md" />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Skeleton className="h-9 w-full rounded-md sm:w-36" />
+            <Skeleton className="h-9 w-full rounded-md sm:w-9" />
           </div>
         </div>
       </div>
@@ -225,15 +223,14 @@ function WebsiteAnalysisReportSkeleton({ domain }: { domain?: string }) {
 
       {/* Findings Section Skeleton */}
       <div className="flex flex-col gap-4 mt-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
-          <div className="flex flex-col gap-1">
-            <Skeleton className="h-6 w-60" />
-            <Skeleton className="h-4 w-80" />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1 min-w-0">
+            <Skeleton className="h-7 w-48 max-w-full" />
+            <Skeleton className="h-4 w-64 max-w-full" />
           </div>
-          <div className="flex gap-1.5">
-            <Skeleton className="h-8 w-20 rounded-md" />
-            <Skeleton className="h-8 w-24 rounded-md" />
-            <Skeleton className="h-8 w-24 rounded-md" />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Skeleton className="h-9 w-full rounded-md sm:w-36" />
+            <Skeleton className="h-9 w-full rounded-md sm:w-36" />
           </div>
         </div>
 
@@ -376,7 +373,7 @@ export function WebsiteAnalysisReportPage() {
             <ArrowLeft /> Análisis Web
           </Button>
           <div className="flex flex-col gap-1.5 min-w-0">
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {domain}
             </h1>
           </div>
@@ -392,7 +389,7 @@ export function WebsiteAnalysisReportPage() {
               No se han encontrado auditorías previas para <strong className="text-foreground">{domain}</strong>. Puedes iniciar el primer análisis ahora mismo.
             </p>
           </div>
-          <Button onClick={handleReanalyze} disabled={reanalyzing} className="mt-2">
+          <Button onClick={handleReanalyze} disabled={reanalyzing} className="mt-2 w-full sm:w-auto">
             {reanalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             {reanalyzing ? 'Iniciando análisis...' : 'Auditar este sitio ahora'}
           </Button>
@@ -448,7 +445,7 @@ export function WebsiteAnalysisReportPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                 {currentReport.domain}
               </h1>
               <Button
@@ -479,19 +476,23 @@ export function WebsiteAnalysisReportPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end">
             {reports.length > 1 && (
-              <div className="min-w-[200px]">
+              <div className="w-full min-w-0 sm:w-auto sm:min-w-[200px]">
                 <AppSelect
                   items={historyItems}
                   value={selectedId}
                   onValueChange={(val) => val && setSelectedId(val)}
-                  className="h-9 min-w-[190px]"
+                  className="h-9 w-full min-w-0 sm:min-w-[190px] sm:w-auto"
                 />
               </div>
             )}
 
-            <Button onClick={handleReanalyze} disabled={reanalyzing || deleting || isPending}>
+            <Button
+              onClick={handleReanalyze}
+              disabled={reanalyzing || deleting || isPending}
+              className="w-full sm:w-auto"
+            >
               {reanalyzing || isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -502,12 +503,13 @@ export function WebsiteAnalysisReportPage() {
 
             <Button
               variant="destructive"
-              size="icon"
               onClick={handleDelete}
               disabled={deleting || reanalyzing}
               title="Eliminar este reporte"
+              className="w-full sm:w-auto"
             >
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Eliminar reporte
             </Button>
           </div>
         </div>
@@ -515,9 +517,9 @@ export function WebsiteAnalysisReportPage() {
 
       {/* Banner si el análisis actual está en progreso */}
       {isPending && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-amber-600 dark:text-amber-400 flex items-center gap-3">
-          <Loader2 className="size-5 animate-spin shrink-0" />
-          <div>
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-amber-600 dark:text-amber-400 sm:flex-row sm:items-start">
+          <Loader2 className="size-5 shrink-0 animate-spin" />
+          <div className="min-w-0">
             <p className="font-semibold text-foreground">Auditoría en curso en segundo plano</p>
             <p className="text-sm text-muted-foreground">
               Estamos recopilando métricas de Lighthouse, cabeceras de seguridad, certificados SSL y DNS. Esta vista se actualizará automáticamente en unos segundos.
@@ -528,9 +530,9 @@ export function WebsiteAnalysisReportPage() {
 
       {/* Banner si el análisis falló */}
       {isFailed && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive flex items-center gap-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive sm:flex-row sm:items-start">
           <AlertCircle className="size-5 shrink-0" />
-          <div>
+          <div className="min-w-0">
             <p className="font-semibold">El análisis ha fallado</p>
             <p className="text-sm text-muted-foreground">
               No fue posible conectar con el servidor o resolver el dominio. Puedes reintentarlo con el botón superior.
@@ -564,7 +566,7 @@ export function WebsiteAnalysisReportPage() {
             isPending ? (
               <span className="text-muted-foreground text-base">Analizando...</span>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="text-amber-500 font-semibold">{mediumIssues.length} Medios</span>
                 <span className="text-muted-foreground text-sm">/</span>
                 <span className="text-blue-500 font-semibold">{lowIssues.length} Leves</span>
@@ -603,7 +605,7 @@ export function WebsiteAnalysisReportPage() {
                 {(currentReport.performanceData?.accessibility != null ||
                   currentReport.performanceData?.best_practices != null ||
                   currentReport.performanceData?.seo != null) && (
-                  <span className="text-[11px] text-muted-foreground font-normal">
+                  <span className="text-[11px] leading-snug text-muted-foreground font-normal">
                     Acc: {currentReport.performanceData?.accessibility ?? '—'} · BP:{' '}
                     {currentReport.performanceData?.best_practices ?? '—'} · SEO:{' '}
                     {currentReport.performanceData?.seo ?? '—'}
@@ -635,10 +637,11 @@ export function WebsiteAnalysisReportPage() {
             </div>
 
             {/* Filter buttons */}
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-3 sm:flex sm:w-auto sm:flex-wrap">
               <Button
                 variant={activeTab === 'all' ? 'default' : 'outline'}
                 size="sm"
+                className="w-full min-w-0 sm:w-auto"
                 onClick={() => setActiveTab('all')}
               >
                 Todos ({findings.length})
@@ -646,6 +649,7 @@ export function WebsiteAnalysisReportPage() {
               <Button
                 variant={activeTab === 'open' ? 'default' : 'outline'}
                 size="sm"
+                className="w-full min-w-0 sm:w-auto"
                 onClick={() => setActiveTab('open')}
               >
                 Problemas ({openFindings.length})
@@ -653,6 +657,7 @@ export function WebsiteAnalysisReportPage() {
               <Button
                 variant={activeTab === 'passed' ? 'default' : 'outline'}
                 size="sm"
+                className="w-full min-w-0 sm:w-auto"
                 onClick={() => setActiveTab('passed')}
               >
                 Aprobados ({passedFindings.length})

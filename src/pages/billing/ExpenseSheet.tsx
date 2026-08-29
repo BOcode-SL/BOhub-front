@@ -8,7 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import {
     LEDGER_STATUSES,
     LEDGER_STATUS_LABELS,
@@ -480,15 +486,13 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     ) : null;
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]',
-                )}
-            >
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName="flex w-full flex-col gap-0 p-0 transition-[max-width] sm:max-w-lg md:max-w-[1200px]"
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-                    <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                    <div className="hidden min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-border p-6 md:flex md:flex-1 md:border-r">
                         <BillingFilePane
                             blobUrl={previewUrl}
                             fileName={previewName}
@@ -497,15 +501,15 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                             className="h-full min-h-0 shadow-lg"
                         />
                     </div>
-                    <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2 md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
-                        <SheetHeader className="gap-1 pb-2">
-                            <SheetTitle>
+                    <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
+                        <FormPanelHeader className="gap-1 pb-2">
+                            <FormPanelTitle>
                                 {mode === 'add' ? 'Añadir gasto' : mode === 'view' ? 'Ver gasto' : 'Editar gasto'}
-                            </SheetTitle>
-                            <SheetDescription>
+                            </FormPanelTitle>
+                            <FormPanelDescription>
                                 {readOnly ? 'Detalle ledger (solo lectura).' : 'Factura recibida / gasto interno.'}
-                            </SheetDescription>
-                        </SheetHeader>
+                            </FormPanelDescription>
+                        </FormPanelHeader>
 
                         {isAdd && !readOnly ? (
                             <div className="flex flex-col gap-2.5 border-b border-border px-4 pb-4 pt-2">
@@ -785,7 +789,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                             </form>
                         )}
 
-                        <SheetFooter>
+                        <FormPanelFooter>
                             {readOnly ? (
                                 <Button
                                     type="button"
@@ -817,10 +821,9 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
                                     </Button>
                                 </>
                             )}
-                        </SheetFooter>
+                        </FormPanelFooter>
                     </div>
                 </div>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

@@ -578,7 +578,7 @@ export function BillingSettingsPage() {
                                         )}
                                     </div>
                                 </div>
-                                <Button type="submit" disabled={emailSaving} className="cursor-pointer">
+                                <Button type="submit" disabled={emailSaving} className="w-full cursor-pointer sm:w-auto">
                                     {emailSaving ? 'Guardando…' : 'Guardar plantilla'}
                                 </Button>
                             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Inbox, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, LayoutGrid, List, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { ListPageShell } from '@/components/list-page-shell';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ToolbarSelect } from '@/components/toolbar-field';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LeadSheet } from '@/pages/leads/LeadSheet';
 import { LeadsBoard } from '@/pages/leads/LeadsBoard';
 import {
@@ -22,6 +23,7 @@ import {
     LEAD_STATUSES,
     listLeadAssignees,
     listLeads,
+    syncMetaLeads,
     updateLead,
     type Lead,
     type LeadSource,
@@ -75,6 +77,7 @@ export function LeadsPage() {
     const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
     const [assignees, setAssignees] = useState<{ id: number; name: string }[]>([]);
     const [boardTick, setBoardTick] = useState(0);
+    const [syncingMeta, setSyncingMeta] = useState(false);
 
     useEffect(() => setSearchInput(urlSearch), [urlSearch]);
 
@@ -166,6 +169,27 @@ export function LeadsPage() {
         setSheetOpen(true);
     }
 
+    async function handleSyncMeta() {
+        setSyncingMeta(true);
+        try {
+            const res = await syncMetaLeads();
+            if (!res.configured) {
+                toastError(res.message ?? 'Meta no configurado');
+                return;
+            }
+            if (res.ingested > 0) {
+                toastSuccess(`${res.ingested} lead${res.ingested === 1 ? '' : 's'} importado${res.ingested === 1 ? '' : 's'} desde Meta`);
+                reload();
+            } else {
+                toastSuccess('Nada nuevo en Meta');
+            }
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setSyncingMeta(false);
+        }
+    }
+
     const total = meta?.total ?? 0;
     const lastPage = meta?.last_page ?? 1;
     const currentPage = meta?.current_page ?? page;
@@ -197,14 +221,21 @@ export function LeadsPage() {
                     </nav>
                 }
                 actions={
-                    <Button onClick={() => { setSheetMode('add'); setEditing(null); setSheetOpen(true); }}>
-                        <Plus />
-                        Añadir lead
-                    </Button>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={syncingMeta} onClick={() => void handleSyncMeta()}>
+                            <RefreshCw className={cn(syncingMeta && 'animate-spin')} />
+                            <span className="sm:hidden">Meta</span>
+                            <span className="hidden sm:inline">Importar Meta</span>
+                        </Button>
+                        <Button className="w-full sm:w-auto" onClick={() => { setSheetMode('add'); setEditing(null); setSheetOpen(true); }}>
+                            <Plus />
+                            Añadir lead
+                        </Button>
+                    </div>
                 }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="relative min-w-0 w-full flex-1 sm:min-w-[12rem]">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input className="pl-9" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Buscar por nombre, email o teléfono…" />
                         </div>
@@ -212,6 +243,7 @@ export function LeadsPage() {
                             <ToolbarSelect
                                 id="leads-status"
                                 label="Etapa"
+                                fieldClassName="w-full sm:w-auto"
                                 items={[{ label: 'Todas', value: 'all' }, ...LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], value: s }))]}
                                 value={urlStatus}
                                 onValueChange={(value) => patchParams({ status: !value || value === 'all' ? null : value, page: '1' })}
@@ -220,6 +252,7 @@ export function LeadsPage() {
                         <ToolbarSelect
                             id="leads-assigned"
                             label="Asignado"
+                            fieldClassName="w-full sm:w-auto"
                             items={[{ label: 'Todos', value: 'all' }, { label: 'Sin asignar', value: 'none' }, ...assignees.map((u) => ({ label: u.name, value: String(u.id) }))]}
                             value={urlAssigned}
                             onValueChange={(value) => patchParams({ assigned_user_id: !value || value === 'all' ? null : value, page: '1' })}
@@ -228,6 +261,7 @@ export function LeadsPage() {
                             <ToolbarSelect
                                 id="leads-per-page"
                                 label="Por página"
+                                fieldClassName="w-full sm:w-auto"
                                 items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
                                 value={String(perPage)}
                                 onValueChange={(value) => {
@@ -250,20 +284,51 @@ export function LeadsPage() {
                         <div className="overflow-x-auto rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
+                                    <TableRow className="hover:bg-transparent">
                                         <TableHead>Nombre</TableHead>
-                                        <TableHead>Teléfono</TableHead>
-                                        <TableHead>Email</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Teléfono</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Email</TableHead>
                                         <TableHead>Etapa</TableHead>
-                                        <TableHead>Asignado</TableHead>
-                                        <TableHead>Fuente</TableHead>
-                                        <TableHead>Fecha</TableHead>
+                                        <TableHead className="hidden md:table-cell">Asignado</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Fuente</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Fecha</TableHead>
                                         <TableHead className="w-12" />
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
+                                    {loading &&
+                                        rows.length === 0 &&
+                                        Array.from({ length: Math.min(perPage, 8) }).map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden lg:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell className="hidden lg:table-cell">
+                                                    <Skeleton className="h-4 w-full" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Skeleton className="h-4 w-8" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+
                                     {!loading && rows.length === 0 ? (
-                                        <TableRow>
+                                        <TableRow className="hover:bg-transparent">
                                             <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">Sin leads todavía.</TableCell>
                                         </TableRow>
                                     ) : rows.map((lead) => (
@@ -272,25 +337,43 @@ export function LeadsPage() {
                                             className={cn('cursor-pointer', loading && 'opacity-60')}
                                             onClick={() => openEdit(lead)}
                                         >
-                                            <TableCell className="font-medium">{lead.name || '—'}</TableCell>
-                                            <TableCell>{lead.phone || '—'}</TableCell>
-                                            <TableCell>{lead.email || '—'}</TableCell>
+                                            <TableCell className="max-w-[10rem] sm:max-w-[14rem]">
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium" title={lead.name ?? undefined}>
+                                                        {lead.name || '—'}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground sm:hidden" title={lead.phone || lead.email || undefined}>
+                                                        {lead.phone || lead.email || '—'}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[14rem]" title={lead.phone ?? undefined}>
+                                                {lead.phone || '—'}
+                                            </TableCell>
+                                            <TableCell className="hidden max-w-[10rem] truncate text-muted-foreground sm:table-cell sm:max-w-[16rem]" title={lead.email ?? undefined}>
+                                                {lead.email || '—'}
+                                            </TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={LEAD_STATUS_BADGE_CLASS[lead.status]}>
                                                     {LEAD_STATUS_LABELS[lead.status]}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>{lead.assignedUser?.name || '—'}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="hidden max-w-[10rem] truncate text-muted-foreground md:table-cell md:max-w-[14rem]" title={lead.assignedUser?.name ?? undefined}>
+                                                {lead.assignedUser?.name || '—'}
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell">
                                                 <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[lead.source as LeadSource] ?? 'border-border'}>
                                                     {LEAD_SOURCE_LABELS[lead.source as LeadSource] ?? lead.source}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('es-ES') : '—'}</TableCell>
+                                            <TableCell className="hidden text-muted-foreground lg:table-cell">
+                                                {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('es-ES') : '—'}
+                                            </TableCell>
                                             <TableCell onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
                                                         <MoreHorizontal />
+                                                        <span className="sr-only">Acciones</span>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuItem onClick={() => openEdit(lead)}><Pencil />Editar</DropdownMenuItem>

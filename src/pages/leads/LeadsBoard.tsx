@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { AppSelect } from '@/components/app-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     LEAD_SOURCE_BADGE_CLASS,
     LEAD_SOURCE_LABELS,
@@ -38,6 +40,7 @@ type Props = {
 };
 
 export function LeadsBoard({ search, assignedUserId, reloadKey, onOpen }: Props) {
+    const isMobile = useIsMobile();
     const [cols, setCols] = useState<Record<LeadStatus, Col>>(emptyCols);
     const [loading, setLoading] = useState(true);
     const [lostTarget, setLostTarget] = useState<{ lead: Lead; from: LeadStatus } | null>(null);
@@ -100,13 +103,8 @@ export function LeadsBoard({ search, assignedUserId, reloadKey, onOpen }: Props)
         }
     }
 
-    function onDropColumn(to: LeadStatus, e: DragEvent) {
-        e.preventDefault();
-        const id = Number(e.dataTransfer.getData('text/plain'));
-        const from = dragFrom.current;
-        if (!from || from === to || !Number.isFinite(id)) return;
-        const lead = cols[from].data.find((l) => l.id === id);
-        if (!lead) return;
+    function requestStatusChange(lead: Lead, from: LeadStatus, to: LeadStatus) {
+        if (from === to) return;
         move(lead, from, to);
         if (to === 'lost') {
             setLostTarget({ lead, from });
@@ -116,73 +114,112 @@ export function LeadsBoard({ search, assignedUserId, reloadKey, onOpen }: Props)
         void commit(lead, from, to);
     }
 
+    function onDropColumn(to: LeadStatus, e: DragEvent) {
+        e.preventDefault();
+        const id = Number(e.dataTransfer.getData('text/plain'));
+        const from = dragFrom.current;
+        if (!from || from === to || !Number.isFinite(id)) return;
+        const lead = cols[from].data.find((l) => l.id === id);
+        if (!lead) return;
+        requestStatusChange(lead, from, to);
+    }
+
     return (
         <>
-            <div className={cn('flex min-h-[28rem] gap-3 overflow-x-auto pb-2', loading && 'opacity-60')}>
-                {LEAD_STATUSES.map((status) => {
-                    const col = cols[status];
-                    const extra = Math.max(0, col.total - col.data.length);
-                    return (
-                        <div
-                            key={status}
-                            className="flex w-72 shrink-0 flex-col rounded-md border bg-muted/20"
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => onDropColumn(status, e)}
-                        >
-                            <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-                                <p className="text-sm font-medium">{LEAD_STATUS_LABELS[status]}</p>
-                                <span className="text-xs text-muted-foreground">
-                                    {col.total}
-                                    {extra > 0 ? ` · +${extra} más` : ''}
-                                </span>
-                            </div>
-                            <div className="flex flex-1 flex-col gap-2 p-2">
-                                {col.data.length === 0 ? (
-                                    <p className="px-1 py-6 text-center text-xs text-muted-foreground">Sin leads</p>
-                                ) : (
-                                    col.data.map((lead) => (
-                                        <button
-                                            key={lead.id}
-                                            type="button"
-                                            draggable
-                                            onDragStart={(e) => {
-                                                skipClick.current = true;
-                                                dragFrom.current = status;
-                                                e.dataTransfer.setData('text/plain', String(lead.id));
-                                                e.dataTransfer.effectAllowed = 'move';
-                                            }}
-                                            onDragEnd={() => {
-                                                window.setTimeout(() => {
-                                                    skipClick.current = false;
-                                                }, 0);
-                                            }}
-                                            onClick={() => {
-                                                if (skipClick.current) {
-                                                    skipClick.current = false;
-                                                    return;
-                                                }
-                                                onOpen(lead);
-                                            }}
-                                            className="cursor-pointer rounded-md border bg-card p-3 text-left text-sm shadow-sm hover:border-primary/40"
-                                        >
-                                            <p className="truncate font-medium">{lead.name || '—'}</p>
-                                            <p className="mt-1 truncate text-xs text-muted-foreground">{lead.phone || lead.email || '—'}</p>
-                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[lead.source as LeadSource] ?? 'border-border'}>
-                                                    {LEAD_SOURCE_LABELS[lead.source as LeadSource] ?? lead.source}
-                                                </Badge>
-                                                {lead.assignedUser?.name ? (
-                                                    <span className="truncate text-xs text-muted-foreground">{lead.assignedUser.name}</span>
+            <div className="relative -mx-1 px-1">
+                <div className={cn('flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]', loading && 'opacity-60')}>
+                    {LEAD_STATUSES.map((status) => {
+                        const col = cols[status];
+                        const extra = Math.max(0, col.total - col.data.length);
+                        return (
+                            <div
+                                key={status}
+                                className="flex w-[min(100%,18rem)] shrink-0 snap-center flex-col rounded-md border bg-muted/20 sm:w-72"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => onDropColumn(status, e)}
+                            >
+                                <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+                                    <p className="text-sm font-medium">{LEAD_STATUS_LABELS[status]}</p>
+                                    <span className="text-xs text-muted-foreground">
+                                        {col.total}
+                                        {extra > 0 ? ` · +${extra} más` : ''}
+                                    </span>
+                                </div>
+                                <div className="flex flex-1 flex-col gap-2 p-2">
+                                    {col.data.length === 0 ? (
+                                        <p className="px-1 py-6 text-center text-xs text-muted-foreground">Sin leads</p>
+                                    ) : (
+                                        col.data.map((lead) => (
+                                            <button
+                                                key={lead.id}
+                                                type="button"
+                                                draggable={!isMobile}
+                                                onDragStart={(e) => {
+                                                    skipClick.current = true;
+                                                    dragFrom.current = status;
+                                                    e.dataTransfer.setData('text/plain', String(lead.id));
+                                                    e.dataTransfer.effectAllowed = 'move';
+                                                }}
+                                                onDragEnd={() => {
+                                                    window.setTimeout(() => {
+                                                        skipClick.current = false;
+                                                    }, 0);
+                                                }}
+                                                onClick={() => {
+                                                    if (skipClick.current) {
+                                                        skipClick.current = false;
+                                                        return;
+                                                    }
+                                                    onOpen(lead);
+                                                }}
+                                                className="cursor-pointer rounded-md border bg-card p-3 text-left text-sm shadow-sm hover:border-primary/40"
+                                            >
+                                                <p className="truncate font-medium" title={lead.name ?? undefined}>
+                                                    {lead.name || '—'}
+                                                </p>
+                                                <p className="mt-1 truncate text-xs text-muted-foreground" title={lead.phone || lead.email || undefined}>
+                                                    {lead.phone || lead.email || '—'}
+                                                </p>
+                                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                    <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[lead.source as LeadSource] ?? 'border-border'}>
+                                                        {LEAD_SOURCE_LABELS[lead.source as LeadSource] ?? lead.source}
+                                                    </Badge>
+                                                    {lead.assignedUser?.name ? (
+                                                        <span className="truncate text-xs text-muted-foreground">{lead.assignedUser.name}</span>
+                                                    ) : null}
+                                                </div>
+                                                {isMobile ? (
+                                                    <div
+                                                        className="mt-2"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                    >
+                                                        <AppSelect
+                                                            items={LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], value: s }))}
+                                                            value={status}
+                                                            onValueChange={(v) => {
+                                                                if (!v || v === status) return;
+                                                                requestStatusChange(lead, status, v as LeadStatus);
+                                                            }}
+                                                        />
+                                                    </div>
                                                 ) : null}
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
+                {isMobile ? (
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background/90 to-transparent"
+                    />
+                ) : null}
             </div>
+            <p className="text-center text-xs text-muted-foreground md:hidden">Desliza para ver más etapas</p>
 
             <Dialog
                 open={!!lostTarget}

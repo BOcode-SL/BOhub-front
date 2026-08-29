@@ -5,7 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
@@ -27,6 +33,7 @@ import {
     whatsAppUrl,
 } from '@/lib/leads';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 type LeadSheetProps = {
     open: boolean;
@@ -173,12 +180,15 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
     }
 
     const contactFields = (
-        <>
+        <div className="grid gap-3 sm:grid-cols-2">
             <FormField id="lead-name" label="Nombre" error={fieldErrors.name}>
                 <Input id="lead-name" value={form.name ?? ''} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
             </FormField>
             <FormField id="lead-phone" label="Teléfono" error={fieldErrors.phone}>
                 <Input id="lead-phone" value={form.phone ?? ''} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+            </FormField>
+            <FormField id="lead-email" label="Email" error={fieldErrors.email}>
+                <Input id="lead-email" value={form.email ?? ''} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
             </FormField>
             <FormField id="lead-instagram" label="Instagram" error={fieldErrors.instagram}>
                 <Input id="lead-instagram" value={form.instagram ?? ''} onChange={(e) => setForm((p) => ({ ...p, instagram: e.target.value }))} />
@@ -189,24 +199,29 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
             <FormField id="lead-company" label="Empresa" error={fieldErrors.company}>
                 <Input id="lead-company" value={form.company ?? ''} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
             </FormField>
-            <FormField id="lead-email" label="Email" error={fieldErrors.email}>
-                <Input id="lead-email" value={form.email ?? ''} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-            </FormField>
             {form.phone ? (
-                <Button type="button" variant="outline" onClick={() => window.open(whatsAppUrl(form.phone as string), '_blank', 'noopener,noreferrer')}>
-                    Abrir WhatsApp
-                </Button>
+                <div className="sm:col-span-2">
+                    <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => window.open(whatsAppUrl(form.phone as string), '_blank', 'noopener,noreferrer')}>
+                        Abrir WhatsApp
+                    </Button>
+                </div>
             ) : null}
-        </>
+        </div>
     );
 
     return (
         <>
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className={mode === 'edit' ? 'w-full overflow-y-auto sm:max-w-2xl' : 'w-full overflow-y-auto sm:max-w-xl'}>
-                <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir lead' : current?.name || 'Lead'}</SheetTitle>
-                    <SheetDescription className="flex flex-wrap items-center gap-2">
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName={cn(
+                'flex h-full w-full flex-col gap-0 overflow-hidden p-0',
+                mode === 'edit' ? 'sm:max-w-2xl' : 'sm:max-w-xl',
+            )}
+        >
+                <FormPanelHeader className="shrink-0 px-4 pt-4">
+                    <FormPanelTitle>{mode === 'add' ? 'Añadir lead' : current?.name || 'Lead'}</FormPanelTitle>
+                    <FormPanelDescription className="flex flex-wrap items-center gap-2">
                         {mode === 'edit' && current ? (
                             <>
                                 <Badge variant="outline" className={LEAD_STATUS_BADGE_CLASS[current.status]}>
@@ -219,10 +234,10 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                         ) : (
                             'Alta manual'
                         )}
-                    </SheetDescription>
-                </SheetHeader>
+                    </FormPanelDescription>
+                </FormPanelHeader>
 
-                <form id="lead-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-8 px-4">
+                <form id="lead-form" noValidate onSubmit={(e) => void handleSubmit(e)} className="flex-1 space-y-8 overflow-y-auto px-4 pb-4">
                     {mode === 'add' ? (
                         <>
                             {contactFields}
@@ -233,7 +248,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                                     onValueChange={(v) => setForm((p) => ({ ...p, source: (v as LeadSource) || 'manual' }))}
                                 />
                             </FormField>
-                            <FormField id="lead-assigned" label="Asignado">
+                            <FormField id="lead-assigned-add" label="Asignado">
                                 <AppSelect
                                     items={assigneeItems}
                                     value={form.assignedUserId != null ? String(form.assignedUserId) : 'none'}
@@ -252,7 +267,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                                         onValueChange={(v) => void handleStatus(v)}
                                     />
                                 </FormField>
-                                <FormField id="lead-assigned" label="Asignado">
+                                <FormField id="lead-assigned-edit" label="Asignado">
                                     <AppSelect
                                         items={assigneeItems}
                                         value={form.assignedUserId != null ? String(form.assignedUserId) : 'none'}
@@ -274,7 +289,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                                         {formAnswers.map((row) => (
                                             <div key={row.label}>
                                                 <dt className="text-xs text-muted-foreground">{row.label}</dt>
-                                                <dd className="text-sm">{row.value}</dd>
+                                                <dd className="break-words text-sm">{row.value}</dd>
                                             </div>
                                         ))}
                                     </dl>
@@ -283,17 +298,17 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
 
                             {hasOrigin && (
                                 <Section title="Origen">
-                                    <div className="space-y-2 text-sm">
+                                    <div className="space-y-2 break-words text-sm">
                                         <p>
                                             <span className="text-muted-foreground">Fuente: </span>
                                             <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[current.source as LeadSource] ?? 'border-border'}>
                                                 {LEAD_SOURCE_LABELS[current.source as LeadSource] ?? current.source}
                                             </Badge>
                                         </p>
-                                        {current.campaignName ? <p><span className="text-muted-foreground">Campaña: </span>{current.campaignName}</p> : null}
-                                        {current.formName ? <p><span className="text-muted-foreground">Formulario: </span>{current.formName}</p> : null}
-                                        {current.adName ? <p><span className="text-muted-foreground">Anuncio: </span>{current.adName}</p> : null}
-                                        {current.metaLeadId ? <p><span className="text-muted-foreground">Meta lead: </span>{current.metaLeadId}</p> : null}
+                                        {current.campaignName ? <p className="break-words"><span className="text-muted-foreground">Campaña: </span>{current.campaignName}</p> : null}
+                                        {current.formName ? <p className="break-words"><span className="text-muted-foreground">Formulario: </span>{current.formName}</p> : null}
+                                        {current.adName ? <p className="break-words"><span className="text-muted-foreground">Anuncio: </span>{current.adName}</p> : null}
+                                        {current.metaLeadId ? <p className="break-all"><span className="text-muted-foreground">Meta lead: </span>{current.metaLeadId}</p> : null}
                                     </div>
                                 </Section>
                             )}
@@ -310,7 +325,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                                         <p className="text-sm text-muted-foreground">Sin eventos aún.</p>
                                     ) : (
                                         events.map((event) => (
-                                            <div key={event.id} className="text-sm">
+                                            <div key={event.id} className="break-words text-sm">
                                                 <span className="font-medium">{event.type}</span>: {event.body}
                                             </div>
                                         ))
@@ -321,16 +336,15 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                     ) : null}
                 </form>
 
-                <SheetFooter>
+                <FormPanelFooter className="shrink-0 border-t px-4 py-3">
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                         Cancelar
                     </Button>
                     <Button type="submit" form="lead-form" disabled={saving}>
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
 
         <Dialog open={lostOpen} onOpenChange={setLostOpen}>
             <DialogContent>

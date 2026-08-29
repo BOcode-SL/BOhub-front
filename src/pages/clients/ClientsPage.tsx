@@ -202,14 +202,14 @@ export function ClientsPage() {
                 description="Buscar y gestionar tus clientes"
                 icon={Users}
                 actions={
-                    <Button type="button" onClick={openAdd}>
+                    <Button type="button" className="w-full sm:w-auto" onClick={openAdd}>
                         <Plus />
                         Añadir cliente
                     </Button>
                 }
                 toolbar={
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-end">
-                        <div className="relative min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="relative min-w-0 w-full flex-1 sm:w-auto">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={searchInput}
@@ -222,6 +222,7 @@ export function ClientsPage() {
                         <ToolbarSelect
                             id="clients-per-page"
                             label="Por página"
+                            fieldClassName="w-full sm:w-auto"
                             items={PER_PAGE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
                             value={String(perPage)}
                             onValueChange={(value) => {

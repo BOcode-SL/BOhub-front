@@ -8,7 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import {
     LEDGER_STATUS_LABELS,
     PAYMENT_METHODS,
@@ -492,18 +498,18 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    showPreviewPane
-                        ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]'
-                        : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
-                )}
-            >
+        <>
+        <FormPanel
+            open={open}
+            onOpenChange={onOpenChange}
+            contentClassName={cn(
+                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                showPreviewPane ? 'sm:max-w-lg md:max-w-[1200px]' : 'sm:max-w-lg',
+            )}
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreviewPane ? (
-                        <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                        <div className="hidden min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-border p-6 md:flex md:flex-1 md:border-r">
                             <BillingFilePane
                                 blobUrl={previewUrl}
                                 fileName={previewName}
@@ -519,18 +525,18 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     ) : null}
                     <div
                         className={cn(
-                            'order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2',
+                            'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
                             showPreviewPane ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
-                <SheetHeader>
-                    <SheetTitle>
+                <FormPanelHeader>
+                    <FormPanelTitle>
                         {mode === 'add' ? 'Añadir ingreso' : mode === 'view' ? 'Ver ingreso' : 'Editar ingreso'}
-                    </SheetTitle>
-                    <SheetDescription>
+                    </FormPanelTitle>
+                    <FormPanelDescription>
                         {readOnly ? 'Detalle ledger (solo lectura).' : 'Conceptos, IVA/IRPF e installments opcionales.'}
-                    </SheetDescription>
-                </SheetHeader>
+                    </FormPanelDescription>
+                </FormPanelHeader>
 
                 {hydrating ? (
                     <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
@@ -898,7 +904,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                 </form>
                 )}
 
-                <SheetFooter className="flex-wrap gap-2">
+                <FormPanelFooter className="flex-wrap gap-2">
                     {canDownloadPdf ? (
                         <Button
                             type="button"
@@ -990,10 +996,10 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                             </Button>
                         </>
                     )}
-                </SheetFooter>
+                </FormPanelFooter>
                     </div>
                 </div>
-            </SheetContent>
+        </FormPanel>
             <EmitPaymentDialog
                 open={emitOpen}
                 payment={
@@ -1064,6 +1070,6 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </Sheet>
+        </>
     );
 }

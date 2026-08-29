@@ -3,7 +3,13 @@ import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listProjectOptions } from '@/lib/projects';
 import { toastError } from '@/lib/toast';
@@ -13,9 +19,25 @@ type FormState = {
     projectId: number | '';
     hours: string;
     minutes: string;
+    seconds: string;
     workedOn: string;
     description: string;
 };
+
+function todayIsoDate(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function defaultAddForm(): FormState {
+    return {
+        projectId: '',
+        hours: '0',
+        minutes: '30',
+        seconds: '0',
+        workedOn: todayIsoDate(),
+        description: '',
+    };
+}
 
 function fromHour(h: Hour): FormState {
     const total = h.durationSeconds;
@@ -23,6 +45,7 @@ function fromHour(h: Hour): FormState {
         projectId: h.projectId,
         hours: String(Math.floor(total / 3600)),
         minutes: String(Math.floor((total % 3600) / 60)),
+        seconds: String(total % 60),
         workedOn: h.workedOn,
         description: h.description ?? '',
     };
@@ -36,13 +59,8 @@ type Props = {
 };
 
 export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
-    const [form, setForm] = useState<FormState>({
-        projectId: '',
-        hours: '0',
-        minutes: '0',
-        workedOn: '',
-        description: '',
-    });
+    const isAdd = !hour;
+    const [form, setForm] = useState<FormState>(defaultAddForm());
     const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -62,9 +80,9 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
     }, [open]);
 
     useEffect(() => {
-        if (!open || !hour) return;
+        if (!open) return;
         setFieldErrors({});
-        setForm(fromHour(hour));
+        setForm(hour ? fromHour(hour) : defaultAddForm());
     }, [open, hour]);
 
     function clearFieldError(key: string) {
@@ -77,7 +95,7 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
 
     function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
-        if (key === 'hours' || key === 'minutes') clearFieldError('duration');
+        if (key === 'hours' || key === 'minutes' || key === 'seconds') clearFieldError('duration');
         else clearFieldError(key);
     }
 
@@ -85,7 +103,8 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
         e.preventDefault();
         const nextErrors: Record<string, string> = {};
         if (!form.projectId) nextErrors.projectId = 'Selecciona un proyecto.';
-        const duration = (Number(form.hours) || 0) * 3600 + (Number(form.minutes) || 0) * 60;
+        const duration =
+            (Number(form.hours) || 0) * 3600 + (Number(form.minutes) || 0) * 60 + (Number(form.seconds) || 0);
         if (duration < 1) nextErrors.duration = 'La duración debe ser mayor que 0.';
         if (!form.workedOn) nextErrors.workedOn = 'La fecha es obligatoria.';
         if (Object.keys(nextErrors).length) {
@@ -98,7 +117,7 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
                 projectId: Number(form.projectId),
                 hours: Number(form.hours) || 0,
                 minutes: Number(form.minutes) || 0,
-                seconds: 0,
+                seconds: Number(form.seconds) || 0,
                 workedOn: form.workedOn,
                 description: form.description.trim() || null,
             });
@@ -114,15 +133,16 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>Editar horas</SheetTitle>
-                    <SheetDescription>{hour?.project?.name ?? 'Entrada de tiempo'}</SheetDescription>
-                </SheetHeader>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>{isAdd ? 'Añadir horas' : 'Editar horas'}</FormPanelTitle>
+                    <FormPanelDescription>
+                        {isAdd ? 'Alta manual de tiempo.' : (hour?.project?.name ?? 'Entrada de tiempo')}
+                    </FormPanelDescription>
+                </FormPanelHeader>
 
                 <form
-                    id="hour-edit-form"
+                    id="hour-form"
                     noValidate
                     className="flex flex-1 flex-col gap-4 px-4 pb-4"
                     onSubmit={(e) => void handleSubmit(e)}
@@ -138,7 +158,7 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
                         />
                     </FormField>
                     <FormField id="hour-duration" label="Duración" error={fieldErrors.duration}>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className={isAdd ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}>
                             <Input
                                 id="hour-hours"
                                 type="number"
@@ -161,6 +181,19 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
                                 aria-label="Minutos"
                                 aria-invalid={!!fieldErrors.duration}
                             />
+                            {isAdd ? (
+                                <Input
+                                    id="hour-seconds"
+                                    type="number"
+                                    min={0}
+                                    max={59}
+                                    value={form.seconds}
+                                    onChange={(e) => setField('seconds', e.target.value)}
+                                    className="bg-card"
+                                    aria-label="Segundos"
+                                    aria-invalid={!!fieldErrors.duration}
+                                />
+                            ) : null}
                         </div>
                     </FormField>
                     <FormField id="hour-date" label="Fecha" error={fieldErrors.workedOn}>
@@ -184,15 +217,14 @@ export function HourSheet({ open, hour, onOpenChange, onSubmit }: Props) {
                     </FormField>
                 </form>
 
-                <SheetFooter>
+                <FormPanelFooter>
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Cancelar
                     </Button>
-                    <Button type="submit" form="hour-edit-form" disabled={saving}>
+                    <Button type="submit" form="hour-form" disabled={saving}>
                         {saving ? 'Guardando…' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
     );
 }

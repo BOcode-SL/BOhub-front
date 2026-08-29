@@ -4,7 +4,13 @@ import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
     formatMoney,
@@ -135,13 +141,14 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
     const showPreview = Boolean(previewHtml.trim());
 
     return (
-        <Sheet open={open} onOpenChange={handleOpenChange}>
-            <SheetContent
-                className={cn(
-                    'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    showPreview ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
-                )}
-            >
+        <FormPanel
+            open={open}
+            onOpenChange={handleOpenChange}
+            contentClassName={cn(
+                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
+                showPreview ? 'sm:max-w-[1200px]' : 'sm:max-w-lg',
+            )}
+        >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreview ? (
                         <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
@@ -159,12 +166,12 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
                             showPreview ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
                         )}
                     >
-                        <SheetHeader>
-                            <SheetTitle>Enviar factura al cliente</SheetTitle>
-                            <SheetDescription>
+                        <FormPanelHeader>
+                            <FormPanelTitle>Enviar factura al cliente</FormPanelTitle>
+                            <FormPanelDescription>
                                 Se adjuntará el PDF archivado. Confirma el destinatario antes de enviar.
-                            </SheetDescription>
-                        </SheetHeader>
+                            </FormPanelDescription>
+                        </FormPanelHeader>
 
                         {loading || !preview ? (
                             <div className="flex flex-1 flex-col overflow-y-auto px-4 pb-4">
@@ -254,7 +261,7 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
                                     </label>
                                 </div>
 
-                                <SheetFooter>
+                                <FormPanelFooter>
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -271,12 +278,11 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
                                     >
                                         {sending ? 'Enviando…' : 'Enviar factura'}
                                     </Button>
-                                </SheetFooter>
+                                </FormPanelFooter>
                             </form>
                         )}
                     </div>
                 </div>
-            </SheetContent>
-        </Sheet>
+        </FormPanel>
     );
 }

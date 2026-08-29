@@ -36,6 +36,42 @@ Use `ListPageShell`:
 
 Reference implementations: `pages/clients/ClientsPage.tsx`, `pages/projects/ProjectsPage.tsx`.
 
+## Responsive
+
+Agents must follow the same patterns on **every** list page (clients, projects, leads, billing ledgers, timer, emails, contracts, maintenance, website-analysis, users). See `AGENTS.md` § Responsive.
+
+| Element | Mobile (`<640px`) | `sm+` |
+| --- | --- | --- |
+| Header CTA | `w-full` | `w-auto` |
+| Toolbar | column stack | row + wrap |
+| ToolbarSelect | `w-full` | `w-auto` |
+| Table columns | 2–3 + ⋮ | progressive reveal |
+| Pagination | stacked | row |
+
+**Search:** `Input` uses `text-sm` (same visual weight as filter selects).
+
+**Website Analysis list:** click **domain** or row → detail route; no dedicated “Ver detalles” column on mobile.
+
+**Projects filters:** Estado full width; Fecha fin + Por página side-by-side 50/50 on mobile.
+
+## Mobile navigation
+
+Bottom bar **`md:hidden`**: 4 rutas primarias + **Menú** (panel flotante `MobileFloatingMenu`, no sidebar). Config en `lib/nav-config.ts`. Ver `AGENTS.md` § Mobile navigation.
+
+| Rol | Tabs |
+| --- | --- |
+| admin / employee | Inicio, Clientes, Proyectos, Timer |
+| billing | Resumen, Ingresos, Gastos, Nóminas |
+
+## Form panels (Drawer vs Sheet)
+
+Formularios CRUD usan **`FormPanel`** (`components/responsive-form-panel.tsx`):
+
+- **Móvil (`<768px`):** Drawer desde abajo (`max-h-[92dvh]`, handle, swipe dismiss).
+- **Desktop:** Sheet lateral derecho; conservar `contentClassName` (`sm:max-w-md`, `sm:max-w-2xl`, `sm:max-w-[1200px]`…).
+
+Sidebar móvil (Sheet lateral) solo vía desktop collapse; en `<768px` el acceso secundario va al **menú flotante** de la bottom bar.
+
 ## Forms (invalid state)
 
 Use `FormField` + control `aria-invalid`. Forms should use **`noValidate`** so the browser bubble does not replace FieldError. Laravel 422 → `ApiError.fieldErrors` → `flattenFieldErrors`; clear that key on change. No Zod/RHF.

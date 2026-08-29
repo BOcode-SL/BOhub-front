@@ -85,6 +85,78 @@ Auth: Sanctum **SPA session cookie** (httpOnly) via `credentials: 'include'` + C
 9. No Emails “Configuración” UI — SMTP is backend `.env` only.
 10. **Forms**: use `FormField` + `aria-invalid` on the control. Forms: **`noValidate`** (no browser bubble). On 422, `flattenFieldErrors(ApiError.fieldErrors)`; clear key on change. Toast via `toastError`. No Zod/RHF.
 
+## Responsive (list pages + home widgets)
+
+Reference: `ClientsPage.tsx`, `UpcomingDeadlines.tsx`. Full audit prompt: `../prompts/PROMPT_responsive_front.md`.
+
+### Toolbar
+
+```tsx
+<div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
+  <div className="relative min-w-0 w-full flex-1 sm:w-auto">
+    <Input className="pl-9" placeholder="…" aria-label="…" />
+  </div>
+  <ToolbarSelect fieldClassName="w-full sm:w-auto" … />
+  <EntitySelect className="w-full sm:min-w-40 sm:w-auto" … />
+</div>
+```
+
+- **Search input:** `Input` is `text-sm` globally (match `ToolbarSelect` / `AppSelect` placeholder size).
+- **Header CTA** (`+ Añadir …`): `className="w-full sm:w-auto"`.
+- **Pair of header actions:** wrap in `flex w-full flex-col gap-2 sm:w-auto sm:flex-row`; each button `w-full sm:w-auto`.
+- **Projects mobile filters:** Estado `w-full`; Fecha fin + Por página in `grid grid-cols-2 gap-2 w-full` (50% + 50%); from `sm` use `sm:contents` / flex-wrap.
+
+### Tables
+
+- Wrap: `overflow-x-auto rounded-md border`.
+- Progressive columns: `hidden sm:table-cell`, `hidden md:table-cell`, `hidden lg:table-cell`.
+- Text cells: `max-w-[10rem] truncate sm:max-w-[14rem]` + `title={fullText}`.
+- **Mobile subline** under primary cell when a column is hidden:
+  ```tsx
+  <p className="truncate text-xs text-muted-foreground sm:hidden">{secondary}</p>
+  ```
+- **Row navigation:** prefer `TableRow` + `onClick` or primary cell `Link` (e.g. domain name in Website Analysis). Do not rely only on a trailing “Ver detalles” button.
+- Actions menu: `Button size="icon-sm"` + `sr-only` “Acciones”.
+- Pagination: `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`; prev/next `min-w-24`.
+
+### Home cards (vencimientos / mantenimientos)
+
+- Card: `w-full min-w-0 max-w-full`.
+- Row: full-width `button`, `truncate` on title/subline; stack status below title on very narrow screens if needed (`flex-col sm:flex-row`).
+
+## Mobile navigation + form panels
+
+Breakpoint **768px** (`useIsMobile()`). Plan: `../prompts/PLAN_mobile_nav_drawer.md`.
+
+### Bottom bar (`MobileBottomNav`)
+
+- Visible **`md:hidden`** — fixed bottom, `z-30`, safe-area padding.
+- **admin/employee:** Inicio, Clientes, Proyectos, Timer + **Menú** (panel flotante con rutas secundarias + logout).
+- **billing:** Resumen, Ingresos, Gastos, Nóminas + Menú (Configuración + logout).
+- Nav items from `lib/nav-config.ts` (`mobilePrimary`, `getMobileMenuItems`, `billingMobileItems`).
+- `MobileFloatingMenu`: panel sobre la bottom bar (`z-50`); no abre sidebar Sheet.
+- Header hamburger (`SidebarTrigger`): **oculto en móvil** (`md:hidden` en trigger) — nav principal = bottom bar.
+- `main` in `app-layout.tsx`: `pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0`.
+
+### Form panels (`ResponsiveFormPanel`)
+
+CRUD / form sheets → **`FormPanel`** + `FormPanelHeader` / `FormPanelFooter` / `FormPanelTitle` / `FormPanelDescription`:
+
+| Viewport | Component |
+| --- | --- |
+| `<768px` | **Drawer** (bottom, `max-h-[92dvh]`, swipe handle) |
+| `≥768px` | **Sheet** lateral derecho (anchos actuales en `contentClassName`) |
+
+```tsx
+<FormPanel open={open} onOpenChange={onOpenChange} contentClassName="sm:max-w-md">
+  <FormPanelHeader>…</FormPanelHeader>
+  …
+  <FormPanelFooter>…</FormPanelFooter>
+</FormPanel>
+```
+
+**Excluir:** `sign/SignContractPage.tsx`, sidebar móvil (`sidebar.tsx`).
+
 ## `lib/` API map
 
 | File             | Domain                               |

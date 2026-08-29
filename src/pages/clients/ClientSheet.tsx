@@ -4,7 +4,13 @@ import { FormFieldsSkeleton } from '@/components/form-fields-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    FormPanel,
+    FormPanelDescription,
+    FormPanelFooter,
+    FormPanelHeader,
+    FormPanelTitle,
+} from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { type Client, type ClientInput, getClient } from '@/lib/clients';
 import { toastError } from '@/lib/toast';
@@ -126,12 +132,11 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle>{mode === 'add' ? 'Añadir cliente' : 'Editar cliente'}</SheetTitle>
-                    <SheetDescription>Datos fiscales y de contacto del cliente.</SheetDescription>
-                </SheetHeader>
+        <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="w-full overflow-y-auto sm:max-w-md">
+                <FormPanelHeader>
+                    <FormPanelTitle>{mode === 'add' ? 'Añadir cliente' : 'Editar cliente'}</FormPanelTitle>
+                    <FormPanelDescription>Datos fiscales y de contacto del cliente.</FormPanelDescription>
+                </FormPanelHeader>
 
                 {hydrating ? (
                     <div className="px-4 pb-4">
@@ -255,7 +260,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                 </form>
                 )}
 
-                <SheetFooter>
+                <FormPanelFooter>
                     <Button
                         type="button"
                         variant="outline"
@@ -273,8 +278,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
                     >
                         {saving ? 'Guardando…' : mode === 'add' ? 'Crear' : 'Guardar'}
                     </Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+                </FormPanelFooter>
+        </FormPanel>
     );
 }
