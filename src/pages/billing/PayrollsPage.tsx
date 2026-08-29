@@ -37,7 +37,8 @@ async function listPayrollRows(
         data: res.data.map((p) => ({
             ...p,
             totalAmount: p.totalCost ?? p.baseSalary,
-            invoiceUrl: p.invoiceUrl ?? null,
+            storageKey: p.storageKey ?? null,
+            fileName: p.fileName ?? null,
         })),
         meta: res.meta,
     };

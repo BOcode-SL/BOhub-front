@@ -31,6 +31,7 @@ import {
     LEDGER_STATUS_LABELS,
     PAYROLL_STATUS_LABELS,
     downloadExpenseFile,
+    downloadPayrollFile,
     downloadPaymentInvoice,
     formatMoney,
     isPaymentIssued,
@@ -199,6 +200,18 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         try {
             await downloadExpenseFile(row.id, row.fileName ?? `gasto-${row.id}`);
             toastSuccess('PDF descargado');
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setPdfBusyId(null);
+        }
+    }
+
+    async function handleDownloadPayrollFile(row: TRow) {
+        setPdfBusyId(row.id);
+        try {
+            await downloadPayrollFile(row.id, row.fileName ?? `nomina-${row.id}`);
+            toastSuccess('Documento descargado');
         } catch (err) {
             toastError(err);
         } finally {
@@ -557,19 +570,29 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                 <div className="min-w-0 truncate">{rowTitle?.(row)}</div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        'w-fit font-normal',
-                                                        row.status === 'paid'
-                                                            ? 'border-transparent bg-emerald-500/20 text-emerald-300'
-                                                            : row.status === 'pending'
-                                                              ? 'border-transparent bg-amber-500/20 text-amber-300'
-                                                              : 'border-transparent bg-muted text-muted-foreground',
-                                                    )}
-                                                >
-                                                    {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? '—'}
-                                                </Badge>
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            'w-fit font-normal',
+                                                            row.status === 'paid'
+                                                                ? 'border-transparent bg-emerald-500/20 text-emerald-300'
+                                                                : row.status === 'pending'
+                                                                  ? 'border-transparent bg-amber-500/20 text-amber-300'
+                                                                  : 'border-transparent bg-muted text-muted-foreground',
+                                                        )}
+                                                    >
+                                                        {PAYROLL_STATUS_LABELS[row.status as PayrollStatus] ?? '—'}
+                                                    </Badge>
+                                                    {!row.storageKey?.trim() ? (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-transparent bg-amber-500/15 font-normal text-amber-300"
+                                                        >
+                                                            Sin archivo
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-foreground">
                                                 {formatMoney(row.totalAmount)}
@@ -730,7 +753,17 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                     : 'Vista borrador PDF'}
                                                             </DropdownMenuItem>
                                                         ) : null}
-                                                        {invoiceActions ? null : row.storageKey?.trim() ? (
+                                                        {isPayrollLayout && row.storageKey?.trim() ? (
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer"
+                                                                disabled={pdfBusyId === row.id}
+                                                                onClick={() => void handleDownloadPayrollFile(row)}
+                                                            >
+                                                                <Download />
+                                                                Descargar PDF
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        {invoiceActions ? null : !isPayrollLayout && row.storageKey?.trim() ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 disabled={pdfBusyId === row.id}
@@ -789,7 +822,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                                                     ? 'Descargar PDF'
                                                                     : 'Vista borrador PDF'}
                                                             </DropdownMenuItem>
-                                                        ) : row.storageKey?.trim() ? (
+                                                        ) : !isPayrollLayout && row.storageKey?.trim() ? (
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer"
                                                                 disabled={pdfBusyId === row.id}

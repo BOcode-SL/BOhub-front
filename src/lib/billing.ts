@@ -738,6 +738,9 @@ export type Payroll = {
     status: PayrollStatus;
     paymentDate?: string | null;
     invoiceUrl?: string | null;
+    storageKey?: string | null;
+    storageProvider?: string | null;
+    fileName?: string | null;
     totalCost?: string;
 };
 
@@ -753,8 +756,37 @@ export type PayrollInput = {
     irpfRetained?: number | string | null;
     status: PayrollStatus;
     paymentDate?: string | null;
-    invoiceUrl?: string | null;
+    /** Multipart nómina (create required; update si no hay R2) */
+    file?: File | null;
 };
+
+/** True if payroll has R2/local archive (not Drive stub). */
+export function payrollHasStoredFile(
+    p: Pick<Payroll, 'storageKey' | 'storageProvider'> | null | undefined,
+): boolean {
+    if (!p?.storageKey?.trim()) return false;
+    const provider = p.storageProvider;
+    return provider === 'r2' || provider === 'local';
+}
+
+function appendPayrollFields(fd: FormData, body: PayrollInput | Partial<PayrollInput>): void {
+    if (body.employeeName !== undefined) fd.append('employeeName', body.employeeName);
+    if (body.nif !== undefined) fd.append('nif', body.nif ?? '');
+    if (body.category !== undefined) fd.append('category', body.category ?? '');
+    if (body.month !== undefined) fd.append('month', String(body.month));
+    if (body.year !== undefined) fd.append('year', String(body.year));
+    if (body.baseSalary !== undefined) fd.append('baseSalary', String(body.baseSalary));
+    if (body.netSalary !== undefined) fd.append('netSalary', String(body.netSalary));
+    if (body.socialSecurityEmployer !== undefined) {
+        fd.append('socialSecurityEmployer', body.socialSecurityEmployer != null ? String(body.socialSecurityEmployer) : '');
+    }
+    if (body.irpfRetained !== undefined) {
+        fd.append('irpfRetained', body.irpfRetained != null ? String(body.irpfRetained) : '');
+    }
+    if (body.status !== undefined) fd.append('status', body.status);
+    if (body.paymentDate !== undefined) fd.append('paymentDate', body.paymentDate ?? '');
+    if (body.file) fd.append('file', body.file);
+}
 
 export async function listPayrolls(
     params: {
@@ -775,14 +807,77 @@ export async function listPayrolls(
 }
 
 export async function createPayroll(body: PayrollInput): Promise<Payroll> {
-    return request<Payroll>('/api/payrolls', { method: 'POST', body });
+    const fd = new FormData();
+    appendPayrollFields(fd, body);
+    if (!body.file) {
+        throw new ApiError('Adjunta la nómina (PDF o imagen).', 422, {
+            file: ['Adjunta la nómina (PDF o imagen).'],
+        });
+    }
+    return requestFormData<Payroll>('/api/payrolls', fd);
 }
 
 export async function updatePayroll(id: number, body: Partial<PayrollInput>): Promise<Payroll> {
+    if (body.file) {
+        const fd = new FormData();
+        fd.append('_method', 'PUT');
+        appendPayrollFields(fd, {
+            employeeName: body.employeeName ?? '',
+            month: body.month ?? 1,
+            year: body.year ?? new Date().getFullYear(),
+            baseSalary: body.baseSalary ?? 0,
+            netSalary: body.netSalary ?? 0,
+            status: body.status ?? 'pending',
+            ...body,
+        });
+        return requestFormData<Payroll>(`/api/payrolls/${id}`, fd);
+    }
+
+    const { file: _file, ...json } = body;
     return request<Payroll>(`/api/payrolls/${id}`, {
         method: 'PUT',
-        body,
+        body: json,
     });
+}
+
+export async function fetchPayrollFileBlob(
+    id: number,
+    opts: { inline?: boolean } = {},
+): Promise<Blob> {
+    await ensureCsrf();
+    const q = opts.inline ? '?inline=1' : '';
+    const res = await fetch(`${getBaseUrl()}/api/payrolls/${id}/file${q}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            Accept: 'application/pdf,image/*,application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    });
+    if (!res.ok) {
+        let message = `Error ${res.status}`;
+        try {
+            const data = (await res.json()) as { message?: string };
+            if (data.message) message = data.message;
+        } catch {
+            /* ignore */
+        }
+        throw new ApiError(message, res.status);
+    }
+    return res.blob();
+}
+
+/** Download payroll document from R2/local. */
+export async function downloadPayrollFile(id: number, fallbackName = `nomina-${id}`): Promise<void> {
+    const blob = await fetchPayrollFileBlob(id, { inline: false });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fallbackName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
 }
 
 export async function deletePayroll(id: number): Promise<void> {

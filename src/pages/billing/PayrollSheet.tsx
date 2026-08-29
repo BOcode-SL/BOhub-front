@@ -8,8 +8,9 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
     PAYROLL_STATUSES,
     PAYROLL_STATUS_LABELS,
-    drivePreviewUrl,
+    fetchPayrollFileBlob,
     formatMoney,
+    payrollHasStoredFile,
     type Payroll,
     type PayrollInput,
     type PayrollStatus,
@@ -17,7 +18,8 @@ import {
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listUsers, type HubUser } from '@/lib/users';
 import { toastError } from '@/lib/toast';
-import { DrivePdfPane } from '@/pages/billing/DrivePdfPane';
+import { BillingFileDropzone } from '@/pages/billing/BillingFileDropzone';
+import { BillingFilePane } from '@/pages/billing/BillingFilePane';
 import { cn } from '@/lib/utils';
 
 const MONTH_ITEMS = Array.from({ length: 12 }, (_, i) => ({
@@ -37,7 +39,6 @@ const empty: PayrollInput = {
     irpfRetained: '',
     status: 'pending',
     paymentDate: '',
-    invoiceUrl: '',
 };
 
 function toForm(p: Payroll): PayrollInput {
@@ -53,7 +54,6 @@ function toForm(p: Payroll): PayrollInput {
         irpfRetained: p.irpfRetained ?? '',
         status: p.status,
         paymentDate: p.paymentDate ?? '',
-        invoiceUrl: p.invoiceUrl ?? '',
     };
 }
 
@@ -72,6 +72,20 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
     const [saving, setSaving] = useState(false);
     const [users, setUsers] = useState<HubUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+    const [file, setFile] = useState<File | null>(null);
+    const [meta, setMeta] = useState<Pick<Payroll, 'id' | 'storageKey' | 'storageProvider' | 'fileName'>>({
+        id: 0,
+        storageKey: null,
+        storageProvider: null,
+        fileName: null,
+    });
+    const [localBlobUrl, setLocalBlobUrl] = useState<string | null>(null);
+    const [remoteBlobUrl, setRemoteBlobUrl] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    const hasR2 = payrollHasStoredFile(meta);
+    const previewUrl = localBlobUrl ?? remoteBlobUrl;
+    const previewName = file?.name ?? meta.fileName ?? null;
 
     useEffect(() => {
         if (!open) return;
@@ -91,12 +105,59 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
         if (!open) return;
         setFieldErrors({});
         setSelectedUserId(null);
+        setFile(null);
         if (mode === 'add' || !editing) {
             setForm(empty);
+            setMeta({ id: 0, storageKey: null, storageProvider: null, fileName: null });
             return;
         }
         setForm(toForm(editing));
+        setMeta({
+            id: editing.id,
+            storageKey: editing.storageKey ?? null,
+            storageProvider: editing.storageProvider ?? null,
+            fileName: editing.fileName ?? null,
+        });
     }, [open, mode, editing]);
+
+    useEffect(() => {
+        if (!file) {
+            setLocalBlobUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        setLocalBlobUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    useEffect(() => {
+        if (!open || file || !payrollHasStoredFile(meta) || !meta.id) {
+            setRemoteBlobUrl(null);
+            setPreviewLoading(false);
+            return;
+        }
+        let cancelled = false;
+        let objectUrl: string | null = null;
+        setPreviewLoading(true);
+        void fetchPayrollFileBlob(meta.id, { inline: true })
+            .then((blob) => {
+                if (cancelled) return;
+                objectUrl = URL.createObjectURL(blob);
+                setRemoteBlobUrl(objectUrl);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setRemoteBlobUrl(null);
+                toastError(err);
+            })
+            .finally(() => {
+                if (!cancelled) setPreviewLoading(false);
+            });
+        return () => {
+            cancelled = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [open, file, meta.id, meta.storageKey, meta.storageProvider]);
 
     function clearFieldError(key: string) {
         setFieldErrors((prev) => {
@@ -128,15 +189,27 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
     }
 
     const totalCost = Number(form.baseSalary || 0) + Number(form.socialSecurityEmployer || 0);
-    const previewSrc = drivePreviewUrl(form.invoiceUrl);
     const employeeItems = users.map((u) => ({
         id: u.id,
         name: u.employeeName?.trim() || u.name,
     }));
 
+    const emptyPreviewLabel =
+        readOnly && !hasR2 && !file
+            ? 'Sin archivo en BOhub'
+            : hasR2
+              ? 'No se pudo cargar el archivo'
+              : 'Adjunta la nómina para verla en BOhub';
+
+    const showFileBlock = !readOnly || hasR2;
+
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (readOnly) return;
+        if (!file && !hasR2) {
+            setFieldErrors((prev) => ({ ...prev, file: 'Adjunta la nómina (PDF o imagen).' }));
+            return;
+        }
         setSaving(true);
         try {
             await onSubmit({
@@ -151,7 +224,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                 irpfRetained: form.irpfRetained ? Number(form.irpfRetained) : null,
                 status: form.status,
                 paymentDate: form.paymentDate?.toString().trim() || null,
-                invoiceUrl: form.invoiceUrl?.toString().trim() || null,
+                file: file ?? null,
             });
             onOpenChange(false);
         } catch (err) {
@@ -169,21 +242,20 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
             <SheetContent
                 className={cn(
                     'flex w-full flex-col gap-0 p-0 transition-[max-width] data-[side=right]:w-full',
-                    previewSrc ? 'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]' : 'sm:max-w-lg data-[side=right]:sm:max-w-lg',
+                    'sm:max-w-[1200px] data-[side=right]:sm:max-w-[1200px]',
                 )}
             >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
-                    {previewSrc ? (
-                        <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
-                            <DrivePdfPane url={form.invoiceUrl} className="h-full min-h-0 shadow-lg" />
-                        </div>
-                    ) : null}
-                    <div
-                        className={cn(
-                            'order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2',
-                            previewSrc ? 'w-full md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]' : 'w-full',
-                        )}
-                    >
+                    <div className="order-2 flex max-h-[40vh] min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-t border-border p-3 md:order-1 md:max-h-none md:min-h-0 md:flex-1 md:border-t-0 md:border-r md:p-6">
+                        <BillingFilePane
+                            blobUrl={previewUrl}
+                            fileName={previewName}
+                            loading={previewLoading && !localBlobUrl}
+                            emptyLabel={emptyPreviewLabel}
+                            className="h-full min-h-0 shadow-lg"
+                        />
+                    </div>
+                    <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:order-2 md:w-[450px] md:flex-none md:shrink-0 lg:w-[500px]">
                         <SheetHeader>
                             <SheetTitle>
                                 {mode === 'add' ? 'Nueva nómina' : mode === 'view' ? 'Ver nómina' : 'Editar nómina'}
@@ -192,8 +264,8 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                 {readOnly
                                     ? 'Detalle de nómina (solo lectura).'
                                     : mode === 'edit'
-                                      ? 'Actualiza los detalles económicos de la nómina.'
-                                      : 'Introduce los detalles económicos y el enlace al documento.'}
+                                      ? 'Actualiza los detalles económicos y el documento.'
+                                      : 'Introduce los detalles económicos y adjunta la nómina.'}
                             </SheetDescription>
                         </SheetHeader>
 
@@ -204,6 +276,45 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                             onSubmit={(e) => void handleSubmit(e)}
                         >
                             <fieldset disabled={readOnly} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
+                            {showFileBlock ? (
+                                <FormField
+                                    id="pr-file"
+                                    label={
+                                        readOnly
+                                            ? 'Documento'
+                                            : hasR2
+                                              ? 'Documento'
+                                              : 'Documento (obligatorio)'
+                                    }
+                                    error={readOnly ? undefined : fieldErrors.file}
+                                    description={
+                                        readOnly
+                                            ? meta.fileName ?? 'Archivo en BOhub'
+                                            : hasR2 && !file
+                                              ? `${meta.fileName ?? 'Archivo en BOhub'} · puedes reemplazar`
+                                              : undefined
+                                    }
+                                >
+                                    {!readOnly ? (
+                                        <BillingFileDropzone
+                                            id="pr-file"
+                                            fileName={file?.name ?? null}
+                                            invalid={!!fieldErrors.file}
+                                            onFile={(picked) => {
+                                                setFile(picked);
+                                                clearFieldError('file');
+                                            }}
+                                            emptyHint="PDF, JPG, PNG o WebP · máx. 10 MB"
+                                        />
+                                    ) : null}
+                                    {file && !readOnly && hasR2 ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Al guardar reemplaza el archivo en BOhub.
+                                        </p>
+                                    ) : null}
+                                </FormField>
+                            ) : null}
+
                             <FormField id="pr-employee" label="Seleccionar empleado">
                                 <EntitySelect
                                     id="pr-employee"
@@ -366,19 +477,6 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
                                     />
                                 </FormField>
                             </div>
-
-                            <FormField id="pr-drive" label="Enlace del documento" error={fieldErrors.invoiceUrl}>
-                                <Input
-                                    id="pr-drive"
-                                    type="text"
-                                    inputMode="url"
-                                    placeholder="https://drive.google.com/file/d/…/view"
-                                    value={form.invoiceUrl ?? ''}
-                                    onChange={(e) => setField('invoiceUrl', e.target.value)}
-                                    aria-invalid={!!fieldErrors.invoiceUrl}
-                                    className="bg-card"
-                                />
-                            </FormField>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <FormField id="pr-status" label="Estado" error={fieldErrors.status}>
