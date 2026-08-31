@@ -10,6 +10,8 @@ import {
     FormPanelFooter,
     FormPanelHeader,
     FormPanelTitle,
+    formPanelSheetFormOnly,
+    formPanelSheetWide,
 } from '@/components/responsive-form-panel';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import {
@@ -144,10 +146,7 @@ export function SendInvoiceDialog({ open, payment, onOpenChange, onSent }: Props
         <FormPanel
             open={open}
             onOpenChange={handleOpenChange}
-            contentClassName={cn(
-                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
-                showPreview ? 'sm:max-w-[1200px]' : 'sm:max-w-lg',
-            )}
+            contentClassName={showPreview ? formPanelSheetWide : formPanelSheetFormOnly}
         >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreview ? (

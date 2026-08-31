@@ -10,6 +10,7 @@ import {
     FormPanelFooter,
     FormPanelHeader,
     FormPanelTitle,
+    formPanelSheetWide,
 } from '@/components/responsive-form-panel';
 import {
     PAYROLL_STATUSES,
@@ -246,7 +247,7 @@ export function PayrollSheet({ open, mode, editing, onOpenChange, onSubmit }: Pr
         <FormPanel
             open={open}
             onOpenChange={onOpenChange}
-            contentClassName="flex w-full flex-col gap-0 p-0 transition-[max-width] sm:max-w-lg md:max-w-[1200px]"
+            contentClassName={formPanelSheetWide}
         >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     <div className="hidden min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-border p-6 md:flex md:flex-1 md:border-r">

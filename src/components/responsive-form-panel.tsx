@@ -138,4 +138,9 @@ function FormPanelDescription({ className, ...props }: React.ComponentProps<type
     return <SheetDescription className={className} {...props} />;
 }
 
+export const formPanelSheetBase = 'flex w-full flex-col gap-0 p-0';
+export const formPanelSheetWide = `${formPanelSheetBase} md:max-w-[1200px]`;
+export const formPanelSheetDefault = `${formPanelSheetBase} sm:max-w-md`;
+export const formPanelSheetFormOnly = `${formPanelSheetBase} sm:max-w-2xl`;
+
 export { FormPanel, FormPanelHeader, FormPanelFooter, FormPanelTitle, FormPanelDescription };

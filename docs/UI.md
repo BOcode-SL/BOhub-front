@@ -68,7 +68,7 @@ Bottom bar **`md:hidden`**: 4 rutas primarias + **Menú** (panel flotante `Mobil
 Formularios CRUD usan **`FormPanel`** (`components/responsive-form-panel.tsx`):
 
 - **Móvil (`<768px`):** Drawer desde abajo (`max-h-[92dvh]`, handle, swipe dismiss).
-- **Desktop:** Sheet lateral derecho; conservar `contentClassName` (`sm:max-w-md`, `sm:max-w-2xl`, `sm:max-w-[1200px]`…).
+- **Desktop:** Sheet lateral derecho; ancho vía `contentClassName` en cada `FormPanel` (`sm:max-w-md` CRUD, `sm:max-w-2xl` form-only billing, `md:max-w-[1200px]` preview + form). `SheetContent` **no** impone `max-w-sm` por defecto.
 
 Sidebar móvil (Sheet lateral) solo vía desktop collapse; en `<768px` el acceso secundario va al **menú flotante** de la bottom bar.
 

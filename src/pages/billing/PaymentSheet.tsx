@@ -14,6 +14,8 @@ import {
     FormPanelFooter,
     FormPanelHeader,
     FormPanelTitle,
+    formPanelSheetFormOnly,
+    formPanelSheetWide,
 } from '@/components/responsive-form-panel';
 import {
     LEDGER_STATUS_LABELS,
@@ -502,10 +504,7 @@ export function PaymentSheet({ open, mode, payment, onOpenChange, onSubmit, lock
         <FormPanel
             open={open}
             onOpenChange={onOpenChange}
-            contentClassName={cn(
-                'flex w-full flex-col gap-0 p-0 transition-[max-width]',
-                showPreviewPane ? 'sm:max-w-lg md:max-w-[1200px]' : 'sm:max-w-lg',
-            )}
+            contentClassName={showPreviewPane ? formPanelSheetWide : formPanelSheetFormOnly}
         >
                 <div className="flex h-full min-h-0 flex-col overflow-hidden md:flex-row">
                     {showPreviewPane ? (
