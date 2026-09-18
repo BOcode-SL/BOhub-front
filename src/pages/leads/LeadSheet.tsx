@@ -54,6 +54,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
+function contactPayload(form: LeadInput): LeadInput {
+    const { status: _status, ...rest } = form;
+    return rest;
+}
+
 export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit, onChanged }: LeadSheetProps) {
     const [current, setCurrent] = useState<Lead | null>(lead);
     const [form, setForm] = useState<LeadInput>({});
@@ -95,6 +100,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                     instagram: full.instagram ?? '',
                     website: full.website ?? '',
                     company: full.company ?? '',
+                    status: full.status,
                     assignedUserId: full.assignedUserId ?? null,
                     lostReason: full.lostReason ?? '',
                 });
@@ -105,7 +111,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
             });
     }, [open, mode, lead, onOpenChange]);
 
-    const status = current?.status ?? 'new';
+    const draftStatus = form.status ?? current?.status ?? 'new';
     const assigneeItems = [
         { label: 'Sin asignar', value: 'none' },
         ...assignees.map((u) => ({ label: u.name, value: String(u.id) })),
@@ -118,7 +124,28 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
         e.preventDefault();
         setSaving(true);
         try {
-            await onSubmit(form);
+            if (mode === 'edit' && current) {
+                if (draftStatus === 'lost' && !String(form.lostReason ?? '').trim()) {
+                    setFieldErrors({ lostReason: 'Indica el motivo al marcar como perdido.' });
+                    return;
+                }
+                const nextStatus = draftStatus;
+                const nextAssign = form.assignedUserId ?? null;
+                const baselineStatus = current.status;
+                const baselineAssign = current.assignedUserId ?? null;
+
+                if (nextStatus !== baselineStatus) {
+                    await patchLeadStatus(
+                        current.id,
+                        nextStatus,
+                        nextStatus === 'lost' ? (form.lostReason ?? null) : null,
+                    );
+                }
+                if (nextAssign !== baselineAssign) {
+                    await patchLeadAssign(current.id, nextAssign);
+                }
+            }
+            await onSubmit(contactPayload(form));
             onOpenChange(false);
         } catch (err) {
             if (err instanceof ApiError && err.fieldErrors) {
@@ -130,40 +157,27 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
         }
     }
 
-    async function applyStatus(next: LeadStatus, reason?: string | null) {
-        if (!current) return;
-        try {
-            const updated = await patchLeadStatus(current.id, next, reason ?? null);
-            setCurrent(updated);
-            setForm((prev) => ({ ...prev, lostReason: updated.lostReason ?? '' }));
-            toastSuccess('Etapa actualizada');
-            onChanged?.();
-        } catch (err) {
-            toastError(err);
-        }
-    }
-
-    async function handleStatus(next: string | null) {
-        if (!current || !next || next === current.status) return;
+    function handleStatus(next: string | null) {
+        if (!next || next === draftStatus) return;
         if (next === 'lost') {
             setLostDraft(form.lostReason ?? '');
             setLostOpen(true);
             return;
         }
-        await applyStatus(next as LeadStatus, null);
+        setForm((prev) => ({
+            ...prev,
+            status: next as LeadStatus,
+            lostReason: '',
+        }));
+        setFieldErrors((prev) => {
+            if (!('lostReason' in prev)) return prev;
+            const { lostReason: _lr, ...rest } = prev;
+            return rest;
+        });
     }
 
-    async function handleAssign(userId: number | null) {
-        if (!current) return;
-        try {
-            const updated = await patchLeadAssign(current.id, userId);
-            setCurrent(updated);
-            setForm((prev) => ({ ...prev, assignedUserId: userId }));
-            toastSuccess('Asignación actualizada');
-            onChanged?.();
-        } catch (err) {
-            toastError(err);
-        }
+    function handleAssign(userId: number | null) {
+        setForm((prev) => ({ ...prev, assignedUserId: userId }));
     }
 
     async function handleAddNote() {
@@ -224,8 +238,8 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                     <FormPanelDescription className="flex flex-wrap items-center gap-2">
                         {mode === 'edit' && current ? (
                             <>
-                                <Badge variant="outline" className={LEAD_STATUS_BADGE_CLASS[current.status]}>
-                                    {LEAD_STATUS_LABELS[current.status]}
+                                <Badge variant="outline" className={LEAD_STATUS_BADGE_CLASS[draftStatus]}>
+                                    {LEAD_STATUS_LABELS[draftStatus]}
                                 </Badge>
                                 <Badge variant="outline" className={LEAD_SOURCE_BADGE_CLASS[current.source as LeadSource] ?? 'border-border'}>
                                     {LEAD_SOURCE_LABELS[current.source as LeadSource] ?? current.source}
@@ -263,18 +277,18 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                                 <FormField id="lead-status" label="Etapa">
                                     <AppSelect
                                         items={LEAD_STATUSES.map((s) => ({ label: LEAD_STATUS_LABELS[s], value: s }))}
-                                        value={status}
-                                        onValueChange={(v) => void handleStatus(v)}
+                                        value={draftStatus}
+                                        onValueChange={handleStatus}
                                     />
                                 </FormField>
                                 <FormField id="lead-assigned-edit" label="Asignado">
                                     <AppSelect
                                         items={assigneeItems}
                                         value={form.assignedUserId != null ? String(form.assignedUserId) : 'none'}
-                                        onValueChange={(v) => void handleAssign(v && v !== 'none' ? Number(v) : null)}
+                                        onValueChange={(v) => handleAssign(v && v !== 'none' ? Number(v) : null)}
                                     />
                                 </FormField>
-                                {status === 'lost' && (
+                                {draftStatus === 'lost' && (
                                     <FormField id="lead-lost-reason" label="Motivo (si perdido)" error={fieldErrors.lostReason}>
                                         <Input id="lead-lost-reason" value={form.lostReason ?? ''} onChange={(e) => setForm((p) => ({ ...p, lostReason: e.target.value }))} />
                                     </FormField>
@@ -367,11 +381,11 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                         onClick={() => {
                             const reason = lostDraft.trim();
                             if (!reason) return;
+                            setForm((prev) => ({ ...prev, status: 'lost', lostReason: reason }));
                             setLostOpen(false);
-                            void applyStatus('lost', reason);
                         }}
                     >
-                        Guardar
+                        Confirmar
                     </Button>
                 </DialogFooter>
             </DialogContent>

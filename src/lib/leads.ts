@@ -115,6 +115,8 @@ export type LeadInput = {
     website?: string | null;
     company?: string | null;
     source?: LeadSource;
+    /** Sheet draft only — persist via patchLeadStatus on Guardar */
+    status?: LeadStatus;
     assignedUserId?: number | null;
     lostReason?: string | null;
 };
