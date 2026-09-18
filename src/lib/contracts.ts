@@ -355,9 +355,30 @@ export async function downloadContractPack(id: number): Promise<void> {
         }
         throw err;
     }
+    await triggerBlobDownload(res, `contrato-${id}-firmado.pdf`);
+}
+
+/** PDF originales sin sellos (1 PDF o ZIP). */
+export async function downloadContractOriginals(id: number): Promise<void> {
+    let res: Response;
+    try {
+        res = await fetchAuthBlob(`/api/contracts/${id}/download-original`);
+    } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 422)) {
+            throw new ApiError(
+                err.message || 'No hay documentos originales para descargar.',
+                err.status,
+            );
+        }
+        throw err;
+    }
+    await triggerBlobDownload(res, `contrato-${id}-sin-firmar.pdf`);
+}
+
+async function triggerBlobDownload(res: Response, fallbackName: string): Promise<void> {
     const blob = await res.blob();
     const cd = res.headers.get('Content-Disposition') ?? '';
-    let filename = `contrato-${id}-firmado.pdf`;
+    let filename = fallbackName;
     const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
     const plain = /filename="?([^";]+)"?/i.exec(cd);
     if (star?.[1]) filename = decodeURIComponent(star[1]);

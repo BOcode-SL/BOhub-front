@@ -22,6 +22,7 @@ import {
     deleteDocument,
     deleteSigner,
     downloadContractPack,
+    downloadContractOriginals,
     fieldToInput,
     getContract,
     getDocumentFileBlob,
@@ -397,6 +398,15 @@ export function ContractDetailPage() {
         }
     }
 
+    async function handleDownloadOriginals() {
+        if (!contract) return;
+        try {
+            await downloadContractOriginals(contract.id);
+        } catch (err) {
+            toastError(err);
+        }
+    }
+
     const blockers = useMemo(
         () => (contract ? sendBlockers(contract, editorFields) : []),
         [contract, editorFields],
@@ -460,9 +470,21 @@ export function ContractDetailPage() {
                     {status === 'signed' && (
                         <Button type="button" disabled={saving} onClick={() => void handleDownload()}>
                             <Download />
-                            Descargar pack
+                            Descargar
                         </Button>
                     )}
+                    {(status === 'sent' || status === 'partially_signed' || status === 'signed') &&
+                        (contract.documents?.length ?? 0) > 0 && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={saving}
+                                onClick={() => void handleDownloadOriginals()}
+                            >
+                                <Download />
+                                Descargar sin firmar
+                            </Button>
+                        )}
                 </div>
             )}
 
