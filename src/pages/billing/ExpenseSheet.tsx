@@ -103,7 +103,7 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
     const [totalInput, setTotalInput] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [createEntry, setCreateEntry] = useState<CreateEntry>('ocr');
+    const [createEntry, setCreateEntry] = useState<CreateEntry>('manual');
     const [ocrLoading, setOcrLoading] = useState(false);
     const [ocrError, setOcrError] = useState<string | null>(null);
     const [meta, setMeta] = useState<Pick<Expense, 'id' | 'storageKey' | 'storageProvider' | 'fileName'>>({
@@ -399,10 +399,6 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (readOnly || ocrLoading) return;
-        if (!file && !hasR2) {
-            setFieldErrors((prev) => ({ ...prev, file: 'Adjunta el justificante (PDF o imagen).' }));
-            return;
-        }
         setSaving(true);
         try {
             const suggested = suggestStatus();
@@ -439,27 +435,21 @@ export function ExpenseSheet({ open, mode, expense, onOpenChange, onSubmit, lock
             ? 'Sin archivo en BOhub'
             : hasR2
               ? 'No se pudo cargar el archivo'
-              : 'Adjunta el archivo para verlo en BOhub';
+              : 'Adjunta un archivo para verlo';
 
     // Single file block: top of form. View = download only (no input). Hide entirely if view && !R2.
     const showFileBlock = !readOnly || hasR2;
     const fileField = showFileBlock ? (
         <FormField
             id="exp-file"
-            label={
-                readOnly
-                    ? 'Justificante'
-                    : hasR2
-                      ? 'Justificante'
-                      : 'Justificante (obligatorio)'
-            }
+            label="Justificante"
             error={readOnly ? undefined : fieldErrors.file}
             description={
                 readOnly
                     ? meta.fileName ?? 'Archivo en BOhub'
                     : hasR2 && !file
                       ? `${meta.fileName ?? 'Archivo en BOhub'} · puedes reemplazar`
-                      : undefined
+                      : 'Opcional · PDF o imagen'
             }
         >
             <div className="flex flex-col gap-2">

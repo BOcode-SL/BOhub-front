@@ -636,14 +636,17 @@ export async function ocrExpensePreview(file: File): Promise<ExpenseOcrPreview> 
 }
 
 export async function createExpense(body: ExpenseInput): Promise<Expense> {
-    const fd = new FormData();
-    appendExpenseFields(fd, body);
-    if (!body.file) {
-        throw new ApiError('Adjunta el justificante (PDF o imagen).', 422, {
-            file: ['Adjunta el justificante (PDF o imagen).'],
-        });
+    if (body.file) {
+        const fd = new FormData();
+        appendExpenseFields(fd, body);
+        return requestFormData<Expense>('/api/expenses', fd);
     }
-    return requestFormData<Expense>('/api/expenses', fd);
+
+    const { file: _file, ...json } = body;
+    return request<Expense>('/api/expenses', {
+        method: 'POST',
+        body: json,
+    });
 }
 
 export async function updateExpense(id: number, body: Partial<ExpenseInput>): Promise<Expense> {
