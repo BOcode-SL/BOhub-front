@@ -1,6 +1,6 @@
 import { request } from './api';
 
-export const PROJECT_TYPES = ['web', 'webapp', 'mobil', 'api', 'automation', 'ia', 'consulting', 'other'] as const;
+export const PROJECT_TYPES = ['web', 'webapp', 'app', 'mobil', 'api', 'automation', 'ia', 'consulting', 'other'] as const;
 
 // Workflow order (filter + status sort). in_review kept after in_progress.
 export const PROJECT_STATUSES = ['todo', 'in_progress', 'in_review', 'maintenance', 'blocked', 'done'] as const;
@@ -109,6 +109,7 @@ export type PaginatedProjects = {
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
     web: 'Web',
     webapp: 'Web app',
+    app: 'App',
     mobil: 'Móvil',
     api: 'API',
     automation: 'Automatización',
