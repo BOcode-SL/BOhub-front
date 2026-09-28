@@ -56,7 +56,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function contactPayload(form: LeadInput): LeadInput {
     const { status: _status, ...rest } = form;
-    return rest;
+    return {
+        ...rest,
+        name: rest.name?.trim() || null,
+        email: rest.email?.trim() || null,
+        phone: rest.phone?.trim() || null,
+        instagram: rest.instagram?.trim() || null,
+        website: rest.website?.trim() || null,
+        company: rest.company?.trim() || null,
+    };
 }
 
 export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit, onChanged }: LeadSheetProps) {
@@ -67,6 +75,17 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [lostOpen, setLostOpen] = useState(false);
     const [lostDraft, setLostDraft] = useState('');
+
+    function updateField<K extends keyof LeadInput>(key: K, value: LeadInput[K]) {
+        setForm((prev) => ({ ...prev, [key]: value }));
+        setFieldErrors((prev) => {
+            if (!(key in prev) && !('name' in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            delete next.name;
+            return next;
+        });
+    }
 
     useEffect(() => {
         if (!open) return;
@@ -122,6 +141,20 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
+        const payload = contactPayload(form);
+        const hasAnyIdentifier = Boolean(
+            payload.name ||
+            payload.email ||
+            payload.phone ||
+            payload.company ||
+            payload.instagram ||
+            payload.website
+        );
+        if (!hasAnyIdentifier) {
+            setFieldErrors({ name: 'Debes indicar al menos un nombre, empresa, email, teléfono o red social.' });
+            return;
+        }
+
         setSaving(true);
         try {
             if (mode === 'edit' && current) {
@@ -145,7 +178,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                     await patchLeadAssign(current.id, nextAssign);
                 }
             }
-            await onSubmit(contactPayload(form));
+            await onSubmit(payload);
             onOpenChange(false);
         } catch (err) {
             if (err instanceof ApiError && err.fieldErrors) {
@@ -196,22 +229,22 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
     const contactFields = (
         <div className="grid gap-3 sm:grid-cols-2">
             <FormField id="lead-name" label="Nombre" error={fieldErrors.name}>
-                <Input id="lead-name" value={form.name ?? ''} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+                <Input id="lead-name" value={form.name ?? ''} onChange={(e) => updateField('name', e.target.value)} />
             </FormField>
             <FormField id="lead-phone" label="Teléfono" error={fieldErrors.phone}>
-                <Input id="lead-phone" value={form.phone ?? ''} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+                <Input id="lead-phone" value={form.phone ?? ''} onChange={(e) => updateField('phone', e.target.value)} />
             </FormField>
             <FormField id="lead-email" label="Email" error={fieldErrors.email}>
-                <Input id="lead-email" value={form.email ?? ''} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+                <Input id="lead-email" value={form.email ?? ''} onChange={(e) => updateField('email', e.target.value)} />
             </FormField>
             <FormField id="lead-instagram" label="Instagram" error={fieldErrors.instagram}>
-                <Input id="lead-instagram" value={form.instagram ?? ''} onChange={(e) => setForm((p) => ({ ...p, instagram: e.target.value }))} />
+                <Input id="lead-instagram" value={form.instagram ?? ''} onChange={(e) => updateField('instagram', e.target.value)} />
             </FormField>
             <FormField id="lead-website" label="Web" error={fieldErrors.website}>
-                <Input id="lead-website" value={form.website ?? ''} onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))} />
+                <Input id="lead-website" value={form.website ?? ''} onChange={(e) => updateField('website', e.target.value)} />
             </FormField>
             <FormField id="lead-company" label="Empresa" error={fieldErrors.company}>
-                <Input id="lead-company" value={form.company ?? ''} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
+                <Input id="lead-company" value={form.company ?? ''} onChange={(e) => updateField('company', e.target.value)} />
             </FormField>
             {form.phone ? (
                 <div className="sm:col-span-2">
