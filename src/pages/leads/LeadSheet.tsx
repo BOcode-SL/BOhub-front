@@ -20,7 +20,7 @@ import {
     leadFormAnswers,
     LEAD_SOURCE_BADGE_CLASS,
     LEAD_SOURCE_LABELS,
-    LEAD_SOURCES,
+    LEAD_MANUAL_SOURCES,
     LEAD_STATUS_BADGE_CLASS,
     LEAD_STATUS_LABELS,
     LEAD_STATUSES,
@@ -290,7 +290,7 @@ export function LeadSheet({ open, mode, lead, assignees, onOpenChange, onSubmit,
                             {contactFields}
                             <FormField id="lead-source" label="Fuente">
                                 <AppSelect
-                                    items={LEAD_SOURCES.map((s) => ({ label: LEAD_SOURCE_LABELS[s], value: s }))}
+                                    items={LEAD_MANUAL_SOURCES.map((s) => ({ label: LEAD_SOURCE_LABELS[s], value: s }))}
                                     value={form.source ?? 'manual'}
                                     onValueChange={(v) => setForm((p) => ({ ...p, source: (v as LeadSource) || 'manual' }))}
                                 />

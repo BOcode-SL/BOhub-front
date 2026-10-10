@@ -1,7 +1,7 @@
 import { request } from './api';
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'meeting' | 'won' | 'lost';
-export type LeadSource = 'meta' | 'manual';
+export type LeadSource = 'meta' | 'manual' | 'web';
 
 export const LEAD_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'meeting', 'won', 'lost'];
 
@@ -14,11 +14,15 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
     lost: 'Perdida',
 };
 
-export const LEAD_SOURCES: LeadSource[] = ['meta', 'manual'];
+export const LEAD_SOURCES: LeadSource[] = ['meta', 'manual', 'web'];
+
+/** Alta manual: solo manual (meta/web son ingest externos). */
+export const LEAD_MANUAL_SOURCES: LeadSource[] = ['manual'];
 
 export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
     meta: 'Meta',
     manual: 'Manual',
+    web: 'Web',
 };
 
 export const LEAD_STATUS_BADGE_CLASS: Record<LeadStatus, string> = {
@@ -33,6 +37,7 @@ export const LEAD_STATUS_BADGE_CLASS: Record<LeadStatus, string> = {
 export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
     meta: 'border-transparent bg-[#1877F2]/20 text-[#1877F2]',
     manual: 'border-transparent bg-primary/20 text-primary',
+    web: 'border-transparent bg-violet-500/20 text-violet-300',
 };
 
 const HIDDEN_FORM_KEYS = new Set([
