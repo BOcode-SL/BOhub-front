@@ -38,6 +38,8 @@ Reference implementations: `pages/clients/ClientsPage.tsx`, `pages/projects/Proj
 
 **Cobro pendiente (cliente):** badge amber reutilizable `ClientPendingMark` (`components/client-pending-mark.tsx`) junto al nombre cuando `hasPendingInvoices` (API). No usar primary/lima.
 
+**Ledger filters** (`LedgerListPage`): URL `year`, `month`, `project_id`, `client_id`, `status`, `invoice_filter` (+ search/per_page). Toolbar wrap; Limpiar filtros si hay activos. Ingresos: status + invoice_filter juntos. Nóminas: year + month.
+
 ## Responsive
 
 Agents must follow the same patterns on **every** list page (clients, projects, leads, billing ledgers, timer, emails, contracts, maintenance, website-analysis, users). See `AGENTS.md` § Responsive.

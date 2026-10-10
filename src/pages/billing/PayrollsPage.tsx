@@ -22,6 +22,8 @@ async function listPayrollRows(
         page?: number;
         perPage?: number;
         status?: string;
+        year?: number;
+        month?: number;
     },
     signal?: AbortSignal,
 ): Promise<{ data: PayrollRow[]; meta: BillingMeta }> {
@@ -30,6 +32,8 @@ async function listPayrollRows(
             search: params.search,
             page: params.page,
             perPage: params.perPage,
+            year: params.year,
+            month: params.month,
         },
         signal,
     );

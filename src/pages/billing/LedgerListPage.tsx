@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     ChevronLeft,
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
 import { Badge } from '@/components/ui/badge';
+import { EntitySelect } from '@/components/entity-select';
 import {
     INVOICE_FILTERS,
     INVOICE_FILTER_LABELS,
@@ -42,8 +43,10 @@ import {
     type BillingMeta,
     type LedgerStatus,
 } from '@/lib/billing';
+import { listClientOptions } from '@/lib/clients';
+import { listProjectOptions } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
-import { ToolbarSelect } from '@/components/toolbar-field';
+import { ToolbarField, ToolbarSelect } from '@/components/toolbar-field';
 import { BillingTabs } from '@/pages/billing/BillingTabs';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import { ConfirmWithoutInvoiceDialog } from '@/pages/billing/ConfirmWithoutInvoiceDialog';
@@ -53,6 +56,21 @@ import { cn } from '@/lib/utils';
 import type { Payment } from '@/lib/billing';
 
 const PER_PAGE_OPTIONS = [10, 15, 25] as const;
+const MONTH_FILTER_LABELS = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+] as const;
+
 function parsePage(v: string | null) {
     const n = Number(v);
     return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
@@ -61,6 +79,53 @@ function parsePerPage(v: string | null) {
     const n = Number(v);
     return PER_PAGE_OPTIONS.includes(n as (typeof PER_PAGE_OPTIONS)[number]) ? n : 15;
 }
+
+function yearFilterItems() {
+    const y = new Date().getFullYear();
+    return Array.from({ length: 4 }, (_, i) => {
+        const year = y - 2 + i;
+        return { label: String(year), value: String(year) };
+    });
+}
+
+function parseOptionalId(v: string | null): number | undefined {
+    if (!v) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
+function parseOptionalYear(v: string | null): number | undefined {
+    if (!v) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 2000 && n <= 2100 ? Math.floor(n) : undefined;
+}
+
+function parseOptionalMonth(v: string | null): number | undefined {
+    if (!v) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 1 && n <= 12 ? Math.floor(n) : undefined;
+}
+
+export type LedgerListFilters = {
+    year?: boolean;
+    project?: boolean;
+    client?: boolean;
+    month?: boolean;
+    status?: boolean;
+    invoiceFilter?: boolean;
+};
+
+export type LedgerListParams = {
+    search?: string;
+    page?: number;
+    perPage?: number;
+    status?: string;
+    invoiceFilter?: string;
+    projectId?: number;
+    clientId?: number;
+    year?: number;
+    month?: number;
+};
 
 export type LedgerRowBase = {
     id: number;
@@ -103,16 +168,9 @@ export type LedgerListConfig<TRow extends LedgerRowBase, TInput> = {
     titleColumnHeader?: string;
     /** Ingresos: Emitir + PDF + delete solo draft */
     invoiceActions?: boolean;
-    list: (
-        params: {
-            search?: string;
-            page?: number;
-            perPage?: number;
-            status?: string;
-            invoiceFilter?: string;
-        },
-        signal?: AbortSignal,
-    ) => Promise<{ data: TRow[]; meta: BillingMeta }>;
+    /** Defaults: income → year+project+client+month+status+invoiceFilter; expenses → same sin invoice; payroll → year+month */
+    filters?: LedgerListFilters;
+    list: (params: LedgerListParams, signal?: AbortSignal) => Promise<{ data: TRow[]; meta: BillingMeta }>;
     create: (data: TInput) => Promise<unknown>;
     update: (id: number, data: TInput) => Promise<unknown>;
     remove: (id: number) => Promise<void>;
@@ -138,6 +196,10 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const urlSearch = searchParams.get('search') ?? '';
     const urlStatus = searchParams.get('status') ?? '';
     const urlInvoiceFilter = searchParams.get('invoice_filter') ?? '';
+    const urlYear = searchParams.get('year') ?? '';
+    const urlMonth = searchParams.get('month') ?? '';
+    const urlProjectId = searchParams.get('project_id') ?? '';
+    const urlClientId = searchParams.get('client_id') ?? '';
 
     const [searchInput, setSearchInput] = useState(urlSearch);
     const [rows, setRows] = useState<TRow[]>([]);
@@ -153,6 +215,8 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     const [confirmNoInvTarget, setConfirmNoInvTarget] = useState<TRow | null>(null);
     const [sendTarget, setSendTarget] = useState<TRow | null>(null);
     const [pdfBusyId, setPdfBusyId] = useState<number | null>(null);
+    const [projectOptions, setProjectOptions] = useState<{ id: number; name: string }[]>([]);
+    const [clientOptions, setClientOptions] = useState<{ id: number; name: string }[]>([]);
 
     const {
         list,
@@ -178,6 +242,31 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
     } = config;
     const isPayrollLayout = config.layout === 'payroll';
     const invoiceActions = Boolean(config.invoiceActions);
+    const filters = useMemo((): Required<LedgerListFilters> => {
+        const defaults: Required<LedgerListFilters> = isPayrollLayout
+            ? { year: true, project: false, client: false, month: true, status: false, invoiceFilter: false }
+            : invoiceActions
+              ? { year: true, project: true, client: true, month: true, status: true, invoiceFilter: true }
+              : { year: true, project: true, client: true, month: true, status: true, invoiceFilter: false };
+        return { ...defaults, ...config.filters };
+    }, [config.filters, invoiceActions, isPayrollLayout]);
+
+    const yearNum = parseOptionalYear(urlYear);
+    const monthNum = parseOptionalMonth(urlMonth);
+    const projectIdNum = parseOptionalId(urlProjectId);
+    const clientIdNum = parseOptionalId(urlClientId);
+
+    const yearItems = useMemo(() => yearFilterItems(), []);
+
+    const hasActiveFilters = Boolean(
+        urlSearch ||
+            (filters.status && urlStatus) ||
+            (filters.invoiceFilter && urlInvoiceFilter) ||
+            (filters.year && urlYear) ||
+            (filters.month && urlMonth) ||
+            (filters.project && urlProjectId) ||
+            (filters.client && urlClientId),
+    );
 
     function reload() {
         setTick((t) => t + 1);
@@ -236,18 +325,34 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
         );
     }, [isPayrollLayout, searchParams, setSearchParams]);
 
-    // Ingresos: filtro factura (no status ledger residual)
+    // ponytail: month without year is ignored by API for payments/expenses — clear orphan month
     useEffect(() => {
-        if (!invoiceActions || !searchParams.has('status')) return;
+        if (isPayrollLayout || !searchParams.has('month') || searchParams.has('year')) return;
         setSearchParams(
             (prev) => {
                 const p = new URLSearchParams(prev);
-                p.delete('status');
+                p.delete('month');
                 return p;
             },
             { replace: true },
         );
-    }, [invoiceActions, searchParams, setSearchParams]);
+    }, [isPayrollLayout, searchParams, setSearchParams]);
+
+    useEffect(() => {
+        if (!filters.project && !filters.client) return;
+        const ac = new AbortController();
+        if (filters.project) {
+            void listProjectOptions(ac.signal)
+                .then(setProjectOptions)
+                .catch(() => setProjectOptions([]));
+        }
+        if (filters.client) {
+            void listClientOptions(ac.signal)
+                .then(setClientOptions)
+                .catch(() => setClientOptions([]));
+        }
+        return () => ac.abort();
+    }, [filters.project, filters.client]);
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -279,8 +384,12 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                         search: urlSearch || undefined,
                         page,
                         perPage,
-                        status: invoiceActions || isPayrollLayout ? undefined : urlStatus || undefined,
-                        invoiceFilter: invoiceActions ? urlInvoiceFilter || undefined : undefined,
+                        status: filters.status ? urlStatus || undefined : undefined,
+                        invoiceFilter: filters.invoiceFilter ? urlInvoiceFilter || undefined : undefined,
+                        year: filters.year ? yearNum : undefined,
+                        month: filters.month ? monthNum : undefined,
+                        projectId: filters.project ? projectIdNum : undefined,
+                        clientId: filters.client ? clientIdNum : undefined,
                     },
                     ac.signal,
                 );
@@ -301,7 +410,20 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
             cancelled = true;
             ac.abort();
         };
-    }, [urlSearch, page, perPage, urlStatus, urlInvoiceFilter, tick, list, isPayrollLayout, invoiceActions]);
+    }, [
+        urlSearch,
+        page,
+        perPage,
+        urlStatus,
+        urlInvoiceFilter,
+        yearNum,
+        monthNum,
+        projectIdNum,
+        clientIdNum,
+        tick,
+        list,
+        filters,
+    ]);
 
     function patch(next: Record<string, string | null>) {
         setSearchParams((prev) => {
@@ -370,7 +492,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                 }
                 toolbar={
                     <div className="flex flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end">
-                        <div className="relative min-w-0 w-full flex-1 sm:w-auto">
+                        <div className="relative min-w-0 w-full flex-1 sm:min-w-[12rem] sm:flex-1">
                             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 value={searchInput}
@@ -381,7 +503,83 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                             />
                         </div>
                         <div className="flex w-full flex-wrap items-end gap-2">
-                            {invoiceActions ? (
+                            {filters.year ? (
+                                <ToolbarSelect
+                                    id="ledger-year"
+                                    label="Año"
+                                    fieldClassName="w-full sm:w-auto"
+                                    items={[{ label: 'Todos los años', value: null }, ...yearItems]}
+                                    value={yearNum ? String(yearNum) : null}
+                                    onValueChange={(value) =>
+                                        patch({
+                                            year: value,
+                                            month: value ? urlMonth || null : null,
+                                            page: '1',
+                                        })
+                                    }
+                                />
+                            ) : null}
+                            {filters.month ? (
+                                <ToolbarSelect
+                                    id="ledger-month"
+                                    label="Mes"
+                                    fieldClassName="w-full sm:w-auto"
+                                    items={[
+                                        { label: 'Todos', value: null },
+                                        ...MONTH_FILTER_LABELS.map((label, i) => ({
+                                            label,
+                                            value: String(i + 1),
+                                        })),
+                                    ]}
+                                    value={monthNum ? String(monthNum) : null}
+                                    onValueChange={(value) => patch({ month: value, page: '1' })}
+                                />
+                            ) : null}
+                            {filters.client ? (
+                                <ToolbarField id="ledger-client" label="Cliente" className="w-full sm:w-44">
+                                    <EntitySelect
+                                        id="ledger-client"
+                                        items={clientOptions}
+                                        value={clientIdNum ?? null}
+                                        allowClear
+                                        placeholder="Todos"
+                                        onValueChange={(id) =>
+                                            patch({ client_id: id != null ? String(id) : null, page: '1' })
+                                        }
+                                    />
+                                </ToolbarField>
+                            ) : null}
+                            {filters.project ? (
+                                <ToolbarField id="ledger-project" label="Proyecto" className="w-full sm:w-44">
+                                    <EntitySelect
+                                        id="ledger-project"
+                                        items={projectOptions}
+                                        value={projectIdNum ?? null}
+                                        allowClear
+                                        placeholder="Todos"
+                                        onValueChange={(id) =>
+                                            patch({ project_id: id != null ? String(id) : null, page: '1' })
+                                        }
+                                    />
+                                </ToolbarField>
+                            ) : null}
+                            {filters.status ? (
+                                <ToolbarSelect
+                                    id="ledger-status"
+                                    label="Estado"
+                                    fieldClassName="w-full sm:w-auto"
+                                    items={[
+                                        { label: 'Todos', value: null },
+                                        ...LEDGER_STATUSES.map((status) => ({
+                                            label: LEDGER_STATUS_LABELS[status],
+                                            value: status,
+                                        })),
+                                    ]}
+                                    value={urlStatus || null}
+                                    onValueChange={(value) => patch({ status: value, page: '1' })}
+                                />
+                            ) : null}
+                            {filters.invoiceFilter ? (
                                 <ToolbarSelect
                                     id="invoice-filter"
                                     label="Factura"
@@ -400,21 +598,6 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     }
                                     onValueChange={(value) => patch({ invoice_filter: value, page: '1' })}
                                 />
-                            ) : !isPayrollLayout ? (
-                                <ToolbarSelect
-                                    id="ledger-status"
-                                    label="Estado"
-                                    fieldClassName="w-full sm:w-auto"
-                                    items={[
-                                        { label: 'Todos', value: null },
-                                        ...LEDGER_STATUSES.map((status) => ({
-                                            label: LEDGER_STATUS_LABELS[status],
-                                            value: status,
-                                        })),
-                                    ]}
-                                    value={urlStatus || null}
-                                    onValueChange={(value) => patch({ status: value, page: '1' })}
-                                />
                             ) : null}
                             <ToolbarSelect
                                 id="ledger-per-page"
@@ -426,6 +609,29 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                     if (value) patch({ per_page: value, page: '1' });
                                 }}
                             />
+                            {hasActiveFilters ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 w-full text-muted-foreground sm:w-auto"
+                                    onClick={() => {
+                                        setSearchInput('');
+                                        patch({
+                                            search: null,
+                                            status: null,
+                                            invoice_filter: null,
+                                            year: null,
+                                            month: null,
+                                            project_id: null,
+                                            client_id: null,
+                                            page: '1',
+                                        });
+                                    }}
+                                >
+                                    Limpiar filtros
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
                 }
@@ -561,7 +767,7 @@ export function LedgerListPage<TRow extends LedgerRowBase, TInput>({ config }: {
                                         colSpan={isPayrollLayout ? 5 : invoiceActions ? 9 : 9}
                                         className="h-32 text-center text-muted-foreground"
                                     >
-                                        {emptyLabel}
+                                        {hasActiveFilters ? 'No hay resultados con estos filtros' : emptyLabel}
                                     </TableCell>
                                 </TableRow>
                             )}

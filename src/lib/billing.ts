@@ -413,7 +413,9 @@ export async function listPayments(
         status?: string;
         invoiceFilter?: string;
         projectId?: number;
+        clientId?: number;
         year?: number;
+        month?: number;
     } = {},
     signal?: AbortSignal,
 ) {
@@ -424,7 +426,9 @@ export async function listPayments(
     if (params.status) q.set('status', params.status);
     if (params.invoiceFilter) q.set('invoice_filter', params.invoiceFilter);
     if (params.projectId) q.set('project_id', String(params.projectId));
+    if (params.clientId) q.set('client_id', String(params.clientId));
     if (params.year) q.set('year', String(params.year));
+    if (params.month) q.set('month', String(params.month));
     const qs = q.toString();
     return request<{ data: Payment[]; meta: BillingMeta }>(`/api/payments${qs ? `?${qs}` : ''}`, { signal });
 }
@@ -591,7 +595,9 @@ export async function listExpenses(
         perPage?: number;
         status?: string;
         projectId?: number;
+        clientId?: number;
         year?: number;
+        month?: number;
     } = {},
     signal?: AbortSignal,
 ) {
@@ -601,7 +607,9 @@ export async function listExpenses(
     if (params.perPage) q.set('per_page', String(params.perPage));
     if (params.status) q.set('status', params.status);
     if (params.projectId) q.set('project_id', String(params.projectId));
+    if (params.clientId) q.set('client_id', String(params.clientId));
     if (params.year) q.set('year', String(params.year));
+    if (params.month) q.set('month', String(params.month));
     const qs = q.toString();
     return request<{ data: Expense[]; meta: BillingMeta }>(`/api/expenses${qs ? `?${qs}` : ''}`, { signal });
 }
@@ -797,6 +805,7 @@ export async function listPayrolls(
         page?: number;
         perPage?: number;
         year?: number;
+        month?: number;
     } = {},
     signal?: AbortSignal,
 ) {
@@ -805,6 +814,7 @@ export async function listPayrolls(
     if (params.page) q.set('page', String(params.page));
     if (params.perPage) q.set('per_page', String(params.perPage));
     if (params.year) q.set('year', String(params.year));
+    if (params.month) q.set('month', String(params.month));
     const qs = q.toString();
     return request<{ data: Payroll[]; meta: BillingMeta }>(`/api/payrolls${qs ? `?${qs}` : ''}`, { signal });
 }
