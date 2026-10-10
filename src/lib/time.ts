@@ -14,6 +14,22 @@ export function daysInMonth(year: number, monthIndex: number): number {
     return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
 }
 
+/** XAxis day labels for Timer Analytics (`"01"`…`"31"`). Compact = sparse ticks on narrow viewports. */
+export function analyticsDayTicks(year: number, monthIndex: number, compact: boolean): string[] {
+    const n = daysInMonth(year, monthIndex);
+    const pad = (d: number) => String(d).padStart(2, '0');
+    if (!compact) {
+        if (n <= 28) {
+            return Array.from({ length: n }, (_, i) => pad(i + 1));
+        }
+        return Array.from({ length: n }, (_, i) => i + 1)
+            .filter((d) => d % 2 === 1 || d === n)
+            .map(pad);
+    }
+    const wanted = new Set([1, 5, 10, 15, 20, 25, n]);
+    return [...wanted].sort((a, b) => a - b).map(pad);
+}
+
 export function monthLabelEs(year: number, monthIndex: number): string {
     return new Date(Date.UTC(year, monthIndex, 1)).toLocaleDateString('es-ES', {
         month: 'long',

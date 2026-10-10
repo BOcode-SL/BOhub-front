@@ -14,6 +14,8 @@ import {
 import { ListPageShell } from '@/components/list-page-shell';
 import { EntitySelect } from '@/components/entity-select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToolbarField } from '@/components/toolbar-field';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { listProjects, type Project } from '@/lib/projects';
 import { listUsers } from '@/lib/users';
 import { toastError } from '@/lib/toast';
@@ -23,7 +25,15 @@ import {
     type HoursAnalyticsBucket,
     type HoursAnalyticsProject,
 } from '@/lib/timer';
-import { CHART_FALLBACK_COLORS, daysInMonth, formatHoursFromSeconds, monthLabelEs, normalizeHexColor } from '@/lib/time';
+import {
+    analyticsDayTicks,
+    CHART_FALLBACK_COLORS,
+    daysInMonth,
+    formatHoursFromSeconds,
+    monthLabelEs,
+    normalizeHexColor,
+} from '@/lib/time';
+import { cn } from '@/lib/utils';
 
 type SeriesMeta = {
     key: string;
@@ -39,6 +49,7 @@ type Props = {
 export function TimerAnalytics({ above }: Props) {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
+    const isMobile = useIsMobile();
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [monthIndex, setMonthIndex] = useState(now.getMonth());
@@ -173,9 +184,15 @@ export function TimerAnalytics({ above }: Props) {
         };
     }, [buckets, projects, year, monthIndex]);
 
+    const xTicks = useMemo(
+        () => analyticsDayTicks(year, monthIndex, isMobile),
+        [year, monthIndex, isMobile],
+    );
+
     const dailyAvg = activeDays > 0 ? Math.round(totalSeconds / activeDays) : 0;
     const hasBars = series.length > 0 && totalSeconds > 0;
     const monthKey = `${year}-${monthIndex}`;
+    const needHScroll = isMobile && series.length > 6;
 
     return (
         <ListPageShell
@@ -184,8 +201,8 @@ export function TimerAnalytics({ above }: Props) {
             icon={BarChart3}
             above={above}
             toolbar={
-                <div className="flex min-w-0 flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex shrink-0 items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-2 py-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                    <div className="flex w-full shrink-0 items-center justify-center gap-2 sm:w-auto sm:justify-start">
                         <Button
                             type="button"
                             variant="outline"
@@ -208,12 +225,9 @@ export function TimerAnalytics({ above }: Props) {
                             <ChevronRight />
                         </Button>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {isAdmin && (
-                            <>
-                                <label htmlFor="analytics-user" className="shrink-0">
-                                    Usuario
-                                </label>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+                        {isAdmin ? (
+                            <ToolbarField id="analytics-user" label="Usuario" className="w-full sm:w-44">
                                 <EntitySelect
                                     id="analytics-user"
                                     items={userOptions}
@@ -221,22 +235,19 @@ export function TimerAnalytics({ above }: Props) {
                                     onValueChange={(value) => setUserFilter(value ?? '')}
                                     allowClear
                                     placeholder="Todos"
-                                    className="min-w-0 w-full sm:min-w-40 sm:w-auto"
                                 />
-                            </>
-                        )}
-                        <label htmlFor="analytics-project" className="shrink-0">
-                            Proyecto
-                        </label>
-                        <EntitySelect
-                            id="analytics-project"
-                            items={projectOptions}
-                            value={projectFilter || null}
-                            onValueChange={(value) => setProjectFilter(value ?? '')}
-                            allowClear
-                            placeholder="Todos"
-                            className="min-w-0 w-full sm:min-w-48 sm:w-auto"
-                        />
+                            </ToolbarField>
+                        ) : null}
+                        <ToolbarField id="analytics-project" label="Proyecto" className="w-full sm:w-48">
+                            <EntitySelect
+                                id="analytics-project"
+                                items={projectOptions}
+                                value={projectFilter || null}
+                                onValueChange={(value) => setProjectFilter(value ?? '')}
+                                allowClear
+                                placeholder="Todos"
+                            />
+                        </ToolbarField>
                     </div>
                 </div>
             }
@@ -258,7 +269,7 @@ export function TimerAnalytics({ above }: Props) {
                 ].map((tile) => (
                     <div key={tile.title} className="min-w-0 rounded-xl border border-border bg-card/50 p-4">
                         <p className="text-sm text-muted-foreground">{tile.title}</p>
-                        <div className="mt-2 font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
+                        <div className="mt-2 truncate font-mono text-xl font-semibold text-primary tabular-nums sm:text-2xl">
                             {loading ? <Skeleton className="h-7 w-24" /> : tile.value}
                         </div>
                     </div>
@@ -274,12 +285,34 @@ export function TimerAnalytics({ above }: Props) {
                 </div>
                 <div className="min-w-0 overflow-x-auto p-2 sm:p-4">
                     {loading ? (
-                        <Skeleton className="h-[280px] w-full rounded-lg" />
+                        <Skeleton className="h-[240px] w-full rounded-lg sm:h-[280px]" />
                     ) : hasBars ? (
-                        <ChartContainer key={monthKey} config={chartConfig} className="aspect-auto h-[260px] w-full min-w-0 sm:h-[320px]">
-                            <BarChart data={chartData} margin={{ left: 0, right: 4 }}>
+                        <ChartContainer
+                            key={monthKey}
+                            config={chartConfig}
+                            className={cn(
+                                'aspect-auto h-[240px] w-full sm:h-[320px]',
+                                needHScroll ? 'min-w-[520px]' : 'min-w-0',
+                            )}
+                        >
+                            <BarChart
+                                data={chartData}
+                                margin={{
+                                    left: 0,
+                                    right: 4,
+                                    top: 4,
+                                    bottom: isMobile ? 4 : 0,
+                                }}
+                            >
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
+                                <XAxis
+                                    dataKey="day"
+                                    ticks={xTicks}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    interval={0}
+                                />
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
@@ -290,6 +323,7 @@ export function TimerAnalytics({ above }: Props) {
                                 <ChartTooltip
                                     content={
                                         <ChartTooltipContent
+                                            className="max-w-[min(100vw-2rem,20rem)]"
                                             labelFormatter={(_, payload) => {
                                                 const row = payload?.[0]?.payload as { dayKey?: string } | undefined;
                                                 return row?.dayKey ?? '';
@@ -298,14 +332,14 @@ export function TimerAnalytics({ above }: Props) {
                                                 const hours = typeof value === 'number' ? value : Number(value);
                                                 const sec = Math.round((Number.isFinite(hours) ? hours : 0) * 3600);
                                                 return (
-                                                    <div className="flex w-full flex-wrap items-center gap-2">
+                                                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
                                                         <div
                                                             className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
                                                             style={{ backgroundColor: item.color }}
                                                         />
-                                                        <div className="flex flex-1 items-center justify-between gap-4 leading-none">
-                                                            <span className="text-muted-foreground">{name}</span>
-                                                            <span className="font-mono font-medium text-foreground tabular-nums">
+                                                        <div className="flex min-w-0 flex-1 items-center justify-between gap-4 leading-none">
+                                                            <span className="truncate text-muted-foreground">{name}</span>
+                                                            <span className="shrink-0 font-mono font-medium text-foreground tabular-nums">
                                                                 {formatHoursFromSeconds(sec)}
                                                             </span>
                                                         </div>
@@ -315,7 +349,16 @@ export function TimerAnalytics({ above }: Props) {
                                         />
                                     }
                                 />
-                                <ChartLegend content={<ChartLegendContent />} />
+                                <ChartLegend
+                                    content={
+                                        <ChartLegendContent
+                                            className={cn(
+                                                'max-h-24 flex-wrap gap-2 overflow-y-auto',
+                                                series.length > 8 && 'justify-start sm:justify-center',
+                                            )}
+                                        />
+                                    }
+                                />
                                 {series.map((s) => (
                                     <Bar
                                         key={s.key}
@@ -338,3 +381,5 @@ export function TimerAnalytics({ above }: Props) {
         </ListPageShell>
     );
 }
+
+export default TimerAnalytics;

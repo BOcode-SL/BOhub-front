@@ -9,7 +9,7 @@ type Props = {
 };
 
 const chip =
-    'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none';
+    'shrink-0 cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none';
 
 export function TimerTabs({ tab, isAdmin, onChange }: Props) {
     return (

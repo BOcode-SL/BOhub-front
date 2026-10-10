@@ -98,6 +98,7 @@ Special layout (stats + pie + deadlines + top hours). Treat as **canonical dashb
 
 - Live hero: large mono duration + controls (BOtimer spirit).
 - Lists / Analytics: Card / ListPageShell consistent with rest of app.
+- Analytics toolbar: `ToolbarField` + EntitySelect; XAxis ticks via `analyticsDayTicks` (compact en móvil); legend wrap/scroll.
 
 ## Feedback (toast)
 
