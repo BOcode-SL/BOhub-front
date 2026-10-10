@@ -9,7 +9,7 @@ type ClientPendingMarkProps = {
 };
 
 /** Amber mark when the client has pending / partially_paid payments. */
-export function ClientPendingMark({ hasPendingInvoices, className, compact }: ClientPendingMarkProps) {
+export function ClientPendingMark({ hasPendingInvoices, className }: ClientPendingMarkProps) {
     if (!hasPendingInvoices) return null;
 
     return (
