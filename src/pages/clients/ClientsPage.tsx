@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { ClientSheet } from '@/pages/clients/ClientSheet';
 import { useAuth } from '@/auth/AuthContext';
 import {
@@ -44,6 +45,7 @@ export function ClientsPage() {
     const page = parsePage(searchParams.get('page'));
     const perPage = parsePerPage(searchParams.get('per_page'));
     const urlSearch = searchParams.get('search') ?? '';
+    const pendingOnly = searchParams.get('has_pending_invoices') === '1';
 
     const [searchInput, setSearchInput] = useState(urlSearch);
     const [clients, setClients] = useState<Client[]>([]);
@@ -70,6 +72,7 @@ export function ClientsPage() {
                     else p.delete('search');
                     p.set('page', '1');
                     p.set('per_page', String(perPage));
+                    if (prev.get('has_pending_invoices') === '1') p.set('has_pending_invoices', '1');
                     return p;
                 },
                 { replace: true },
@@ -91,6 +94,7 @@ export function ClientsPage() {
                         search: urlSearch || undefined,
                         page,
                         perPage,
+                        hasPendingInvoices: pendingOnly || undefined,
                     },
                     ac.signal,
                 );
@@ -112,7 +116,7 @@ export function ClientsPage() {
             cancelled = true;
             ac.abort();
         };
-    }, [urlSearch, page, perPage]);
+    }, [urlSearch, page, perPage, pendingOnly]);
 
     async function reload() {
         setLoading(true);
@@ -121,6 +125,7 @@ export function ClientsPage() {
                 search: urlSearch || undefined,
                 page,
                 perPage,
+                hasPendingInvoices: pendingOnly || undefined,
             });
             setClients(res.data);
             setMeta(res.meta);
@@ -137,6 +142,8 @@ export function ClientsPage() {
             p.set('page', String(next));
             p.set('per_page', String(perPage));
             if (urlSearch) p.set('search', urlSearch);
+            if (pendingOnly) p.set('has_pending_invoices', '1');
+            else p.delete('has_pending_invoices');
             return p;
         });
     }
@@ -147,6 +154,20 @@ export function ClientsPage() {
             p.set('per_page', String(next));
             p.set('page', '1');
             if (urlSearch) p.set('search', urlSearch);
+            if (pendingOnly) p.set('has_pending_invoices', '1');
+            else p.delete('has_pending_invoices');
+            return p;
+        });
+    }
+
+    function setPendingOnly(next: boolean) {
+        setSearchParams((prev) => {
+            const p = new URLSearchParams(prev);
+            p.set('page', '1');
+            p.set('per_page', String(perPage));
+            if (urlSearch) p.set('search', urlSearch);
+            if (next) p.set('has_pending_invoices', '1');
+            else p.delete('has_pending_invoices');
             return p;
         });
     }
@@ -220,6 +241,19 @@ export function ClientsPage() {
                             />
                         </div>
                         <ToolbarSelect
+                            id="clients-pending"
+                            label="Cobros"
+                            fieldClassName="w-full sm:w-auto"
+                            items={[
+                                { label: 'Todos', value: 'all' },
+                                { label: 'Con cobro pendiente', value: 'pending' },
+                            ]}
+                            value={pendingOnly ? 'pending' : 'all'}
+                            onValueChange={(value) => {
+                                if (value) setPendingOnly(value === 'pending');
+                            }}
+                        />
+                        <ToolbarSelect
                             id="clients-per-page"
                             label="Por página"
                             fieldClassName="w-full sm:w-auto"
@@ -281,10 +315,13 @@ export function ClientsPage() {
                             {clients.map((client) => (
                                 <TableRow key={client.id} className={loading ? 'opacity-60' : undefined}>
                                     <TableCell
-                                        className="max-w-[10rem] truncate font-medium text-foreground sm:max-w-[14rem]"
+                                        className="max-w-[12rem] font-medium text-foreground sm:max-w-[16rem]"
                                         title={client.name}
                                     >
-                                        {client.name}
+                                        <span className="inline-flex max-w-full items-center gap-1.5">
+                                            <span className="truncate">{client.name}</span>
+                                            <ClientPendingMark hasPendingInvoices={client.hasPendingInvoices} compact />
+                                        </span>
                                     </TableCell>
                                     <TableCell className="hidden text-muted-foreground sm:table-cell">
                                         {client.taxId || '—'}

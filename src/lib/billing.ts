@@ -31,7 +31,7 @@ export const LEDGER_STATUS_BADGE_CLASS: Record<LedgerStatus, string> = {
 export type BillingProject = {
     id: number;
     name: string;
-    client?: { id: number; name: string } | null;
+    client?: { id: number; name: string; hasPendingInvoices?: boolean } | null;
 };
 
 export type Installment = {

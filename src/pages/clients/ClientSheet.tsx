@@ -11,6 +11,7 @@ import {
     FormPanelHeader,
     FormPanelTitle,
 } from '@/components/responsive-form-panel';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { type Client, type ClientInput, getClient } from '@/lib/clients';
 import { toastError } from '@/lib/toast';
@@ -56,6 +57,7 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [hydrating, setHydrating] = useState(false);
+    const [pendingInvoices, setPendingInvoices] = useState(false);
 
     useLayoutEffect(() => {
         if (!open) return;
@@ -65,16 +67,21 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
         if (mode !== 'edit' || !client) {
             setHydrating(false);
             setForm(emptyForm);
+            setPendingInvoices(false);
             return;
         }
 
         // list omits notes — always hydrate via show()
         setHydrating(true);
         setForm(emptyForm);
+        setPendingInvoices(Boolean(client.hasPendingInvoices));
         let cancelled = false;
         void getClient(client.id)
             .then((full) => {
-                if (!cancelled) setForm(toForm(full));
+                if (!cancelled) {
+                    setForm(toForm(full));
+                    setPendingInvoices(Boolean(full.hasPendingInvoices));
+                }
             })
             .catch((err) => {
                 if (cancelled) return;
@@ -134,7 +141,10 @@ export function ClientSheet({ open, mode, client, onOpenChange, onSubmit }: Clie
     return (
         <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="w-full overflow-y-auto sm:max-w-md">
                 <FormPanelHeader>
-                    <FormPanelTitle>{mode === 'add' ? 'Añadir cliente' : 'Editar cliente'}</FormPanelTitle>
+                    <FormPanelTitle className="flex flex-wrap items-center gap-2">
+                        {mode === 'add' ? 'Añadir cliente' : 'Editar cliente'}
+                        {mode === 'edit' ? <ClientPendingMark hasPendingInvoices={pendingInvoices} /> : null}
+                    </FormPanelTitle>
                     <FormPanelDescription>Datos fiscales y de contacto del cliente.</FormPanelDescription>
                 </FormPanelHeader>
 

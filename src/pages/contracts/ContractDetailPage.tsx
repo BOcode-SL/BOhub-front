@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, lazy, Suspense } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Download, FilePen, Plus, Trash2 } from 'lucide-react';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
 import { usePageCrumb } from '@/components/layout/page-crumb';
@@ -449,9 +450,10 @@ export function ContractDetailPage() {
                         {CONTRACT_STATUS_LABELS[status]}
                     </Badge>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {contract.client?.name ?? '—'}
-                    {contract.expiresAt ? ` · Caduca ${contract.expiresAt}` : ''}
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                    <span>{contract.client?.name ?? '—'}</span>
+                    <ClientPendingMark hasPendingInvoices={contract.client?.hasPendingInvoices} compact />
+                    {contract.expiresAt ? <span>· Caduca {contract.expiresAt}</span> : null}
                 </p>
             </div>
 

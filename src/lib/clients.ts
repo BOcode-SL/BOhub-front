@@ -12,6 +12,7 @@ export type Client = {
     postalCode: string | null;
     country: string | null;
     notes: string | null;
+    hasPendingInvoices?: boolean;
     createdAt?: string;
     updatedAt?: string;
 };
@@ -55,6 +56,7 @@ export async function listClients(
         page?: number;
         perPage?: number;
         sort?: string;
+        hasPendingInvoices?: boolean;
     } = {},
     signal?: AbortSignal,
 ): Promise<PaginatedClients> {
@@ -63,6 +65,7 @@ export async function listClients(
     if (params.page) q.set('page', String(params.page));
     if (params.perPage) q.set('per_page', String(params.perPage));
     if (params.sort) q.set('sort', params.sort);
+    if (params.hasPendingInvoices) q.set('has_pending_invoices', '1');
     const qs = q.toString();
     return request<PaginatedClients>(`/api/clients${qs ? `?${qs}` : ''}`, {
         signal,

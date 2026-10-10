@@ -11,7 +11,7 @@ export type ProjectType = (typeof PROJECT_TYPES)[number];
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export type ProjectPriority = (typeof PROJECT_PRIORITIES)[number];
 
-export type ProjectClient = { id: number; name: string };
+export type ProjectClient = { id: number; name: string; hasPendingInvoices?: boolean };
 
 export type Project = {
     id: number;

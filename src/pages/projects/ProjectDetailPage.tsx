@@ -35,6 +35,7 @@ import {
     type Payment,
     type PaymentInput,
 } from '@/lib/billing';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { LedgerStatusBadge } from '@/components/ledger-status-badge';
 import { EmitPaymentDialog } from '@/pages/billing/EmitPaymentDialog';
 import { ExpenseSheet } from '@/pages/billing/ExpenseSheet';
@@ -716,10 +717,11 @@ export function ProjectDetailPage() {
                                 <div className="grid gap-1">
                                     <dt className="text-sm text-muted-foreground">Cliente</dt>
                                     <dd
-                                        className="truncate text-sm font-medium text-foreground"
+                                        className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground"
                                         title={project.client?.name ?? undefined}
                                     >
-                                        {project.client?.name ?? '—'}
+                                        <span className="truncate">{project.client?.name ?? '—'}</span>
+                                        <ClientPendingMark hasPendingInvoices={project.client?.hasPendingInvoices} compact />
                                     </dd>
                                 </div>
                                 <div className="grid gap-1">

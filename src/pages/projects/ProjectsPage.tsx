@@ -27,6 +27,7 @@ import {
     type ProjectsMeta,
 } from '@/lib/projects';
 import { toastError, toastSuccess } from '@/lib/toast';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { ProjectSheet } from '@/pages/projects/ProjectSheet';
 
@@ -376,16 +377,29 @@ export function ProjectsPage() {
                                                     {project.name}
                                                 </Link>
                                             </span>
-                                            <p className="truncate text-xs text-muted-foreground sm:hidden" title={project.client?.name ?? undefined}>
-                                                {project.client?.name ?? '—'}
+                                            <p
+                                                className="flex items-center gap-1 truncate text-xs text-muted-foreground sm:hidden"
+                                                title={project.client?.name ?? undefined}
+                                            >
+                                                <span className="truncate">{project.client?.name ?? '—'}</span>
+                                                <ClientPendingMark
+                                                    hasPendingInvoices={project.client?.hasPendingInvoices}
+                                                    compact
+                                                />
                                             </p>
                                         </div>
                                     </TableCell>
                                     <TableCell
-                                        className="hidden max-w-[8rem] truncate text-muted-foreground sm:table-cell sm:max-w-[12rem]"
+                                        className="hidden max-w-[10rem] text-muted-foreground sm:table-cell sm:max-w-[14rem]"
                                         title={project.client?.name ?? undefined}
                                     >
-                                        {project.client?.name ?? '—'}
+                                        <span className="inline-flex max-w-full items-center gap-1.5">
+                                            <span className="truncate">{project.client?.name ?? '—'}</span>
+                                            <ClientPendingMark
+                                                hasPendingInvoices={project.client?.hasPendingInvoices}
+                                                compact
+                                            />
+                                        </span>
                                     </TableCell>
                                     <TableCell className="hidden text-muted-foreground sm:table-cell">
                                         {PROJECT_TYPE_LABELS[project.type]}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -61,7 +62,10 @@ export function EmitPaymentDialog({ open, payment, onOpenChange, onEmitted }: Pr
                 <dl className="grid gap-2 text-sm">
                     <div className="flex justify-between gap-4">
                         <dt className="text-muted-foreground">Cliente</dt>
-                        <dd className="text-right font-medium text-foreground">{clientName}</dd>
+                        <dd className="flex items-center justify-end gap-1.5 text-right font-medium text-foreground">
+                            {clientName}
+                            <ClientPendingMark hasPendingInvoices={payment?.project?.client?.hasPendingInvoices} compact />
+                        </dd>
                     </div>
                     <div className="flex justify-between gap-4">
                         <dt className="text-muted-foreground">Concepto</dt>

@@ -36,6 +36,8 @@ Use `ListPageShell`:
 
 Reference implementations: `pages/clients/ClientsPage.tsx`, `pages/projects/ProjectsPage.tsx`.
 
+**Cobro pendiente (cliente):** badge amber reutilizable `ClientPendingMark` (`components/client-pending-mark.tsx`) junto al nombre cuando `hasPendingInvoices` (API). No usar primary/lima.
+
 ## Responsive
 
 Agents must follow the same patterns on **every** list page (clients, projects, leads, billing ledgers, timer, emails, contracts, maintenance, website-analysis, users). See `AGENTS.md` § Responsive.

@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { ClientPendingMark } from '@/components/client-pending-mark';
 import { ToolbarSelect } from '@/components/toolbar-field';
 import { ContractNewSheet } from '@/pages/contracts/ContractNewSheet';
 import { ContractTabs } from '@/pages/contracts/ContractTabs';
@@ -258,16 +259,23 @@ export function ContractsPage() {
                                             <span className="block truncate" title={row.title}>
                                                 {row.title}
                                             </span>
-                                            <p className="truncate text-xs text-muted-foreground sm:hidden" title={row.client?.name ?? undefined}>
-                                                {row.client?.name ?? '—'}
+                                            <p
+                                                className="flex items-center gap-1 truncate text-xs text-muted-foreground sm:hidden"
+                                                title={row.client?.name ?? undefined}
+                                            >
+                                                <span className="truncate">{row.client?.name ?? '—'}</span>
+                                                <ClientPendingMark hasPendingInvoices={row.client?.hasPendingInvoices} compact />
                                             </p>
                                         </div>
                                     </TableCell>
                                     <TableCell
-                                        className="hidden max-w-[8rem] truncate sm:table-cell sm:max-w-[12rem]"
+                                        className="hidden max-w-[10rem] sm:table-cell sm:max-w-[14rem]"
                                         title={row.client?.name ?? undefined}
                                     >
-                                        {row.client?.name ?? '—'}
+                                        <span className="inline-flex max-w-full items-center gap-1.5">
+                                            <span className="truncate">{row.client?.name ?? '—'}</span>
+                                            <ClientPendingMark hasPendingInvoices={row.client?.hasPendingInvoices} compact />
+                                        </span>
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className={CONTRACT_STATUS_BADGE_CLASS[row.status]}>

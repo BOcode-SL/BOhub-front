@@ -55,7 +55,7 @@ export const CONTRACT_EVENT_LABELS: Record<string, string> = {
     pack_sent: 'Pack enviado',
 };
 
-export type ContractClient = { id: number; name: string };
+export type ContractClient = { id: number; name: string; hasPendingInvoices?: boolean };
 export type ContractProject = { id: number; name: string } | null;
 
 export type ContractDocument = {
