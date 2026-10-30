@@ -15,6 +15,7 @@ import { PayrollsPage } from '@/pages/billing/PayrollsPage';
 import { BillingSettingsPage } from '@/pages/billing/BillingSettingsPage';
 import { TimerPage } from '@/pages/timer/TimerPage';
 import { MaintenancePage } from '@/pages/maintenance/MaintenancePage';
+import { SubscriptionsPage } from '@/pages/subscriptions/SubscriptionsPage';
 import { HomePage } from '@/pages/home/HomePage';
 import { EmailsPage } from '@/pages/emails/EmailsPage';
 import { EmailMessagesPage } from '@/pages/emails/EmailMessagesPage';
@@ -57,6 +58,7 @@ export default function App() {
                                     <Route path="projects/:id" element={<ProjectDetailPage />} />
                                     <Route path="timer" element={<TimerPage />} />
                                     <Route path="maintenance" element={<MaintenancePage />} />
+                                    <Route path="subscriptions" element={<SubscriptionsPage />} />
                                     <Route path="website-analysis" element={<WebsiteAnalysisListPage />} />
                                     <Route path="website-analysis/:domain/*" element={<WebsiteAnalysisReportPage />} />
                                     <Route path="website-analysis/:domain" element={<WebsiteAnalysisReportPage />} />

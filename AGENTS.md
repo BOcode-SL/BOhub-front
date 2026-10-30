@@ -35,7 +35,7 @@ src/
   lib/                    # API clients (one file per domain)
   pages/
     home/                 # dashboard home (reference UI)
-    clients|projects|billing|timer|emails|contracts|sign|maintenance|users/
+    clients|projects|billing|timer|emails|contracts|sign|maintenance|subscriptions|users/
   index.css               # design tokens
 ```
 
@@ -63,6 +63,7 @@ src/
 | `/dashboard/contracts/:id`    | Wizard / detalle sobre (PDFs, firmantes, campos) | admin      |
 | `/dashboard/users`            | Users CRUD                                  | admin           |
 | `/dashboard/maintenance`      | Maintenance periods                         | admin, employee |
+| `/dashboard/subscriptions`    | Suscripciones (dominios/hosting/SaaS)       | admin, employee |
 | `/dashboard/website-analysis` | Histórico y listado de análisis web         | admin, employee |
 | `/dashboard/website-analysis/:domain` | Detalle (auditoría completa y selector de histórico) | admin, employee |
 
@@ -172,6 +173,7 @@ CRUD / form sheets → **`FormPanel`** + `FormPanelHeader` / `FormPanelFooter` /
 | `timer.ts`       | hours, team hours, timers, analytics |
 | `time.ts`        | month bounds, formatHours, colors    |
 | `maintenance.ts` | maintenance periods                  |
+| `subscriptions.ts` | subscriptions (ops) + link expense |
 | `emails.ts`      | templates, send, messages            |
 | `contracts.ts`   | SES envelopes: CRUD, docs, signers, fields, send, email + pack templates |
 | `pdfJsPreview.ts`| 1 `getDocument`/blob + render page DPR (hub Campos + `/sign`); worker emit `.js` (Hostinger `.mjs` = text/plain) |

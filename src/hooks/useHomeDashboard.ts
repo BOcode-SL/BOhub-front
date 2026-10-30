@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getHomeDashboard, type HomeDeadline } from '@/lib/dashboard';
 import { listMaintenances, type MaintenancePeriod } from '@/lib/maintenance';
+import { listSubscriptions, type Subscription } from '@/lib/subscriptions';
 import { toastError } from '@/lib/toast';
 import { PROJECT_STATUS_CHART_COLORS, PROJECT_STATUS_LABELS, type ProjectStatus } from '@/lib/projects';
 
@@ -12,6 +13,7 @@ export type StatusSlice = {
 };
 
 const UPCOMING_MAINTENANCES_LIMIT = 3;
+const UPCOMING_SUBSCRIPTIONS_LIMIT = 3;
 
 export type HomeDashboard = {
     clientsCount: number;
@@ -19,6 +21,7 @@ export type HomeDashboard = {
     projectsInProgress: number;
     hoursThisMonthSeconds: number;
     upcomingMaintenances: MaintenancePeriod[];
+    upcomingSubscriptions: Subscription[];
     statusSlices: StatusSlice[];
     deadlines: HomeDeadline[];
     deadlinesCount: number;
@@ -32,6 +35,7 @@ export function useHomeDashboard(): HomeDashboard {
     const [projectsInProgress, setProjectsInProgress] = useState(0);
     const [hoursThisMonthSeconds, setHoursThisMonthSeconds] = useState(0);
     const [upcomingMaintenances, setUpcomingMaintenances] = useState<MaintenancePeriod[]>([]);
+    const [upcomingSubscriptions, setUpcomingSubscriptions] = useState<Subscription[]>([]);
     const [statusRaw, setStatusRaw] = useState<{ status: ProjectStatus; value: number }[]>([]);
     const [deadlines, setDeadlines] = useState<HomeDeadline[]>([]);
     const [deadlinesCount, setDeadlinesCount] = useState(0);
@@ -46,14 +50,23 @@ export function useHomeDashboard(): HomeDashboard {
         async function run() {
             setLoading(true);
             try {
-                // ponytail: home aggregates + open maintenances (same scope/sort as MaintenancePage)
-                const [data, maint] = await Promise.all([
+                // ponytail: home aggregates + open maintenances/subscriptions
+                const [data, maint, subs] = await Promise.all([
                     getHomeDashboard(ac.signal),
                     listMaintenances(
                         {
                             scope: 'open',
                             sort: 'ends_on',
                             perPage: UPCOMING_MAINTENANCES_LIMIT,
+                            page: 1,
+                        },
+                        ac.signal,
+                    ),
+                    listSubscriptions(
+                        {
+                            scope: 'open',
+                            sort: 'renews_on',
+                            perPage: UPCOMING_SUBSCRIPTIONS_LIMIT,
                             page: 1,
                         },
                         ac.signal,
@@ -65,6 +78,7 @@ export function useHomeDashboard(): HomeDashboard {
                 setProjectsInProgress(data.projectsInProgress);
                 setHoursThisMonthSeconds(data.hoursThisMonthSeconds);
                 setUpcomingMaintenances(maint.data);
+                setUpcomingSubscriptions(subs.data);
                 setStatusRaw(data.statusSlices);
                 setDeadlines(data.deadlines);
                 setDeadlinesCount(data.deadlinesCount);
@@ -76,6 +90,7 @@ export function useHomeDashboard(): HomeDashboard {
                 setProjectsInProgress(0);
                 setHoursThisMonthSeconds(0);
                 setUpcomingMaintenances([]);
+                setUpcomingSubscriptions([]);
                 setStatusRaw([]);
                 setDeadlines([]);
                 setDeadlinesCount(0);
@@ -108,6 +123,7 @@ export function useHomeDashboard(): HomeDashboard {
         projectsInProgress,
         hoursThisMonthSeconds,
         upcomingMaintenances,
+        upcomingSubscriptions,
         statusSlices,
         deadlines,
         deadlinesCount,

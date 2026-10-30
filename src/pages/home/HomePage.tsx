@@ -2,7 +2,13 @@ import { useEffect } from 'react';
 import { formatHoursFromSeconds } from '@/lib/time';
 import { syncProjectsFromJiraBatch } from '@/lib/projects';
 import { useHomeDashboard } from '@/hooks/useHomeDashboard';
-import { RecentErrors, StatsCards, UpcomingDeadlines, UpcomingMaintenances } from './components';
+import {
+    RecentErrors,
+    StatsCards,
+    UpcomingDeadlines,
+    UpcomingMaintenances,
+    UpcomingSubscriptions,
+} from './components';
 
 export function HomePage() {
     const {
@@ -11,6 +17,7 @@ export function HomePage() {
         projectsInProgress,
         hoursThisMonthSeconds,
         upcomingMaintenances,
+        upcomingSubscriptions,
         deadlines,
         deadlinesCount,
         loading,
@@ -44,7 +51,10 @@ export function HomePage() {
                 <UpcomingDeadlines projects={deadlines} isLoading={loading} />
             </div>
 
-            <UpcomingMaintenances items={upcomingMaintenances} isLoading={loading} />
+            <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
+                <UpcomingMaintenances items={upcomingMaintenances} isLoading={loading} />
+                <UpcomingSubscriptions items={upcomingSubscriptions} isLoading={loading} />
+            </div>
         </div>
     );
 }

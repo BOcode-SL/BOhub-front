@@ -27,6 +27,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/dashboard/emails': 'Emails',
     '/dashboard/emails/messages': 'Mensajes',
     '/dashboard/maintenance': 'Mantenimientos',
+    '/dashboard/subscriptions': 'Suscripciones',
 };
 
 function sectionMatch(pathname: string): { path: string; title: string } | null {

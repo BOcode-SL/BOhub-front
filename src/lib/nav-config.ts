@@ -8,6 +8,7 @@ import {
     Inbox,
     Mail,
     ReceiptEuro,
+    Repeat,
     Settings,
     TrendingDown,
     TrendingUp,
@@ -84,6 +85,12 @@ export const featureItems: NavItem[] = [
         title: 'Mantenimientos',
         url: '/dashboard/maintenance',
         icon: Wrench,
+        roles: ['admin', 'employee'],
+    },
+    {
+        title: 'Suscripciones',
+        url: '/dashboard/subscriptions',
+        icon: Repeat,
         roles: ['admin', 'employee'],
     },
     {
