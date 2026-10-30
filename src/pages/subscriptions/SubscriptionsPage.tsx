@@ -68,7 +68,7 @@ function DateCell({ date, status, kind }: { date: string; status: string; kind: 
 }
 
 function StatusBadge({ row }: { row: Subscription }) {
-    const display = displaySubscriptionStatus(row.status, row.expiresOn || row.renewsOn);
+    const display = displaySubscriptionStatus(row.status, row.expiresOn);
     if (display === 'expiring') {
         return <Badge className={EXPIRING_BADGE_CLASS}>Caduca pronto</Badge>;
     }
@@ -359,27 +359,31 @@ export function SubscriptionsPage() {
                                                     .filter(Boolean)
                                                     .join(' · ') || '—'}
                                             </span>
-                                            <p className="truncate text-xs text-muted-foreground lg:hidden">
-                                                Renueva {row.renewsOn}
-                                            </p>
+                                            {row.autoRenew && row.renewsOn ? (
+                                                <p className="truncate text-xs text-muted-foreground lg:hidden">
+                                                    Renueva {row.renewsOn}
+                                                </p>
+                                            ) : null}
                                         </div>
                                     </TableCell>
                                     <TableCell className="hidden sm:table-cell">
-                                        {formatRenewalPrice(row.renewalPrice, row.currency)}
+                                        {row.autoRenew
+                                            ? formatRenewalPrice(row.renewalPrice, row.currency)
+                                            : '—'}
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">
                                         {SUBSCRIPTION_BILLING_CYCLE_LABELS[row.billingCycle] ?? row.billingCycle}
                                         {row.autoRenew ? ' · auto' : ''}
                                     </TableCell>
                                     <TableCell className="hidden lg:table-cell">
-                                        <DateCell date={row.renewsOn} status={row.status} kind="renew" />
+                                        {row.autoRenew && row.renewsOn ? (
+                                            <DateCell date={row.renewsOn} status={row.status} kind="renew" />
+                                        ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <DateCell
-                                            date={row.expiresOn || row.renewsOn}
-                                            status={row.status}
-                                            kind="expire"
-                                        />
+                                        <DateCell date={row.expiresOn} status={row.status} kind="expire" />
                                     </TableCell>
                                     <TableCell>
                                         <StatusBadge row={row} />

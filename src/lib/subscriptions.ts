@@ -77,7 +77,8 @@ export type Subscription = {
     currency: string;
     billingCycle: SubscriptionBillingCycle;
     autoRenew: boolean;
-    renewsOn: string;
+    /** Solo con autoRenew */
+    renewsOn?: string | null;
     expiresOn: string;
     status: SubscriptionStatus;
     notes?: string | null;
@@ -96,7 +97,7 @@ export type SubscriptionInput = {
     currency?: string;
     billingCycle: SubscriptionBillingCycle;
     autoRenew?: boolean;
-    renewsOn: string;
+    renewsOn?: string | null;
     expiresOn: string;
     notes?: string | null;
     projectId?: number | null;

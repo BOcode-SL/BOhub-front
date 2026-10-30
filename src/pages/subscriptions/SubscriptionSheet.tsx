@@ -33,7 +33,6 @@ function today(): string {
 }
 
 function emptyForm(): SubscriptionInput {
-    const d = today();
     return {
         name: '',
         provider: '',
@@ -42,8 +41,8 @@ function emptyForm(): SubscriptionInput {
         currency: 'EUR',
         billingCycle: 'annual',
         autoRenew: false,
-        renewsOn: d,
-        expiresOn: d,
+        renewsOn: null,
+        expiresOn: today(),
         notes: '',
         projectId: null,
         lastPaidAmount: null,
@@ -60,8 +59,8 @@ function toForm(row: Subscription): SubscriptionInput {
         currency: row.currency || 'EUR',
         billingCycle: row.billingCycle,
         autoRenew: row.autoRenew,
-        renewsOn: row.renewsOn,
-        expiresOn: row.expiresOn || row.renewsOn,
+        renewsOn: row.autoRenew ? (row.renewsOn ?? row.expiresOn) : null,
+        expiresOn: row.expiresOn || row.renewsOn || today(),
         notes: row.notes ?? '',
         projectId: row.projectId ?? null,
         lastPaidAmount: row.lastPaidAmount != null ? Number(row.lastPaidAmount) : null,
@@ -121,13 +120,29 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
         clearFieldError(key);
     }
 
+    function setAutoRenew(checked: boolean) {
+        setForm((prev) => ({
+            ...prev,
+            autoRenew: checked,
+            renewsOn: checked ? (prev.renewsOn || prev.expiresOn || today()) : null,
+            renewalPrice: checked ? prev.renewalPrice : null,
+        }));
+        clearFieldError('autoRenew');
+        clearFieldError('renewsOn');
+        clearFieldError('renewalPrice');
+    }
+
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.name.trim()) {
             setFieldErrors({ name: 'Nombre obligatorio.' });
             return;
         }
-        if (form.expiresOn && form.renewsOn && form.expiresOn < form.renewsOn) {
+        if (form.autoRenew && !form.renewsOn) {
+            setFieldErrors({ renewsOn: 'Indica la fecha de renovación.' });
+            return;
+        }
+        if (form.autoRenew && form.expiresOn && form.renewsOn && form.expiresOn < form.renewsOn) {
             setFieldErrors({ expiresOn: 'Caduca el debe ser ≥ Renueva el.' });
             return;
         }
@@ -137,11 +152,11 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                 name: form.name.trim(),
                 provider: form.provider?.trim() || null,
                 category: form.category,
-                renewalPrice: form.renewalPrice,
+                renewalPrice: form.autoRenew ? form.renewalPrice : null,
                 currency: form.currency || 'EUR',
                 billingCycle: form.billingCycle,
                 autoRenew: !!form.autoRenew,
-                renewsOn: form.renewsOn,
+                renewsOn: form.autoRenew ? form.renewsOn || null : null,
                 expiresOn: form.expiresOn,
                 notes: form.notes?.trim() || null,
                 projectId: form.projectId || null,
@@ -211,63 +226,75 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                     </FormField>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <FormField id="s-price" label="Precio renovación" error={fieldErrors.renewalPrice}>
-                        <Input
-                            id="s-price"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            inputMode="decimal"
-                            value={form.renewalPrice ?? ''}
-                            onChange={(e) =>
-                                setField('renewalPrice', e.target.value === '' ? null : Number(e.target.value))
-                            }
-                            placeholder="0,00"
-                            className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
-                        />
-                    </FormField>
-                    <FormField id="s-cycle" label="Periodo" error={fieldErrors.billingCycle}>
-                        <AppSelect
-                            id="s-cycle"
-                            items={SUBSCRIPTION_BILLING_CYCLES.map((c) => ({
-                                label: SUBSCRIPTION_BILLING_CYCLE_LABELS[c],
-                                value: c,
-                            }))}
-                            value={form.billingCycle}
-                            onValueChange={(v) => setField('billingCycle', v as SubscriptionBillingCycle)}
-                            placeholder="Periodo"
-                            className="w-full"
-                        />
-                    </FormField>
-                </div>
+                <FormField id="s-cycle" label="Periodo" error={fieldErrors.billingCycle}>
+                    <AppSelect
+                        id="s-cycle"
+                        items={SUBSCRIPTION_BILLING_CYCLES.map((c) => ({
+                            label: SUBSCRIPTION_BILLING_CYCLE_LABELS[c],
+                            value: c,
+                        }))}
+                        value={form.billingCycle}
+                        onValueChange={(v) => setField('billingCycle', v as SubscriptionBillingCycle)}
+                        placeholder="Periodo"
+                        className="w-full"
+                    />
+                </FormField>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <FormField id="s-renews" label="Renueva el" error={fieldErrors.renewsOn}>
-                        <Input
-                            id="s-renews"
-                            type="date"
-                            required
-                            value={form.renewsOn}
-                            onChange={(e) => setField('renewsOn', e.target.value)}
-                            placeholder="AAAA-MM-DD"
-                            className="bg-card"
-                        />
-                    </FormField>
-                    <FormField id="s-expires" label="Caduca el" error={fieldErrors.expiresOn}>
-                        <Input
-                            id="s-expires"
-                            type="date"
-                            required
-                            value={form.expiresOn}
-                            onChange={(e) => setField('expiresOn', e.target.value)}
-                            min={form.renewsOn || undefined}
-                            placeholder="AAAA-MM-DD"
-                            className="bg-card"
-                            aria-invalid={!!fieldErrors.expiresOn}
-                        />
-                    </FormField>
-                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        className="size-4 accent-primary"
+                        checked={!!form.autoRenew}
+                        onChange={(e) => setAutoRenew(e.target.checked)}
+                    />
+                    Auto-renovación
+                </label>
+
+                {form.autoRenew && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <FormField id="s-price" label="Precio renovación" error={fieldErrors.renewalPrice}>
+                            <Input
+                                id="s-price"
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                inputMode="decimal"
+                                value={form.renewalPrice ?? ''}
+                                onChange={(e) =>
+                                    setField('renewalPrice', e.target.value === '' ? null : Number(e.target.value))
+                                }
+                                placeholder="0,00"
+                                className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
+                            />
+                        </FormField>
+                        <FormField id="s-renews" label="Renueva el" error={fieldErrors.renewsOn}>
+                            <Input
+                                id="s-renews"
+                                type="date"
+                                required
+                                value={form.renewsOn ?? ''}
+                                onChange={(e) => setField('renewsOn', e.target.value || null)}
+                                placeholder="AAAA-MM-DD"
+                                className="bg-card"
+                                aria-invalid={!!fieldErrors.renewsOn}
+                            />
+                        </FormField>
+                    </div>
+                )}
+
+                <FormField id="s-expires" label="Caduca el" error={fieldErrors.expiresOn}>
+                    <Input
+                        id="s-expires"
+                        type="date"
+                        required
+                        value={form.expiresOn}
+                        onChange={(e) => setField('expiresOn', e.target.value)}
+                        min={form.autoRenew && form.renewsOn ? form.renewsOn : undefined}
+                        placeholder="AAAA-MM-DD"
+                        className="bg-card"
+                        aria-invalid={!!fieldErrors.expiresOn}
+                    />
+                </FormField>
 
                 <FormField id="s-project" label="Proyecto" error={fieldErrors.projectId}>
                     <EntitySelect
@@ -279,16 +306,6 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         allowClear
                     />
                 </FormField>
-
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        className="size-4 accent-primary"
-                        checked={!!form.autoRenew}
-                        onChange={(e) => setField('autoRenew', e.target.checked)}
-                    />
-                    Auto-renovación
-                </label>
 
                 <div className="grid grid-cols-2 gap-3">
                     <FormField id="s-last-amt" label="Último pago (€)" error={fieldErrors.lastPaidAmount}>

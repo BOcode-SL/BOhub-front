@@ -111,7 +111,7 @@ export function UpcomingSubscriptions({ items, isLoading }: Props) {
                 {rows.length > 0 ? (
                     <div className="flex flex-col gap-2 sm:gap-3">
                         {rows.map((row) => {
-                            const when = row.expiresOn || row.renewsOn;
+                            const when = row.expiresOn;
                             const days = daysUntilDate(when);
                             const categoryLabel = SUBSCRIPTION_CATEGORY_LABELS[row.category] ?? row.category;
 
