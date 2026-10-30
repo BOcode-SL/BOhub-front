@@ -47,11 +47,6 @@ export function daysUntilDate(dateYmd: string): number | null {
     return Math.round((end - today) / 86_400_000);
 }
 
-/** @deprecated use daysUntilDate */
-export function daysUntilRenewsOn(renewsOn: string): number | null {
-    return daysUntilDate(renewsOn);
-}
-
 export function displaySubscriptionStatus(
     status: SubscriptionStatus,
     expiresOn: string,
@@ -64,45 +59,41 @@ export function displaySubscriptionStatus(
 
 export const EXPIRING_BADGE_CLASS = 'border-transparent bg-amber-500/20 text-amber-200';
 
-/** Hide number input spinners (Chrome/Safari/Firefox). */
-export const NO_SPINNER_INPUT_CLASS =
-    '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+export type SubscriptionRenewal = {
+    id: number;
+    subscriptionId: number;
+    renewedOn: string;
+    notes?: string | null;
+    createdBy?: number | null;
+    createdAt?: string | null;
+};
 
 export type Subscription = {
     id: number;
     name: string;
     provider?: string | null;
     category: SubscriptionCategory;
-    renewalPrice?: string | null;
-    currency: string;
     billingCycle: SubscriptionBillingCycle;
     autoRenew: boolean;
-    /** Solo con autoRenew */
-    renewsOn?: string | null;
     expiresOn: string;
     status: SubscriptionStatus;
     notes?: string | null;
     projectId?: number | null;
-    lastPaidAmount?: string | null;
-    lastPaidOn?: string | null;
     project?: { id: number; name: string } | null;
     createdBy?: number | null;
+    /** Solo en show/update */
+    renewals?: SubscriptionRenewal[];
 };
 
 export type SubscriptionInput = {
     name: string;
     provider?: string | null;
     category: SubscriptionCategory;
-    renewalPrice?: number | null;
-    currency?: string;
     billingCycle: SubscriptionBillingCycle;
     autoRenew?: boolean;
-    renewsOn?: string | null;
     expiresOn: string;
     notes?: string | null;
     projectId?: number | null;
-    lastPaidAmount?: number | null;
-    lastPaidOn?: string | null;
     status?: SubscriptionStatus;
 };
 
@@ -114,13 +105,6 @@ export type SubscriptionMeta = {
     from: number | null;
     to: number | null;
 };
-
-export function formatRenewalPrice(amount: string | null | undefined, currency = 'EUR'): string {
-    if (amount == null || amount === '') return '—';
-    const n = Number(amount);
-    if (!Number.isFinite(n)) return String(amount);
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(n);
-}
 
 export async function listSubscriptions(
     params: {
@@ -152,6 +136,10 @@ export async function createSubscription(body: SubscriptionInput): Promise<Subsc
     return request('/api/subscriptions', { method: 'POST', body });
 }
 
+export async function getSubscription(id: number, signal?: AbortSignal): Promise<Subscription> {
+    return request(`/api/subscriptions/${id}`, { signal });
+}
+
 export async function updateSubscription(
     id: number,
     body: Partial<SubscriptionInput> & { status?: SubscriptionStatus },
@@ -161,4 +149,15 @@ export async function updateSubscription(
 
 export async function deleteSubscription(id: number): Promise<void> {
     await request(`/api/subscriptions/${id}`, { method: 'DELETE' });
+}
+
+export async function createSubscriptionRenewal(
+    subscriptionId: number,
+    body: { renewedOn: string; notes?: string | null },
+): Promise<SubscriptionRenewal> {
+    return request(`/api/subscriptions/${subscriptionId}/renewals`, { method: 'POST', body });
+}
+
+export async function deleteSubscriptionRenewal(subscriptionId: number, renewalId: number): Promise<void> {
+    await request(`/api/subscriptions/${subscriptionId}/renewals/${renewalId}`, { method: 'DELETE' });
 }

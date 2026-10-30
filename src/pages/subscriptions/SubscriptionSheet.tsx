@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -15,18 +16,20 @@ import {
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listProjectOptions } from '@/lib/projects';
 import {
-    NO_SPINNER_INPUT_CLASS,
     SUBSCRIPTION_BILLING_CYCLES,
     SUBSCRIPTION_BILLING_CYCLE_LABELS,
     SUBSCRIPTION_CATEGORIES,
     SUBSCRIPTION_CATEGORY_LABELS,
+    createSubscriptionRenewal,
+    deleteSubscriptionRenewal,
+    getSubscription,
     type Subscription,
     type SubscriptionBillingCycle,
     type SubscriptionCategory,
     type SubscriptionInput,
+    type SubscriptionRenewal,
 } from '@/lib/subscriptions';
-import { toastError } from '@/lib/toast';
-import { cn } from '@/lib/utils';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 function today(): string {
     return new Date().toISOString().slice(0, 10);
@@ -37,16 +40,11 @@ function emptyForm(): SubscriptionInput {
         name: '',
         provider: '',
         category: 'domain',
-        renewalPrice: null,
-        currency: 'EUR',
         billingCycle: 'annual',
         autoRenew: false,
-        renewsOn: null,
         expiresOn: today(),
         notes: '',
         projectId: null,
-        lastPaidAmount: null,
-        lastPaidOn: null,
     };
 }
 
@@ -55,16 +53,11 @@ function toForm(row: Subscription): SubscriptionInput {
         name: row.name,
         provider: row.provider ?? '',
         category: row.category,
-        renewalPrice: row.renewalPrice != null ? Number(row.renewalPrice) : null,
-        currency: row.currency || 'EUR',
         billingCycle: row.billingCycle,
         autoRenew: row.autoRenew,
-        renewsOn: row.autoRenew ? (row.renewsOn ?? row.expiresOn) : null,
-        expiresOn: row.expiresOn || row.renewsOn || today(),
+        expiresOn: row.expiresOn || today(),
         notes: row.notes ?? '',
         projectId: row.projectId ?? null,
-        lastPaidAmount: row.lastPaidAmount != null ? Number(row.lastPaidAmount) : null,
-        lastPaidOn: row.lastPaidOn ?? null,
     };
 }
 
@@ -76,11 +69,24 @@ type Props = {
     onSubmit: (data: SubscriptionInput) => Promise<void>;
 };
 
+function formatRenewedOn(ymd: string): string {
+    const [y, m, d] = ymd.split('-').map(Number);
+    if (!y || !m || !d) return ymd;
+    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).format(
+        new Date(Date.UTC(y, m - 1, d)),
+    );
+}
+
 export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<SubscriptionInput>(emptyForm());
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
     const [saving, setSaving] = useState(false);
+    const [renewals, setRenewals] = useState<SubscriptionRenewal[]>([]);
+    const [renewalsLoading, setRenewalsLoading] = useState(false);
+    const [newRenewedOn, setNewRenewedOn] = useState(today());
+    const [addingRenewal, setAddingRenewal] = useState(false);
+    const [deletingRenewalId, setDeletingRenewalId] = useState<number | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -99,11 +105,31 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
     useEffect(() => {
         if (!open) return;
         setFieldErrors({});
+        setRenewals([]);
         if (mode !== 'edit' || !subscription) {
             setForm(emptyForm());
+            setNewRenewedOn(today());
             return;
         }
         setForm(toForm(subscription));
+        setNewRenewedOn(today());
+
+        const ac = new AbortController();
+        setRenewalsLoading(true);
+        void getSubscription(subscription.id, ac.signal)
+            .then((detail) => {
+                if (ac.signal.aborted) return;
+                setForm(toForm(detail));
+                setRenewals(detail.renewals ?? []);
+            })
+            .catch((err) => {
+                if (err instanceof DOMException && err.name === 'AbortError') return;
+                toastError(err);
+            })
+            .finally(() => {
+                if (!ac.signal.aborted) setRenewalsLoading(false);
+            });
+        return () => ac.abort();
     }, [open, mode, subscription]);
 
     function clearFieldError(key: string) {
@@ -120,30 +146,14 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
         clearFieldError(key);
     }
 
-    function setAutoRenew(checked: boolean) {
-        setForm((prev) => ({
-            ...prev,
-            autoRenew: checked,
-            renewsOn: checked ? (prev.renewsOn || prev.expiresOn || today()) : null,
-            renewalPrice: checked ? prev.renewalPrice : null,
-        }));
-        clearFieldError('autoRenew');
-        clearFieldError('renewsOn');
-        clearFieldError('renewalPrice');
-    }
-
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.name.trim()) {
             setFieldErrors({ name: 'Nombre obligatorio.' });
             return;
         }
-        if (form.autoRenew && !form.renewsOn) {
-            setFieldErrors({ renewsOn: 'Indica la fecha de renovación.' });
-            return;
-        }
-        if (form.autoRenew && form.expiresOn && form.renewsOn && form.expiresOn < form.renewsOn) {
-            setFieldErrors({ expiresOn: 'Caduca el debe ser ≥ Renueva el.' });
+        if (!form.expiresOn) {
+            setFieldErrors({ expiresOn: 'Indica la fecha de caducidad.' });
             return;
         }
         setSaving(true);
@@ -152,16 +162,11 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                 name: form.name.trim(),
                 provider: form.provider?.trim() || null,
                 category: form.category,
-                renewalPrice: form.autoRenew ? form.renewalPrice : null,
-                currency: form.currency || 'EUR',
                 billingCycle: form.billingCycle,
                 autoRenew: !!form.autoRenew,
-                renewsOn: form.autoRenew ? form.renewsOn || null : null,
                 expiresOn: form.expiresOn,
                 notes: form.notes?.trim() || null,
                 projectId: form.projectId || null,
-                lastPaidAmount: form.lastPaidAmount,
-                lastPaidOn: form.lastPaidOn || null,
             });
             onOpenChange(false);
         } catch (err) {
@@ -174,12 +179,53 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
         }
     }
 
+    async function handleAddRenewal() {
+        if (!subscription || mode !== 'edit') return;
+        if (!newRenewedOn) {
+            toastError(new Error('Indica la fecha de renovación.'));
+            return;
+        }
+        setAddingRenewal(true);
+        try {
+            const row = await createSubscriptionRenewal(subscription.id, {
+                renewedOn: newRenewedOn,
+            });
+            setRenewals((prev) =>
+                [...prev.filter((r) => r.id !== row.id), row].sort((a, b) =>
+                    b.renewedOn.localeCompare(a.renewedOn),
+                ),
+            );
+            toastSuccess('Renovación añadida');
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setAddingRenewal(false);
+        }
+    }
+
+    async function handleDeleteRenewal(id: number) {
+        if (!subscription || mode !== 'edit') return;
+        setDeletingRenewalId(id);
+        try {
+            await deleteSubscriptionRenewal(subscription.id, id);
+            setRenewals((prev) => prev.filter((r) => r.id !== id));
+            toastSuccess('Renovación eliminada');
+        } catch (err) {
+            toastError(err);
+        } finally {
+            setDeletingRenewalId(null);
+        }
+    }
+
     return (
         <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
             <FormPanelHeader>
                 <FormPanelTitle>{mode === 'add' ? 'Añadir suscripción' : 'Editar suscripción'}</FormPanelTitle>
                 <FormPanelDescription>
-                    Dominios, hosting, VPS, SaaS e IA. Alertas 90/60/30 días antes de renovar.
+                    Dominios, hosting, VPS, SaaS e IA. Alertas 90/60/30 días antes de caducar.
+                    {form.autoRenew
+                        ? ' Con auto-renovación, al caducar se registra el historial y se alarga la caducidad según el periodo.'
+                        : ''}
                 </FormPanelDescription>
             </FormPanelHeader>
 
@@ -245,42 +291,10 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         type="checkbox"
                         className="size-4 accent-primary"
                         checked={!!form.autoRenew}
-                        onChange={(e) => setAutoRenew(e.target.checked)}
+                        onChange={(e) => setField('autoRenew', e.target.checked)}
                     />
                     Auto-renovación
                 </label>
-
-                {form.autoRenew && (
-                    <div className="grid grid-cols-2 gap-3">
-                        <FormField id="s-price" label="Precio renovación" error={fieldErrors.renewalPrice}>
-                            <Input
-                                id="s-price"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                inputMode="decimal"
-                                value={form.renewalPrice ?? ''}
-                                onChange={(e) =>
-                                    setField('renewalPrice', e.target.value === '' ? null : Number(e.target.value))
-                                }
-                                placeholder="0,00"
-                                className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
-                            />
-                        </FormField>
-                        <FormField id="s-renews" label="Renueva el" error={fieldErrors.renewsOn}>
-                            <Input
-                                id="s-renews"
-                                type="date"
-                                required
-                                value={form.renewsOn ?? ''}
-                                onChange={(e) => setField('renewsOn', e.target.value || null)}
-                                placeholder="AAAA-MM-DD"
-                                className="bg-card"
-                                aria-invalid={!!fieldErrors.renewsOn}
-                            />
-                        </FormField>
-                    </div>
-                )}
 
                 <FormField id="s-expires" label="Caduca el" error={fieldErrors.expiresOn}>
                     <Input
@@ -289,7 +303,6 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         required
                         value={form.expiresOn}
                         onChange={(e) => setField('expiresOn', e.target.value)}
-                        min={form.autoRenew && form.renewsOn ? form.renewsOn : undefined}
                         placeholder="AAAA-MM-DD"
                         className="bg-card"
                         aria-invalid={!!fieldErrors.expiresOn}
@@ -307,34 +320,6 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                     />
                 </FormField>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <FormField id="s-last-amt" label="Último pago (€)" error={fieldErrors.lastPaidAmount}>
-                        <Input
-                            id="s-last-amt"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            inputMode="decimal"
-                            value={form.lastPaidAmount ?? ''}
-                            onChange={(e) =>
-                                setField('lastPaidAmount', e.target.value === '' ? null : Number(e.target.value))
-                            }
-                            placeholder="0,00"
-                            className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
-                        />
-                    </FormField>
-                    <FormField id="s-last-on" label="Fecha último pago" error={fieldErrors.lastPaidOn}>
-                        <Input
-                            id="s-last-on"
-                            type="date"
-                            value={form.lastPaidOn ?? ''}
-                            onChange={(e) => setField('lastPaidOn', e.target.value || null)}
-                            placeholder="AAAA-MM-DD"
-                            className="bg-card"
-                        />
-                    </FormField>
-                </div>
-
                 <FormField id="s-notes" label="Notas" error={fieldErrors.notes}>
                     <Textarea
                         id="s-notes"
@@ -344,6 +329,68 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         className="min-h-20 bg-card"
                     />
                 </FormField>
+
+                {mode === 'edit' && subscription && (
+                    <div className="space-y-3 border-t border-border pt-4">
+                        <div className="flex items-baseline justify-between gap-2">
+                            <h3 className="text-sm font-medium">Renovaciones</h3>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                                {renewalsLoading ? '…' : `${renewals.length}`}
+                            </span>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Input
+                                type="date"
+                                value={newRenewedOn}
+                                onChange={(e) => setNewRenewedOn(e.target.value)}
+                                aria-label="Fecha renovación"
+                                className="min-w-0 flex-1 bg-card"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="cursor-pointer shrink-0"
+                                disabled={addingRenewal || renewalsLoading}
+                                onClick={() => void handleAddRenewal()}
+                                aria-label="Añadir renovación"
+                            >
+                                <Plus className="size-4" />
+                            </Button>
+                        </div>
+
+                        {renewalsLoading ? (
+                            <p className="text-sm text-muted-foreground">Cargando renovaciones…</p>
+                        ) : renewals.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Sin renovaciones registradas todavía.
+                            </p>
+                        ) : (
+                            <ul className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-border">
+                                {renewals.map((r) => (
+                                    <li
+                                        key={r.id}
+                                        className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 last:border-b-0"
+                                    >
+                                        <p className="truncate text-sm">{formatRenewedOn(r.renewedOn)}</p>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            className="cursor-pointer text-muted-foreground hover:text-destructive"
+                                            disabled={deletingRenewalId === r.id}
+                                            onClick={() => void handleDeleteRenewal(r.id)}
+                                            aria-label="Eliminar renovación"
+                                        >
+                                            <Trash2 className="size-3.5" />
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
             </form>
 
             <FormPanelFooter className="border-t border-border px-4 py-3">

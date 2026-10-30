@@ -22,7 +22,6 @@ import {
     deleteSubscription,
     displaySubscriptionStatus,
     EXPIRING_BADGE_CLASS,
-    formatRenewalPrice,
     listSubscriptions,
     updateSubscription,
     type Subscription,
@@ -45,7 +44,7 @@ function parseTab(scope: string | null): SubTab {
     return scope === 'history' ? 'history' : 'open';
 }
 
-function DateCell({ date, status, kind }: { date: string; status: string; kind: 'renew' | 'expire' }) {
+function DateCell({ date, status }: { date: string; status: string }) {
     const days = daysUntilDate(date);
     const soon = days != null && days >= 0 && days <= 30 && status === 'active';
 
@@ -54,13 +53,7 @@ function DateCell({ date, status, kind }: { date: string; status: string; kind: 
             <span className={cn('text-foreground', soon && 'font-medium')}>{date}</span>
             {soon && (
                 <span className="text-xs text-amber-300">
-                    {days === 0
-                        ? kind === 'renew'
-                            ? 'Renueva hoy'
-                            : 'Caduca hoy'
-                        : days === 1
-                          ? '1 día'
-                          : `${days} días`}
+                    {days === 0 ? 'Caduca hoy' : days === 1 ? '1 día' : `${days} días`}
                 </span>
             )}
         </div>
@@ -299,9 +292,8 @@ export function SubscriptionsPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Suscripción</TableHead>
-                                <TableHead className="hidden sm:table-cell">Precio</TableHead>
-                                <TableHead className="hidden md:table-cell">Periodo</TableHead>
-                                <TableHead className="hidden lg:table-cell">Renueva</TableHead>
+                                <TableHead className="hidden sm:table-cell">Periodo</TableHead>
+                                <TableHead className="hidden sm:table-cell">Auto</TableHead>
                                 <TableHead>Caduca</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="w-12" />
@@ -318,11 +310,8 @@ export function SubscriptionsPage() {
                                         <TableCell className="hidden sm:table-cell">
                                             <Skeleton className="h-4 w-full" />
                                         </TableCell>
-                                        <TableCell className="hidden md:table-cell">
-                                            <Skeleton className="h-4 w-full" />
-                                        </TableCell>
-                                        <TableCell className="hidden lg:table-cell">
-                                            <Skeleton className="h-4 w-full" />
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Skeleton className="h-4 w-12" />
                                         </TableCell>
                                         <TableCell>
                                             <Skeleton className="h-4 w-full" />
@@ -337,7 +326,7 @@ export function SubscriptionsPage() {
                                 ))}
                             {!loading && rows.length === 0 && (
                                 <TableRow className="hover:bg-transparent">
-                                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                         {tab === 'history'
                                             ? 'No hay suscripciones en el historial.'
                                             : 'No hay suscripciones activas.'}
@@ -359,31 +348,24 @@ export function SubscriptionsPage() {
                                                     .filter(Boolean)
                                                     .join(' · ') || '—'}
                                             </span>
-                                            {row.autoRenew && row.renewsOn ? (
-                                                <p className="truncate text-xs text-muted-foreground lg:hidden">
-                                                    Renueva {row.renewsOn}
-                                                </p>
-                                            ) : null}
+                                            <p className="text-xs text-muted-foreground sm:hidden">
+                                                {(SUBSCRIPTION_BILLING_CYCLE_LABELS[row.billingCycle] ??
+                                                    row.billingCycle) + (row.autoRenew ? ' · Auto' : '')}
+                                            </p>
                                         </div>
                                     </TableCell>
                                     <TableCell className="hidden sm:table-cell">
-                                        {row.autoRenew
-                                            ? formatRenewalPrice(row.renewalPrice, row.currency)
-                                            : '—'}
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell">
                                         {SUBSCRIPTION_BILLING_CYCLE_LABELS[row.billingCycle] ?? row.billingCycle}
-                                        {row.autoRenew ? ' · auto' : ''}
                                     </TableCell>
-                                    <TableCell className="hidden lg:table-cell">
-                                        {row.autoRenew && row.renewsOn ? (
-                                            <DateCell date={row.renewsOn} status={row.status} kind="renew" />
+                                    <TableCell className="hidden sm:table-cell">
+                                        {row.autoRenew ? (
+                                            <Badge className="border-transparent bg-primary/20 text-primary">Sí</Badge>
                                         ) : (
-                                            <span className="text-muted-foreground">—</span>
+                                            <Badge className="border-transparent bg-slate-500/25 text-slate-300">No</Badge>
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <DateCell date={row.expiresOn} status={row.status} kind="expire" />
+                                        <DateCell date={row.expiresOn} status={row.status} />
                                     </TableCell>
                                     <TableCell>
                                         <StatusBadge row={row} />

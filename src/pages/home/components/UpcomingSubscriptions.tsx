@@ -6,7 +6,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
     SUBSCRIPTION_CATEGORY_LABELS,
     daysUntilDate,
-    formatRenewalPrice,
     type Subscription,
 } from '@/lib/subscriptions';
 
@@ -135,9 +134,6 @@ export function UpcomingSubscriptions({ items, isLoading }: Props) {
                                                 <span className="hidden min-[400px]:inline">
                                                     {' '}
                                                     · caduca {formatDate(when)}
-                                                    {row.renewalPrice
-                                                        ? ` · ${formatRenewalPrice(row.renewalPrice, row.currency)}`
-                                                        : ''}
                                                 </span>
                                             </p>
                                         </div>

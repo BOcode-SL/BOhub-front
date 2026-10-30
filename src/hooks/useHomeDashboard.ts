@@ -65,7 +65,7 @@ export function useHomeDashboard(): HomeDashboard {
                     listSubscriptions(
                         {
                             scope: 'open',
-                            sort: 'renews_on',
+                            sort: 'expires_on',
                             perPage: UPCOMING_SUBSCRIPTIONS_LIMIT,
                             page: 1,
                         },
