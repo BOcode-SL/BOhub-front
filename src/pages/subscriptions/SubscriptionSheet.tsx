@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { AppSelect } from '@/components/app-select';
 import { EntitySelect } from '@/components/entity-select';
 import { FormField } from '@/components/form-field';
@@ -13,37 +12,38 @@ import {
     FormPanelHeader,
     FormPanelTitle,
 } from '@/components/responsive-form-panel';
-import { useAuth } from '@/auth/AuthContext';
 import { ApiError, flattenFieldErrors } from '@/lib/api';
 import { listProjectOptions } from '@/lib/projects';
 import {
+    NO_SPINNER_INPUT_CLASS,
     SUBSCRIPTION_BILLING_CYCLES,
     SUBSCRIPTION_BILLING_CYCLE_LABELS,
     SUBSCRIPTION_CATEGORIES,
     SUBSCRIPTION_CATEGORY_LABELS,
-    linkSubscriptionExpense,
     type Subscription,
     type SubscriptionBillingCycle,
     type SubscriptionCategory,
     type SubscriptionInput,
 } from '@/lib/subscriptions';
-import { toastError, toastSuccess } from '@/lib/toast';
+import { toastError } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 function today(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
 function emptyForm(): SubscriptionInput {
+    const d = today();
     return {
         name: '',
-        resource: '',
         provider: '',
         category: 'domain',
         renewalPrice: null,
         currency: 'EUR',
         billingCycle: 'annual',
         autoRenew: false,
-        renewsOn: today(),
+        renewsOn: d,
+        expiresOn: d,
         notes: '',
         projectId: null,
         lastPaidAmount: null,
@@ -54,7 +54,6 @@ function emptyForm(): SubscriptionInput {
 function toForm(row: Subscription): SubscriptionInput {
     return {
         name: row.name,
-        resource: row.resource ?? '',
         provider: row.provider ?? '',
         category: row.category,
         renewalPrice: row.renewalPrice != null ? Number(row.renewalPrice) : null,
@@ -62,6 +61,7 @@ function toForm(row: Subscription): SubscriptionInput {
         billingCycle: row.billingCycle,
         autoRenew: row.autoRenew,
         renewsOn: row.renewsOn,
+        expiresOn: row.expiresOn || row.renewsOn,
         notes: row.notes ?? '',
         projectId: row.projectId ?? null,
         lastPaidAmount: row.lastPaidAmount != null ? Number(row.lastPaidAmount) : null,
@@ -75,18 +75,13 @@ type Props = {
     subscription: Subscription | null;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: SubscriptionInput) => Promise<void>;
-    onLinked?: (row: Subscription) => void;
 };
 
-export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSubmit, onLinked }: Props) {
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSubmit }: Props) {
     const [form, setForm] = useState<SubscriptionInput>(emptyForm());
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
     const [saving, setSaving] = useState(false);
-    const [linking, setLinking] = useState(false);
-    const [expenseIdInput, setExpenseIdInput] = useState('');
 
     useEffect(() => {
         if (!open) return;
@@ -105,7 +100,6 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
     useEffect(() => {
         if (!open) return;
         setFieldErrors({});
-        setExpenseIdInput(subscription?.expenseId ? String(subscription.expenseId) : '');
         if (mode !== 'edit' || !subscription) {
             setForm(emptyForm());
             return;
@@ -133,11 +127,14 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
             setFieldErrors({ name: 'Nombre obligatorio.' });
             return;
         }
+        if (form.expiresOn && form.renewsOn && form.expiresOn < form.renewsOn) {
+            setFieldErrors({ expiresOn: 'Caduca el debe ser ≥ Renueva el.' });
+            return;
+        }
         setSaving(true);
         try {
             await onSubmit({
                 name: form.name.trim(),
-                resource: form.resource?.trim() || null,
                 provider: form.provider?.trim() || null,
                 category: form.category,
                 renewalPrice: form.renewalPrice,
@@ -145,6 +142,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                 billingCycle: form.billingCycle,
                 autoRenew: !!form.autoRenew,
                 renewsOn: form.renewsOn,
+                expiresOn: form.expiresOn,
                 notes: form.notes?.trim() || null,
                 projectId: form.projectId || null,
                 lastPaidAmount: form.lastPaidAmount,
@@ -161,45 +159,12 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
         }
     }
 
-    async function handleCreateExpense() {
-        if (!subscription) return;
-        setLinking(true);
-        try {
-            const updated = await linkSubscriptionExpense(subscription.id, { create: true });
-            toastSuccess('Gasto creado y vinculado');
-            onLinked?.(updated);
-        } catch (err) {
-            toastError(err);
-        } finally {
-            setLinking(false);
-        }
-    }
-
-    async function handleLinkExpense() {
-        if (!subscription) return;
-        const id = Number(expenseIdInput);
-        if (!Number.isFinite(id) || id < 1) {
-            toastError(new Error('Indica un ID de gasto válido'));
-            return;
-        }
-        setLinking(true);
-        try {
-            const updated = await linkSubscriptionExpense(subscription.id, { expenseId: id });
-            toastSuccess('Gasto vinculado');
-            onLinked?.(updated);
-        } catch (err) {
-            toastError(err);
-        } finally {
-            setLinking(false);
-        }
-    }
-
     return (
         <FormPanel open={open} onOpenChange={onOpenChange} contentClassName="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
             <FormPanelHeader>
                 <FormPanelTitle>{mode === 'add' ? 'Añadir suscripción' : 'Editar suscripción'}</FormPanelTitle>
                 <FormPanelDescription>
-                    Dominios, hosting y SaaS. Alertas internas 90/60/30 días antes de renovar.
+                    Dominios, hosting, VPS, SaaS e IA. Alertas 90/60/30 días antes de renovar.
                 </FormPanelDescription>
             </FormPanelHeader>
 
@@ -215,19 +180,9 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         required
                         value={form.name}
                         onChange={(e) => setField('name', e.target.value)}
-                        placeholder=".COM Domain, KVM 1…"
+                        placeholder="Ej. .COM Domain profit-lost.com"
                         className="bg-card"
                         aria-invalid={!!fieldErrors.name}
-                    />
-                </FormField>
-
-                <FormField id="s-resource" label="Recurso" error={fieldErrors.resource}>
-                    <Input
-                        id="s-resource"
-                        value={form.resource ?? ''}
-                        onChange={(e) => setField('resource', e.target.value)}
-                        placeholder="dominio.com, srv…, app.bocode.es"
-                        className="bg-card"
                     />
                 </FormField>
 
@@ -237,7 +192,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             id="s-provider"
                             value={form.provider ?? ''}
                             onChange={(e) => setField('provider', e.target.value)}
-                            placeholder="Hostinger"
+                            placeholder="Ej. Hostinger"
                             className="bg-card"
                         />
                     </FormField>
@@ -250,6 +205,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             }))}
                             value={form.category}
                             onValueChange={(v) => setField('category', v as SubscriptionCategory)}
+                            placeholder="Categoría"
                             className="w-full"
                         />
                     </FormField>
@@ -262,14 +218,16 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             type="number"
                             min={0}
                             step="0.01"
+                            inputMode="decimal"
                             value={form.renewalPrice ?? ''}
                             onChange={(e) =>
                                 setField('renewalPrice', e.target.value === '' ? null : Number(e.target.value))
                             }
-                            className="bg-card"
+                            placeholder="0,00"
+                            className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
                         />
                     </FormField>
-                    <FormField id="s-cycle" label="Ciclo" error={fieldErrors.billingCycle}>
+                    <FormField id="s-cycle" label="Periodo" error={fieldErrors.billingCycle}>
                         <AppSelect
                             id="s-cycle"
                             items={SUBSCRIPTION_BILLING_CYCLES.map((c) => ({
@@ -278,6 +236,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             }))}
                             value={form.billingCycle}
                             onValueChange={(v) => setField('billingCycle', v as SubscriptionBillingCycle)}
+                            placeholder="Periodo"
                             className="w-full"
                         />
                     </FormField>
@@ -291,20 +250,35 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             required
                             value={form.renewsOn}
                             onChange={(e) => setField('renewsOn', e.target.value)}
+                            placeholder="AAAA-MM-DD"
                             className="bg-card"
                         />
                     </FormField>
-                    <FormField id="s-project" label="Proyecto" error={fieldErrors.projectId}>
-                        <EntitySelect
-                            id="s-project"
-                            value={form.projectId ?? null}
-                            onValueChange={(id) => setField('projectId', id)}
-                            items={projects}
-                            placeholder="Opcional"
-                            allowClear
+                    <FormField id="s-expires" label="Caduca el" error={fieldErrors.expiresOn}>
+                        <Input
+                            id="s-expires"
+                            type="date"
+                            required
+                            value={form.expiresOn}
+                            onChange={(e) => setField('expiresOn', e.target.value)}
+                            min={form.renewsOn || undefined}
+                            placeholder="AAAA-MM-DD"
+                            className="bg-card"
+                            aria-invalid={!!fieldErrors.expiresOn}
                         />
                     </FormField>
                 </div>
+
+                <FormField id="s-project" label="Proyecto" error={fieldErrors.projectId}>
+                    <EntitySelect
+                        id="s-project"
+                        value={form.projectId ?? null}
+                        onValueChange={(id) => setField('projectId', id)}
+                        items={projects}
+                        placeholder="Seleccionar proyecto…"
+                        allowClear
+                    />
+                </FormField>
 
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
@@ -323,11 +297,13 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             type="number"
                             min={0}
                             step="0.01"
+                            inputMode="decimal"
                             value={form.lastPaidAmount ?? ''}
                             onChange={(e) =>
                                 setField('lastPaidAmount', e.target.value === '' ? null : Number(e.target.value))
                             }
-                            className="bg-card"
+                            placeholder="0,00"
+                            className={cn('bg-card', NO_SPINNER_INPUT_CLASS)}
                         />
                     </FormField>
                     <FormField id="s-last-on" label="Fecha último pago" error={fieldErrors.lastPaidOn}>
@@ -336,6 +312,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                             type="date"
                             value={form.lastPaidOn ?? ''}
                             onChange={(e) => setField('lastPaidOn', e.target.value || null)}
+                            placeholder="AAAA-MM-DD"
                             className="bg-card"
                         />
                     </FormField>
@@ -346,65 +323,10 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                         id="s-notes"
                         value={form.notes ?? ''}
                         onChange={(e) => setField('notes', e.target.value)}
+                        placeholder="Notas internas…"
                         className="min-h-20 bg-card"
                     />
                 </FormField>
-
-                {mode === 'edit' && subscription && (
-                    <div className="rounded-md border border-border p-3 space-y-2">
-                        <p className="text-sm font-medium">Gasto (Facturación)</p>
-                        {subscription.expenseId ? (
-                            <p className="text-sm text-muted-foreground">
-                                Vinculado:{' '}
-                                {isAdmin ? (
-                                    <Link
-                                        to="/dashboard/billing/expenses"
-                                        className="text-primary underline-offset-2 hover:underline"
-                                    >
-                                        #{subscription.expenseId}
-                                        {subscription.expense?.description
-                                            ? ` · ${subscription.expense.description}`
-                                            : ''}
-                                    </Link>
-                                ) : (
-                                    <span>#{subscription.expenseId}</span>
-                                )}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground">Sin gasto vinculado.</p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                            <Input
-                                type="number"
-                                min={1}
-                                placeholder="ID gasto"
-                                value={expenseIdInput}
-                                onChange={(e) => setExpenseIdInput(e.target.value)}
-                                className="h-8 w-28 bg-card"
-                            />
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={linking}
-                                onClick={() => void handleLinkExpense()}
-                            >
-                                Vincular
-                            </Button>
-                            {isAdmin && (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    disabled={linking}
-                                    onClick={() => void handleCreateExpense()}
-                                >
-                                    Crear gasto
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
             </form>
 
             <FormPanelFooter className="border-t border-border px-4 py-3">

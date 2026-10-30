@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     SUBSCRIPTION_CATEGORY_LABELS,
-    daysUntilRenewsOn,
+    daysUntilDate,
     formatRenewalPrice,
     type Subscription,
 } from '@/lib/subscriptions';
@@ -111,7 +111,8 @@ export function UpcomingSubscriptions({ items, isLoading }: Props) {
                 {rows.length > 0 ? (
                     <div className="flex flex-col gap-2 sm:gap-3">
                         {rows.map((row) => {
-                            const days = daysUntilRenewsOn(row.renewsOn);
+                            const when = row.expiresOn || row.renewsOn;
+                            const days = daysUntilDate(when);
                             const categoryLabel = SUBSCRIPTION_CATEGORY_LABELS[row.category] ?? row.category;
 
                             return (
@@ -130,10 +131,10 @@ export function UpcomingSubscriptions({ items, isLoading }: Props) {
                                                 {row.name}
                                             </p>
                                             <p className="truncate text-xs text-muted-foreground sm:text-sm">
-                                                {row.resource || categoryLabel}
+                                                {[row.provider, categoryLabel].filter(Boolean).join(' · ')}
                                                 <span className="hidden min-[400px]:inline">
                                                     {' '}
-                                                    · {formatDate(row.renewsOn)}
+                                                    · caduca {formatDate(when)}
                                                     {row.renewalPrice
                                                         ? ` · ${formatRenewalPrice(row.renewalPrice, row.currency)}`
                                                         : ''}

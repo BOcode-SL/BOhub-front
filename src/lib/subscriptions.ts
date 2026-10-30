@@ -1,8 +1,8 @@
 import { request } from './api';
 
 export const SUBSCRIPTION_STATUSES = ['active', 'expired', 'cancelled'] as const;
-export const SUBSCRIPTION_CATEGORIES = ['domain', 'hosting', 'saas', 'other'] as const;
-export const SUBSCRIPTION_BILLING_CYCLES = ['monthly', 'annual', 'biennial', 'other'] as const;
+export const SUBSCRIPTION_CATEGORIES = ['domain', 'hosting', 'vps', 'saas', 'ia', 'other'] as const;
+export const SUBSCRIPTION_BILLING_CYCLES = ['monthly', 'semiannual', 'annual', 'biennial', 'other'] as const;
 
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export type SubscriptionCategory = (typeof SUBSCRIPTION_CATEGORIES)[number];
@@ -23,20 +23,23 @@ export const SUBSCRIPTION_STATUS_BADGE_CLASS: Record<SubscriptionStatus, string>
 export const SUBSCRIPTION_CATEGORY_LABELS: Record<SubscriptionCategory, string> = {
     domain: 'Dominio',
     hosting: 'Hosting',
+    vps: 'VPS',
     saas: 'SaaS',
+    ia: 'IA',
     other: 'Otro',
 };
 
 export const SUBSCRIPTION_BILLING_CYCLE_LABELS: Record<SubscriptionBillingCycle, string> = {
     monthly: 'Mensual',
+    semiannual: 'Semestral',
     annual: 'Anual',
     biennial: 'Bienal',
     other: 'Otro',
 };
 
-/** Days from today (UTC date) until renewsOn; null if unparseable. */
-export function daysUntilRenewsOn(renewsOn: string): number | null {
-    const [y, m, d] = renewsOn.split('-').map(Number);
+/** Days from today (UTC date) until dateYmd; null if unparseable. */
+export function daysUntilDate(dateYmd: string): number | null {
+    const [y, m, d] = dateYmd.split('-').map(Number);
     if (!y || !m || !d) return null;
     const end = Date.UTC(y, m - 1, d);
     const now = new Date();
@@ -44,22 +47,30 @@ export function daysUntilRenewsOn(renewsOn: string): number | null {
     return Math.round((end - today) / 86_400_000);
 }
 
+/** @deprecated use daysUntilDate */
+export function daysUntilRenewsOn(renewsOn: string): number | null {
+    return daysUntilDate(renewsOn);
+}
+
 export function displaySubscriptionStatus(
     status: SubscriptionStatus,
-    renewsOn: string,
+    expiresOn: string,
 ): SubscriptionStatus | 'expiring' {
     if (status === 'cancelled' || status === 'expired') return status;
-    const days = daysUntilRenewsOn(renewsOn);
+    const days = daysUntilDate(expiresOn);
     if (days != null && days >= 0 && days <= 30) return 'expiring';
     return 'active';
 }
 
 export const EXPIRING_BADGE_CLASS = 'border-transparent bg-amber-500/20 text-amber-200';
 
+/** Hide number input spinners (Chrome/Safari/Firefox). */
+export const NO_SPINNER_INPUT_CLASS =
+    '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+
 export type Subscription = {
     id: number;
     name: string;
-    resource?: string | null;
     provider?: string | null;
     category: SubscriptionCategory;
     renewalPrice?: string | null;
@@ -67,25 +78,18 @@ export type Subscription = {
     billingCycle: SubscriptionBillingCycle;
     autoRenew: boolean;
     renewsOn: string;
+    expiresOn: string;
     status: SubscriptionStatus;
     notes?: string | null;
     projectId?: number | null;
-    expenseId?: number | null;
     lastPaidAmount?: string | null;
     lastPaidOn?: string | null;
     project?: { id: number; name: string } | null;
-    expense?: {
-        id: number;
-        description: string;
-        totalAmount: string;
-        status: string;
-    } | null;
     createdBy?: number | null;
 };
 
 export type SubscriptionInput = {
     name: string;
-    resource?: string | null;
     provider?: string | null;
     category: SubscriptionCategory;
     renewalPrice?: number | null;
@@ -93,6 +97,7 @@ export type SubscriptionInput = {
     billingCycle: SubscriptionBillingCycle;
     autoRenew?: boolean;
     renewsOn: string;
+    expiresOn: string;
     notes?: string | null;
     projectId?: number | null;
     lastPaidAmount?: number | null;
@@ -155,11 +160,4 @@ export async function updateSubscription(
 
 export async function deleteSubscription(id: number): Promise<void> {
     await request(`/api/subscriptions/${id}`, { method: 'DELETE' });
-}
-
-export async function linkSubscriptionExpense(
-    id: number,
-    body: { expenseId?: number | null; create?: boolean },
-): Promise<Subscription> {
-    return request(`/api/subscriptions/${id}/link-expense`, { method: 'POST', body });
 }
