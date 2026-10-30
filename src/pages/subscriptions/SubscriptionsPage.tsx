@@ -357,11 +357,11 @@ export function SubscriptionsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="size-8">
-                                                    <MoreHorizontal className="size-4" />
-                                                    <span className="sr-only">Acciones</span>
-                                                </Button>
+                                            <DropdownMenuTrigger
+                                                render={<Button variant="ghost" size="icon-sm" className="cursor-pointer" />}
+                                            >
+                                                <MoreHorizontal />
+                                                <span className="sr-only">Acciones</span>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem

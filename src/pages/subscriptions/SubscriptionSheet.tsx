@@ -297,7 +297,7 @@ export function SubscriptionSheet({ open, mode, subscription, onOpenChange, onSu
                     <FormField id="s-project" label="Proyecto" error={fieldErrors.projectId}>
                         <EntitySelect
                             id="s-project"
-                            value={form.projectId}
+                            value={form.projectId ?? null}
                             onValueChange={(id) => setField('projectId', id)}
                             items={projects}
                             placeholder="Opcional"
